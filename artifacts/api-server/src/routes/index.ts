@@ -5,6 +5,7 @@ import photosRouter from "./photos";
 import tagsRouter from "./tags";
 import statsRouter from "./stats";
 import storageRouter from "./storage";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use("/photos", photosRouter);
 router.use("/tags", tagsRouter);
 router.use("/stats", statsRouter);
 router.use(storageRouter);
+router.use("/ai", aiRouter);
 
 export default router;

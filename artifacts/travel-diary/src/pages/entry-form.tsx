@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import {
@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Save, Star, X, Plus } from "lucide-react";
+import { ArrowLeft, Save, Star, X, Plus, Sparkles, Loader2 } from "lucide-react";
 import { ImageUploader } from "@/components/image-uploader";
 import { Link } from "wouter";
 
@@ -54,6 +54,12 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   const [newTagNames, setNewTagNames] = useState<string[]>([]);
   const [hoverRating, setHoverRating] = useState(0);
 
+  // AI enhancement state
+  const [aiInstruction, setAiInstruction] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     if (existingEntry) {
       setForm({
@@ -86,6 +92,57 @@ export default function EntryForm({ entryId }: EntryFormProps) {
 
   const removeNewTag = (name: string) => {
     setNewTagNames((prev) => prev.filter((n) => n !== name));
+  };
+
+  const handleAiEnhance = async () => {
+    if (!form.content.trim()) return;
+    setAiLoading(true);
+    setAiError(null);
+
+    abortRef.current = new AbortController();
+    let accumulated = "";
+
+    try {
+      const resp = await fetch("/api/ai/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ content: form.content, instruction: aiInstruction }),
+        signal: abortRef.current.signal,
+      });
+
+      if (!resp.ok || !resp.body) {
+        throw new Error("请求失败");
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      // Clear content and stream in replacement
+      setForm((f) => ({ ...f, content: "" }));
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value, { stream: true }).split("\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const json = JSON.parse(line.slice(6));
+          if (json.error) throw new Error(json.error);
+          if (json.done) break;
+          if (json.text) {
+            accumulated += json.text;
+            setForm((f) => ({ ...f, content: accumulated }));
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        setAiError(err.message ?? "AI 优化失败，请稍后重试");
+      }
+    } finally {
+      setAiLoading(false);
+      abortRef.current = null;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -333,6 +390,52 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                   rows={10}
                   className="bg-background border-border/60 resize-none font-serif text-base leading-relaxed"
                 />
+
+                {/* AI Enhancement Panel */}
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    AI 优化（由 DeepSeek 驱动）
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="描述优化要求（留空则自动润色语法和文笔）"
+                      value={aiInstruction}
+                      onChange={(e) => setAiInstruction(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); handleAiEnhance(); }
+                      }}
+                      disabled={aiLoading}
+                      className="bg-background border-border/60 text-sm h-9"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={aiLoading ? () => abortRef.current?.abort() : handleAiEnhance}
+                      disabled={!form.content.trim()}
+                      className="shrink-0 gap-1.5 h-9"
+                      variant={aiLoading ? "outline" : "default"}
+                    >
+                      {aiLoading ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          停止
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          AI 优化
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {aiError && (
+                    <p className="text-xs text-destructive">{aiError}</p>
+                  )}
+                  {aiLoading && (
+                    <p className="text-xs text-muted-foreground animate-pulse">正在优化中，内容实时更新...</p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
