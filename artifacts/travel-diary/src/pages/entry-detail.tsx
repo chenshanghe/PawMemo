@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import {
@@ -18,7 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  MapPin, CalendarDays, Star, Pencil, Trash2, ArrowLeft, Image as ImageIcon, X, Plus
+  MapPin, CalendarDays, Star, Pencil, Trash2, ArrowLeft, X, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { format } from "date-fns";
@@ -32,11 +32,84 @@ const MOODS: Record<string, string> = {
   思念: "bg-purple-100 text-purple-800",
 };
 
+function Lightbox({ photos, index, onClose }: { photos: { url: string; caption?: string | null }[]; index: number; onClose: () => void }) {
+  const [current, setCurrent] = useState(index);
+  const touchStartX = useRef<number | null>(null);
+
+  const prev = useCallback(() => setCurrent((i) => (i - 1 + photos.length) % photos.length), [photos.length]);
+  const next = useCallback(() => setCurrent((i) => (i + 1) % photos.length), [photos.length]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") prev();
+      else if (e.key === "ArrowRight") next();
+      else if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [prev, next, onClose]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) diff > 0 ? next() : prev();
+    touchStartX.current = null;
+  };
+
+  const photo = photos[current];
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+      onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <button className="absolute top-4 right-4 text-white/70 hover:text-white p-2 z-10" onClick={onClose}>
+        <X className="w-6 h-6" />
+      </button>
+      <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/60 text-sm tabular-nums">
+        {current + 1} / {photos.length}
+      </span>
+      {photos.length > 1 && (
+        <>
+          <button
+            className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors z-10"
+            onClick={(e) => { e.stopPropagation(); prev(); }}
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <button
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors z-10"
+            onClick={(e) => { e.stopPropagation(); next(); }}
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+        </>
+      )}
+      <img
+        src={photo.url}
+        alt={photo.caption ?? ""}
+        className="max-w-full max-h-[85vh] object-contain rounded-lg select-none"
+        onClick={(e) => e.stopPropagation()}
+        draggable={false}
+      />
+      {photo.caption && (
+        <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/80 text-sm bg-black/40 px-3 py-1 rounded-full whitespace-nowrap">
+          {photo.caption}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function EntryDetail({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const { data: entry, isLoading } = useGetEntry(id, {
     query: { enabled: !!id, queryKey: getGetEntryQueryKey(id) },
@@ -90,19 +163,16 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
     ? Math.max(1, Math.ceil((new Date(entry.endDate).getTime() - new Date(entry.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)
     : 1;
 
+  const photos = entry?.photos ?? [];
+
   return (
     <Layout>
-      {/* Lightbox */}
-      {lightboxSrc && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setLightboxSrc(null)}
-        >
-          <button className="absolute top-4 right-4 text-white/80 hover:text-white p-2">
-            <X className="w-6 h-6" />
-          </button>
-          <img src={lightboxSrc} alt="" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
-        </div>
+      {lightboxIndex !== null && (
+        <Lightbox
+          photos={photos}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
       )}
 
       <div className="max-w-3xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -199,15 +269,15 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         <div className="space-y-4">
           <h2 className="text-xl font-serif font-bold text-foreground">旅途照片</h2>
 
-          {entry.photos && entry.photos.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {entry.photos.map((photo) => (
+          {photos.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              {photos.map((photo, idx) => (
                 <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-xl shadow-sm bg-muted/30">
                   <img
                     src={photo.url}
                     alt={photo.caption ?? "旅途照片"}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
-                    onClick={() => setLightboxSrc(photo.url)}
+                    onClick={() => setLightboxIndex(idx)}
                   />
                   {photo.caption && (
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">

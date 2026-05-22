@@ -101,8 +101,14 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
     [entryId, addPhoto, queryClient, updateItem]
   );
 
+  const MAX_PHOTOS = 30;
+
   const handleFiles = async (files: FileList) => {
-    const newItems: QueueItem[] = Array.from(files).map((file) => ({
+    const sliced = Array.from(files).slice(0, MAX_PHOTOS);
+    if (files.length > MAX_PHOTOS) {
+      alert(`一次最多可选 ${MAX_PHOTOS} 张，已自动取前 ${MAX_PHOTOS} 张。`);
+    }
+    const newItems: QueueItem[] = sliced.map((file) => ({
       id: `${Date.now()}-${Math.random()}`,
       file,
       previewUrl: URL.createObjectURL(file),
