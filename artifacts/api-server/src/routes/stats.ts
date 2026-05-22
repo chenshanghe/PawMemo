@@ -1,30 +1,38 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { diaryEntriesTable, photosTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { diaryEntriesTable, photosTable, entryTagsTable, tagsTable } from "@workspace/db";
+import { sql, eq } from "drizzle-orm";
+import { requireAuth, AuthedRequest } from "../middlewares/auth";
 
 const router = Router();
 
+router.use(requireAuth);
+
 // GET /stats/summary
-router.get("/summary", async (_req, res) => {
+router.get("/summary", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+
   const [entryStats] = await db
     .select({
       totalEntries: sql<number>`count(*)::int`,
       totalDestinations: sql<number>`count(distinct ${diaryEntriesTable.destination})::int`,
     })
-    .from(diaryEntriesTable);
+    .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.userId, userId));
 
-  const [photoStats] = await db
+  const photoStats = await db
     .select({ totalPhotos: sql<number>`count(*)::int` })
-    .from(photosTable);
+    .from(photosTable)
+    .innerJoin(diaryEntriesTable, eq(photosTable.entryId, diaryEntriesTable.id))
+    .where(eq(diaryEntriesTable.userId, userId));
 
-  // Sum travel days from all entries
   const travelDaysRows = await db
     .select({
       startDate: diaryEntriesTable.startDate,
       endDate: diaryEntriesTable.endDate,
     })
-    .from(diaryEntriesTable);
+    .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.userId, userId));
 
   let totalTravelDays = 0;
   for (const row of travelDaysRows) {
@@ -41,21 +49,21 @@ router.get("/summary", async (_req, res) => {
   res.json({
     totalEntries: entryStats?.totalEntries ?? 0,
     totalDestinations: entryStats?.totalDestinations ?? 0,
-    totalPhotos: photoStats?.totalPhotos ?? 0,
+    totalPhotos: photoStats[0]?.totalPhotos ?? 0,
     totalTravelDays,
   });
 });
 
 // GET /stats/recent
-router.get("/recent", async (_req, res) => {
+router.get("/recent", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+
   const entries = await db
     .select()
     .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.userId, userId))
     .orderBy(sql`${diaryEntriesTable.createdAt} desc`)
     .limit(5);
-
-  const { tagsTable, entryTagsTable, photosTable: pt } = await import("@workspace/db");
-  const { eq } = await import("drizzle-orm");
 
   const result = await Promise.all(
     entries.map(async (entry) => {
@@ -66,8 +74,8 @@ router.get("/recent", async (_req, res) => {
         .where(eq(entryTagsTable.entryId, entry.id));
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)::int` })
-        .from(pt)
-        .where(eq(pt.entryId, entry.id));
+        .from(photosTable)
+        .where(eq(photosTable.entryId, entry.id));
       return { ...entry, tags, photoCount: count };
     })
   );
@@ -75,13 +83,16 @@ router.get("/recent", async (_req, res) => {
 });
 
 // GET /stats/destinations
-router.get("/destinations", async (_req, res) => {
+router.get("/destinations", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+
   const rows = await db
     .select({
       destination: diaryEntriesTable.destination,
       count: sql<number>`count(*)::int`,
     })
     .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.userId, userId))
     .groupBy(diaryEntriesTable.destination)
     .orderBy(sql`count(*) desc`);
   res.json(rows);

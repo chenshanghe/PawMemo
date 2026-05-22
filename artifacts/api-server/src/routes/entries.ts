@@ -6,7 +6,7 @@ import {
   entryTagsTable,
   photosTable,
 } from "@workspace/db";
-import { eq, ilike, or, sql, inArray } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import {
   ListEntriesQueryParams,
   CreateEntryBody,
@@ -17,10 +17,12 @@ import {
   ListEntryPhotosParams,
   AddEntryPhotoBody,
   AddEntryPhotoParams,
-  DeletePhotoParams,
 } from "@workspace/api-zod";
+import { requireAuth, AuthedRequest } from "../middlewares/auth";
 
 const router = Router();
+
+router.use(requireAuth);
 
 async function getEntryTags(entryId: number) {
   const rows = await db
@@ -72,6 +74,7 @@ async function syncEntryTags(entryId: number, tagIds: number[]) {
 
 // GET /entries
 router.get("/", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
   const parsed = ListEntriesQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid query params" });
@@ -79,7 +82,11 @@ router.get("/", async (req, res) => {
   }
   const { tag, destination, search } = parsed.data;
 
-  let entries = await db.select().from(diaryEntriesTable).orderBy(sql`${diaryEntriesTable.startDate} desc`);
+  let entries = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.userId, userId))
+    .orderBy(sql`${diaryEntriesTable.startDate} desc`);
 
   if (destination) {
     entries = entries.filter((e) =>
@@ -123,6 +130,7 @@ router.get("/", async (req, res) => {
 
 // POST /entries
 router.post("/", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
   const parsed = CreateEntryBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid body", details: parsed.error });
@@ -133,6 +141,7 @@ router.post("/", async (req, res) => {
   const [entry] = await db
     .insert(diaryEntriesTable)
     .values({
+      userId,
       title: data.title,
       destination: data.destination,
       content: data.content ?? null,
@@ -154,6 +163,7 @@ router.post("/", async (req, res) => {
 
 // GET /entries/:id
 router.get("/:id", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
   const parsed = GetEntryParams.safeParse({ id: Number(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -163,7 +173,7 @@ router.get("/:id", async (req, res) => {
   const [entry] = await db
     .select()
     .from(diaryEntriesTable)
-    .where(eq(diaryEntriesTable.id, id));
+    .where(and(eq(diaryEntriesTable.id, id), eq(diaryEntriesTable.userId, userId)));
   if (!entry) {
     res.status(404).json({ error: "Not found" });
     return;
@@ -177,6 +187,7 @@ router.get("/:id", async (req, res) => {
 
 // PATCH /entries/:id
 router.patch("/:id", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
   const paramsParsed = UpdateEntryParams.safeParse({ id: Number(req.params.id) });
   if (!paramsParsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -203,7 +214,7 @@ router.patch("/:id", async (req, res) => {
   const [entry] = await db
     .update(diaryEntriesTable)
     .set(updateData)
-    .where(eq(diaryEntriesTable.id, id))
+    .where(and(eq(diaryEntriesTable.id, id), eq(diaryEntriesTable.userId, userId)))
     .returning();
   if (!entry) {
     res.status(404).json({ error: "Not found" });
@@ -225,6 +236,7 @@ router.patch("/:id", async (req, res) => {
 
 // DELETE /entries/:id
 router.delete("/:id", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
   const parsed = DeleteEntryParams.safeParse({ id: Number(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -232,15 +244,24 @@ router.delete("/:id", async (req, res) => {
   }
   await db
     .delete(diaryEntriesTable)
-    .where(eq(diaryEntriesTable.id, parsed.data.id));
+    .where(and(eq(diaryEntriesTable.id, parsed.data.id), eq(diaryEntriesTable.userId, userId)));
   res.status(204).send();
 });
 
 // GET /entries/:id/photos
 router.get("/:id/photos", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
   const parsed = ListEntryPhotosParams.safeParse({ id: Number(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const [entry] = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(and(eq(diaryEntriesTable.id, parsed.data.id), eq(diaryEntriesTable.userId, userId)));
+  if (!entry) {
+    res.status(404).json({ error: "Not found" });
     return;
   }
   const photos = await db
@@ -253,6 +274,7 @@ router.get("/:id/photos", async (req, res) => {
 
 // POST /entries/:id/photos
 router.post("/:id/photos", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
   const paramsParsed = AddEntryPhotoParams.safeParse({ id: Number(req.params.id) });
   if (!paramsParsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -261,6 +283,14 @@ router.post("/:id/photos", async (req, res) => {
   const bodyParsed = AddEntryPhotoBody.safeParse(req.body);
   if (!bodyParsed.success) {
     res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const [entry] = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(and(eq(diaryEntriesTable.id, paramsParsed.data.id), eq(diaryEntriesTable.userId, userId)));
+  if (!entry) {
+    res.status(404).json({ error: "Not found" });
     return;
   }
   const [photo] = await db
