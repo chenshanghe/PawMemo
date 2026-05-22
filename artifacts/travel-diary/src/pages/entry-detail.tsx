@@ -195,22 +195,9 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
           )}
         </div>
 
-        {/* Content */}
-        {entry.content && (
-          <Card className="border-border/40 bg-card/70 shadow-sm">
-            <CardContent className="p-6">
-              <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap font-serif text-base">
-                {entry.content}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Photos */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-serif font-bold text-foreground">旅途照片</h2>
-          </div>
+          <h2 className="text-xl font-serif font-bold text-foreground">旅途照片</h2>
 
           {entry.photos && entry.photos.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -240,6 +227,17 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
 
           <PhotoUploader entryId={id} />
         </div>
+
+        {/* Content */}
+        {entry.content && (
+          <Card className="border-border/40 bg-card/70 shadow-sm">
+            <CardContent className="p-6">
+              <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap font-serif text-base">
+                {entry.content}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );
