@@ -60,53 +60,55 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 40 40% 98%;
-  --foreground: 30 20% 25%;
-  --border: 38 32% 86%;
-  
-  --card: 0 0% 100%;
-  --card-foreground: 30 20% 25%;
-  --card-border: 38 32% 86%;
-  
-  --sidebar: 40 40% 98%;
-  --sidebar-foreground: 30 20% 25%;
-  --sidebar-border: 38 32% 86%;
-  --sidebar-primary: 11 67% 55%;
+  /* Warm cream background matching mockup #F7F4EE */
+  --background: 42 33% 95%;
+  --foreground: 20 28% 18%;
+  --border: 38 28% 84%;
+
+  --card: 40 40% 98%;
+  --card-foreground: 20 28% 18%;
+  --card-border: 38 28% 84%;
+
+  --sidebar: 42 33% 95%;
+  --sidebar-foreground: 20 28% 18%;
+  --sidebar-border: 38 28% 84%;
+  --sidebar-primary: 18 64% 56%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 42 35% 93%;
-  --sidebar-accent-foreground: 30 20% 25%;
-  --sidebar-ring: 11 67% 55%;
+  --sidebar-accent: 40 35% 91%;
+  --sidebar-accent-foreground: 20 28% 18%;
+  --sidebar-ring: 18 64% 56%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 30 20% 25%;
-  --popover-border: 38 32% 86%;
+  --popover: 40 40% 98%;
+  --popover-foreground: 20 28% 18%;
+  --popover-border: 38 28% 84%;
 
-  --primary: 11 67% 55%;
+  /* #D96C47 terracotta */
+  --primary: 18 64% 56%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 35 60% 60%;
+  --secondary: 35 55% 58%;
   --secondary-foreground: 0 0% 100%;
-  --muted: 42 35% 93%;
-  --muted-foreground: 38 15% 49%;
-  --accent: 42 35% 93%;
-  --accent-foreground: 30 20% 25%;
+  --muted: 40 35% 91%;
+  --muted-foreground: 30 16% 48%;
+  --accent: 40 35% 91%;
+  --accent-foreground: 20 28% 18%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --input: 38 32% 86%;
-  --ring: 11 67% 55%;
-  
-  --chart-1: 11 67% 55%;
-  --chart-2: 35 60% 60%;
+  --input: 38 28% 84%;
+  --ring: 18 64% 56%;
+
+  --chart-1: 18 64% 56%;
+  --chart-2: 35 55% 58%;
   --chart-3: 15 50% 45%;
   --chart-4: 45 40% 70%;
   --chart-5: 25 55% 50%;
 
-  --app-font-sans: 'Noto Serif SC', 'Inter', sans-serif;
+  --app-font-sans: 'Noto Serif SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --app-font-serif: 'Noto Serif SC', Georgia, serif;
   --app-font-mono: Menlo, monospace;
   --app-font-handwriting: 'Zhi Mang Xing', cursive;
-  
-  --radius: 0.75rem; 
+
+  --radius: 0.75rem;
 
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
@@ -124,28 +126,28 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 30 25% 15%;
+  --background: 25 22% 14%;
   --foreground: 40 20% 85%;
   --border: 30 20% 25%;
-  
-  --card: 30 20% 18%;
+
+  --card: 28 20% 17%;
   --card-foreground: 40 20% 85%;
   --card-border: 30 20% 25%;
-  
-  --sidebar: 30 25% 15%;
+
+  --sidebar: 25 22% 14%;
   --sidebar-foreground: 40 20% 85%;
   --sidebar-border: 30 20% 25%;
-  --sidebar-primary: 11 67% 55%;
+  --sidebar-primary: 18 60% 52%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 30 20% 22%;
   --sidebar-accent-foreground: 40 20% 85%;
-  --sidebar-ring: 11 67% 55%;
+  --sidebar-ring: 18 60% 52%;
 
-  --popover: 30 20% 18%;
+  --popover: 28 20% 17%;
   --popover-foreground: 40 20% 85%;
   --popover-border: 30 20% 25%;
 
-  --primary: 11 60% 50%;
+  --primary: 18 60% 52%;
   --primary-foreground: 0 0% 100%;
   --secondary: 35 50% 50%;
   --secondary-foreground: 0 0% 100%;
@@ -157,9 +159,9 @@
   --destructive-foreground: 40 20% 85%;
 
   --input: 30 20% 25%;
-  --ring: 11 67% 55%;
-  
-  --chart-1: 11 67% 55%;
+  --ring: 18 60% 52%;
+
+  --chart-1: 18 60% 52%;
   --chart-2: 35 50% 50%;
   --chart-3: 15 50% 45%;
   --chart-4: 45 40% 70%;
@@ -198,7 +200,11 @@
   }
   .hover-elevate:hover:not(.no-default-hover-elevate)::after, .active-elevate:active:not(.no-default-active-elevate)::after { background-color: var(--elevate-1); }
   .hover-elevate-2:hover:not(.no-default-hover-elevate)::after, .active-elevate-2:active:not(.no-default-active-elevate)::after { background-color: var(--elevate-2); }
-  .border.hover-elevate:not(.no-hover-interaction-elevate)::after, .border.active-elevate:not(.no-active-interaction-elevate)::after, .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after, .border.active-elevate-2:not(.no-active-interaction-elevate)::after, .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after, .border.active-elevate:not(.no-active-interaction-elevate)::after, .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after, .border.active-elevate-2:not(.no-default-active-elevate)::after, .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  .pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 }
