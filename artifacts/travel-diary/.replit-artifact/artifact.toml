@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "红薯旅行日记"
+version = "1.0.0"
+id = "artifacts/travel-diary"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18469
+
+[services.development]
+run = "pnpm --filter @workspace/travel-diary run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/travel-diary", "run", "build" ]
+publicDir = "artifacts/travel-diary/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18469"
+BASE_PATH = "/"

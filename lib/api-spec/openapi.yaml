@@ -1,22 +1,28 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: 红薯旅行日记 API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: entries
+    description: Diary entry operations
+  - name: photos
+    description: Photo operations
+  - name: tags
+    description: Tag operations
+  - name: stats
+    description: Stats and aggregates
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +30,226 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /entries:
+    get:
+      operationId: listEntries
+      tags: [entries]
+      summary: List all diary entries
+      parameters:
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: destination
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiaryEntry"
+    post:
+      operationId: createEntry
+      tags: [entries]
+      summary: Create a diary entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiaryEntryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiaryEntry"
+
+  /entries/{id}:
+    get:
+      operationId: getEntry
+      tags: [entries]
+      summary: Get a diary entry by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiaryEntryDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateEntry
+      tags: [entries]
+      summary: Update a diary entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiaryEntryUpdate"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiaryEntry"
+    delete:
+      operationId: deleteEntry
+      tags: [entries]
+      summary: Delete a diary entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /entries/{id}/photos:
+    get:
+      operationId: listEntryPhotos
+      tags: [photos]
+      summary: List photos for an entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Photos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Photo"
+    post:
+      operationId: addEntryPhoto
+      tags: [photos]
+      summary: Add a photo to an entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+
+  /photos/{photoId}:
+    delete:
+      operationId: deletePhoto
+      tags: [photos]
+      summary: Delete a photo
+      parameters:
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /tags:
+    get:
+      operationId: listTags
+      tags: [tags]
+      summary: List all tags
+      responses:
+        "200":
+          description: Tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tag"
+
+  /stats/summary:
+    get:
+      operationId: getStatsSummary
+      tags: [stats]
+      summary: Get overall travel stats
+      responses:
+        "200":
+          description: Stats summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsSummary"
+
+  /stats/recent:
+    get:
+      operationId: getRecentEntries
+      tags: [stats]
+      summary: Get 5 most recent diary entries
+      responses:
+        "200":
+          description: Recent entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiaryEntry"
+
+  /stats/destinations:
+    get:
+      operationId: getDestinationStats
+      tags: [stats]
+      summary: Get entry count grouped by destination
+      responses:
+        "200":
+          description: Destination stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DestinationStat"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +260,202 @@ components:
       required:
         - status
 
+    DiaryEntry:
+      type: object
+      required: [id, title, destination, startDate, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        destination:
+          type: string
+        content:
+          type: ["string", "null"]
+        coverImage:
+          type: ["string", "null"]
+        mood:
+          type: ["string", "null"]
+        rating:
+          type: ["integer", "null"]
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: ["string", "null"]
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+        photoCount:
+          type: integer
+
+    DiaryEntryDetail:
+      type: object
+      required: [id, title, destination, startDate, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        destination:
+          type: string
+        content:
+          type: ["string", "null"]
+        coverImage:
+          type: ["string", "null"]
+        mood:
+          type: ["string", "null"]
+        rating:
+          type: ["integer", "null"]
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: ["string", "null"]
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Photo"
+
+    DiaryEntryInput:
+      type: object
+      required: [title, destination, startDate]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        destination:
+          type: string
+          minLength: 1
+        content:
+          type: string
+        coverImage:
+          type: string
+        mood:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        tagIds:
+          type: array
+          items:
+            type: integer
+        tagNames:
+          type: array
+          items:
+            type: string
+
+    DiaryEntryUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        destination:
+          type: string
+        content:
+          type: string
+        coverImage:
+          type: string
+        mood:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        tagIds:
+          type: array
+          items:
+            type: integer
+        tagNames:
+          type: array
+          items:
+            type: string
+
+    Photo:
+      type: object
+      required: [id, entryId, url, createdAt]
+      properties:
+        id:
+          type: integer
+        entryId:
+          type: integer
+        url:
+          type: string
+        caption:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    PhotoInput:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+        caption:
+          type: string
+
+    Tag:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    StatsSummary:
+      type: object
+      required: [totalEntries, totalDestinations, totalPhotos, totalTravelDays]
+      properties:
+        totalEntries:
+          type: integer
+        totalDestinations:
+          type: integer
+        totalPhotos:
+          type: integer
+        totalTravelDays:
+          type: integer
+
+    DestinationStat:
+      type: object
+      required: [destination, count]
+      properties:
+        destination:
+          type: string
+        count:
+          type: integer
