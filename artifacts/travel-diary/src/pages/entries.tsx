@@ -26,8 +26,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const CATEGORY_TAGS = ["全部", "城市", "美食", "古镇", "自然", "文化"];
-
 const MOODS: Record<string, string> = {
   开心: "bg-yellow-100 text-yellow-800",
   平静: "bg-blue-100 text-blue-800",
@@ -41,13 +39,16 @@ export default function Entries() {
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | undefined>(undefined);
   const [destination, setDestination] = useState("");
-  const [activeCategory, setActiveCategory] = useState("全部");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const queryClient = useQueryClient();
 
   const params = {
     search: search || undefined,
     tag: selectedTag,
     destination: destination || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   };
 
   const { data: entries, isLoading } = useListEntries(params);
@@ -60,7 +61,7 @@ export default function Entries() {
     });
   };
 
-  const hasFilters = search || selectedTag || destination;
+  const hasFilters = search || selectedTag || destination || dateFrom || dateTo;
 
   const travelDays = (entry: any) => {
     if (!entry.endDate) return 1;
@@ -125,40 +126,74 @@ export default function Entries() {
           </div>
         </div>
 
-        {/* ── Category Pills ── */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
-          {CATEGORY_TAGS.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => {
-                setActiveCategory(cat);
-                if (cat !== "全部") setSelectedTag(cat === selectedTag ? undefined : cat);
-                else setSelectedTag(undefined);
-              }}
-              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-                activeCategory === cat
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "bg-card text-muted-foreground border-border/50 hover:border-primary/30"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-          {/* User-defined tags */}
-          {tags?.filter((t) => !CATEGORY_TAGS.includes(t.name)).map((tag) => (
-            <button
-              key={tag.id}
-              onClick={() => setSelectedTag(selectedTag === tag.name ? undefined : tag.name)}
-              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-                selectedTag === tag.name
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "bg-card text-muted-foreground border-border/50 hover:border-primary/30"
-              }`}
-            >
-              {tag.name}
-            </button>
-          ))}
+        {/* ── Date Range Filter ── */}
+        <div className="bg-card rounded-xl border border-border/50 p-3 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground">按出发日期筛选</p>
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <Input
+                type="date"
+                value={dateFrom}
+                max={dateTo || undefined}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="bg-background border-border/50 rounded-lg h-9 text-sm"
+              />
+            </div>
+            <span className="text-muted-foreground text-sm font-medium shrink-0">→</span>
+            <div className="flex-1">
+              <Input
+                type="date"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="bg-background border-border/50 rounded-lg h-9 text-sm"
+              />
+            </div>
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+                className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                title="清除日期筛选"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          {dateFrom && dateTo && (
+            <p className="text-xs text-primary font-medium">
+              {dateFrom} 至 {dateTo}
+            </p>
+          )}
         </div>
+
+        {/* ── Tag Pills ── */}
+        {tags && tags.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+            <button
+              onClick={() => setSelectedTag(undefined)}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                !selectedTag
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-card text-muted-foreground border-border/50 hover:border-primary/30"
+              }`}
+            >
+              全部
+            </button>
+            {tags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => setSelectedTag(selectedTag === tag.name ? undefined : tag.name)}
+                className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                  selectedTag === tag.name
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-card text-muted-foreground border-border/50 hover:border-primary/30"
+                }`}
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ── Entries List ── */}
         {isLoading ? (

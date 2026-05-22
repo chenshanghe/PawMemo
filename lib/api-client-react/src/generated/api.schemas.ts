@@ -142,5 +142,7 @@ export type ListEntriesParams = {
 tag?: string;
 destination?: string;
 search?: string;
+dateFrom?: string;
+dateTo?: string;
 };
 

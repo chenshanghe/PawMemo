@@ -80,7 +80,7 @@ router.get("/", async (req, res) => {
     res.status(400).json({ error: "Invalid query params" });
     return;
   }
-  const { tag, destination, search } = parsed.data;
+  const { tag, destination, search, dateFrom, dateTo } = parsed.data;
 
   let entries = await db
     .select()
@@ -100,6 +100,12 @@ router.get("/", async (req, res) => {
         (e.content ?? "").toLowerCase().includes(search.toLowerCase()) ||
         e.destination.toLowerCase().includes(search.toLowerCase())
     );
+  }
+  if (dateFrom) {
+    entries = entries.filter((e) => e.startDate >= dateFrom);
+  }
+  if (dateTo) {
+    entries = entries.filter((e) => e.startDate <= dateTo);
   }
 
   let filteredIds = entries.map((e) => e.id);

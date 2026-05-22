@@ -22,7 +22,9 @@ export const HealthCheckResponse = zod.object({
 export const ListEntriesQueryParams = zod.object({
   "tag": zod.coerce.string().optional(),
   "destination": zod.coerce.string().optional(),
-  "search": zod.coerce.string().optional()
+  "search": zod.coerce.string().optional(),
+  "dateFrom": zod.coerce.string().optional(),
+  "dateTo": zod.coerce.string().optional()
 })
 
 export const ListEntriesResponseItem = zod.object({
