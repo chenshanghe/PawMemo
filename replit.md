@@ -34,7 +34,7 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- 每次修改完成后，都要调用 `presentArtifact` 给用户展示运行链接。
 
 ## Gotchas
 
