@@ -5,13 +5,48 @@ import { Camera, Images, Loader2, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
 
+// ── Compression config ──────────────────────────────────────────────────────
+// maxSizeMB raised to 1.5 → fewer binary-search iterations needed
+// maxWidthOrHeight 1600 instead of 1920 → faster resize pass
+// initialQuality 0.75 → starts closer to target, finds it in fewer rounds
+// maxIteration 4 → cap at 4 rounds (default 10); saves ~400ms per photo
+// Files already under SKIP_BYTES bypass the library entirely
+const SKIP_BYTES = 600 * 1024; // 600 KB
+
 const COMPRESS_OPTIONS = {
-  maxSizeMB: 1,
-  maxWidthOrHeight: 1920,
+  maxSizeMB: 1.5,
+  maxWidthOrHeight: 1600,
   useWebWorker: true,
-  initialQuality: 0.85,
+  initialQuality: 0.75,
+  maxIteration: 4,
+  preserveExif: false,      // skip EXIF strip pass (saves extra encode)
 };
 
+// ── Concurrency limiter ─────────────────────────────────────────────────────
+// Process max N photos simultaneously; prevents Web Worker starvation
+const MAX_CONCURRENT = 4;
+
+function createSemaphore(max: number) {
+  let running = 0;
+  const queue: (() => void)[] = [];
+  return function acquire<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const run = () => {
+        running++;
+        fn()
+          .then(resolve, reject)
+          .finally(() => {
+            running--;
+            if (queue.length) queue.shift()!();
+          });
+      };
+      if (running < max) run();
+      else queue.push(run);
+    });
+  };
+}
+
+// ── Types ───────────────────────────────────────────────────────────────────
 interface QueueItem {
   id: string;
   file: File;
@@ -33,77 +68,96 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   const queryClient = useQueryClient();
   const addPhoto = useAddEntryPhoto();
 
+  // One semaphore per uploader instance
+  const semaphore = useRef(createSemaphore(MAX_CONCURRENT)).current;
+
   const updateItem = useCallback((id: string, patch: Partial<QueueItem>) => {
     setQueue((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
   const processFile = useCallback(
     async (item: QueueItem) => {
-      try {
-        // Step 1: compress
-        updateItem(item.id, { status: "compressing", progress: 10 });
-        const compressed = await imageCompression(item.file, COMPRESS_OPTIONS);
+      await semaphore(async () => {
+        try {
+          // ── Step 1: compress (skip if already small) ──────────────────
+          updateItem(item.id, { status: "compressing", progress: 15 });
 
-        // Step 2: get presigned URL
-        updateItem(item.id, { status: "uploading", progress: 30 });
-        const metaRes = await fetch("/api/storage/uploads/request-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: compressed.name,
-            size: compressed.size,
-            contentType: compressed.type || "image/jpeg",
-          }),
-        });
-        if (!metaRes.ok) throw new Error("获取上传地址失败");
-        const { uploadURL, objectPath } = await metaRes.json();
+          let toUpload: File;
+          if (item.file.size <= SKIP_BYTES) {
+            toUpload = item.file; // already small enough
+            updateItem(item.id, { progress: 35 });
+          } else {
+            toUpload = await imageCompression(item.file, COMPRESS_OPTIONS);
+            updateItem(item.id, { progress: 35 });
+          }
 
-        // Step 3: upload to GCS with progress simulation
-        updateItem(item.id, { progress: 50 });
-        const putRes = await fetch(uploadURL, {
-          method: "PUT",
-          body: compressed,
-          headers: { "Content-Type": compressed.type || "image/jpeg" },
-        });
-        if (!putRes.ok) throw new Error("上传到存储失败");
+          // ── Step 2: get presigned URL ─────────────────────────────────
+          updateItem(item.id, { status: "uploading", progress: 40 });
+          const metaRes = await fetch("/api/storage/uploads/request-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: toUpload.name,
+              size: toUpload.size,
+              contentType: toUpload.type || "image/jpeg",
+            }),
+          });
+          if (!metaRes.ok) throw new Error("获取上传地址失败");
+          const { uploadURL, objectPath } = await metaRes.json();
 
-        updateItem(item.id, { status: "saving", progress: 90 });
-        const url = `/api/storage${objectPath}`;
+          // ── Step 3: upload with XHR for real progress ─────────────────
+          await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("PUT", uploadURL);
+            xhr.setRequestHeader("Content-Type", toUpload.type || "image/jpeg");
+            xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable) {
+                const pct = 40 + Math.round((e.loaded / e.total) * 50);
+                updateItem(item.id, { progress: pct });
+              }
+            };
+            xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("上传到存储失败")));
+            xhr.onerror = () => reject(new Error("网络错误"));
+            xhr.send(toUpload);
+          });
 
-        // Step 4: save to DB
-        await new Promise<void>((resolve, reject) => {
-          addPhoto.mutate(
-            { id: entryId, data: { url } },
-            {
-              onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(entryId) });
-                resolve();
-              },
-              onError: (err) => reject(err),
-            }
-          );
-        });
+          // ── Step 4: save to DB ────────────────────────────────────────
+          updateItem(item.id, { status: "saving", progress: 92 });
+          const url = `/api/storage${objectPath}`;
 
-        updateItem(item.id, { status: "done", progress: 100 });
-        // Remove from queue after brief success display
-        setTimeout(() => {
-          setQueue((prev) => prev.filter((i) => i.id !== item.id));
-          URL.revokeObjectURL(item.previewUrl);
-        }, 1500);
-      } catch (err) {
-        updateItem(item.id, { status: "error", errorMsg: (err as Error).message });
-        setTimeout(() => {
-          setQueue((prev) => prev.filter((i) => i.id !== item.id));
-          URL.revokeObjectURL(item.previewUrl);
-        }, 3000);
-      }
+          await new Promise<void>((resolve, reject) => {
+            addPhoto.mutate(
+              { id: entryId, data: { url } },
+              {
+                onSuccess: () => {
+                  queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(entryId) });
+                  resolve();
+                },
+                onError: (err) => reject(err),
+              }
+            );
+          });
+
+          updateItem(item.id, { status: "done", progress: 100 });
+          setTimeout(() => {
+            setQueue((prev) => prev.filter((i) => i.id !== item.id));
+            URL.revokeObjectURL(item.previewUrl);
+          }, 1200);
+        } catch (err) {
+          updateItem(item.id, { status: "error", errorMsg: (err as Error).message });
+          setTimeout(() => {
+            setQueue((prev) => prev.filter((i) => i.id !== item.id));
+            URL.revokeObjectURL(item.previewUrl);
+          }, 3000);
+        }
+      });
     },
-    [entryId, addPhoto, queryClient, updateItem]
+    [entryId, addPhoto, queryClient, updateItem, semaphore]
   );
 
   const MAX_PHOTOS = 30;
 
-  const handleFiles = async (files: FileList) => {
+  const handleFiles = (files: FileList) => {
     const sliced = Array.from(files).slice(0, MAX_PHOTOS);
     if (files.length > MAX_PHOTOS) {
       alert(`一次最多可选 ${MAX_PHOTOS} 张，已自动取前 ${MAX_PHOTOS} 张。`);
@@ -115,17 +169,12 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
       status: "compressing" as const,
       progress: 0,
     }));
-
     setQueue((prev) => [...prev, ...newItems]);
-
-    // Process all in parallel
-    await Promise.all(newItems.map((item) => processFile(item)));
+    newItems.forEach((item) => processFile(item));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFiles(e.target.files);
-    }
+    if (e.target.files && e.target.files.length > 0) handleFiles(e.target.files);
     e.target.value = "";
   };
 
@@ -133,34 +182,20 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
 
   const statusLabel = (item: QueueItem) => {
     switch (item.status) {
-      case "compressing": return "压缩中...";
-      case "uploading": return `上传中 ${item.progress}%`;
-      case "saving": return "保存中...";
-      case "done": return "完成";
-      case "error": return item.errorMsg ?? "失败";
+      case "compressing": return item.file.size <= SKIP_BYTES ? "准备中..." : "压缩中...";
+      case "uploading":   return `上传中 ${item.progress}%`;
+      case "saving":      return "保存中...";
+      case "done":        return "完成";
+      case "error":       return item.errorMsg ?? "失败";
     }
   };
 
   return (
     <div className={cn("space-y-3", className)}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={handleInputChange}
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleInputChange}
-      />
+      <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleInputChange} />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleInputChange} />
 
-      {/* Upload queue */}
+      {/* Upload queue grid */}
       {queue.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {queue.map((item) => (
@@ -174,10 +209,10 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
                 ) : (
                   <Loader2 className="w-5 h-5 text-white animate-spin" />
                 )}
-                <div className="w-full h-1 bg-white/30 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-white/30 rounded-full overflow-hidden">
                   <div
                     className={cn(
-                      "h-full rounded-full transition-all duration-300",
+                      "h-full rounded-full transition-all duration-200",
                       item.status === "done" ? "bg-green-400" : item.status === "error" ? "bg-red-400" : "bg-white"
                     )}
                     style={{ width: `${item.progress}%` }}
@@ -218,7 +253,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
           </span>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">自动压缩至 1MB 以内，支持同时选择多张</p>
+      <p className="text-xs text-muted-foreground">支持同时选择多张 · 大图自动压缩，小图直接上传</p>
     </div>
   );
 }

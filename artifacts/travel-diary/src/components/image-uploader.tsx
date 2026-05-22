@@ -4,11 +4,16 @@ import { Camera, Upload, X, ImageIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
 
+// ── Same fast settings as photo-uploader ────────────────────────────────────
+const SKIP_BYTES = 600 * 1024;
+
 const COMPRESS_OPTIONS = {
-  maxSizeMB: 1,
-  maxWidthOrHeight: 1920,
+  maxSizeMB: 1.5,
+  maxWidthOrHeight: 1600,
   useWebWorker: true,
-  initialQuality: 0.85,
+  initialQuality: 0.75,
+  maxIteration: 4,
+  preserveExif: false,
 };
 
 interface ImageUploaderProps {
@@ -36,17 +41,24 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
   const handleFile = async (file: File) => {
     const localPreview = URL.createObjectURL(file);
     setPreview(localPreview);
-    setCompressing(true);
-    let compressed: File;
-    try {
-      compressed = await imageCompression(file, COMPRESS_OPTIONS);
-    } finally {
-      setCompressing(false);
+
+    let toUpload: File;
+    if (file.size <= SKIP_BYTES) {
+      // Small enough — upload directly without compression delay
+      toUpload = file;
+    } else {
+      setCompressing(true);
+      try {
+        toUpload = await imageCompression(file, COMPRESS_OPTIONS);
+      } finally {
+        setCompressing(false);
+      }
     }
+
     URL.revokeObjectURL(localPreview);
-    const compressedPreview = URL.createObjectURL(compressed);
+    const compressedPreview = URL.createObjectURL(toUpload);
     setPreview(compressedPreview);
-    await uploadFile(compressed);
+    await uploadFile(toUpload);
     URL.revokeObjectURL(compressedPreview);
   };
 
@@ -88,7 +100,7 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
               <Loader2 className="w-5 h-5 text-white animate-spin" />
               {isUploading && (
                 <div className="w-32 h-1.5 bg-white/30 rounded-full overflow-hidden">
-                  <div className="h-full bg-white rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+                  <div className="h-full bg-white rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
                 </div>
               )}
               <p className="text-white text-xs">{statusLabel}</p>
@@ -118,7 +130,7 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-foreground">{label}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">拖拽图片到此处，或点击选择 · 自动压缩至 1MB 以内</p>
+              <p className="text-xs text-muted-foreground mt-0.5">拖拽图片到此处，或点击选择 · 大图自动压缩</p>
             </div>
             <div className="flex gap-2 mt-1" onClick={(e) => e.stopPropagation()}>
               <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">
