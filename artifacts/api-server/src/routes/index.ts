@@ -4,6 +4,7 @@ import entriesRouter from "./entries";
 import photosRouter from "./photos";
 import tagsRouter from "./tags";
 import statsRouter from "./stats";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use("/entries", entriesRouter);
 router.use("/photos", photosRouter);
 router.use("/tags", tagsRouter);
 router.use("/stats", statsRouter);
+router.use(storageRouter);
 
 export default router;

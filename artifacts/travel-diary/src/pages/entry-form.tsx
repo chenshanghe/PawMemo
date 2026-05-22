@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Save, Star, X, Plus } from "lucide-react";
+import { ImageUploader } from "@/components/image-uploader";
 import { Link } from "wouter";
 
 const MOODS = ["开心", "平静", "感动", "疲惫", "兴奋", "思念"];
@@ -217,19 +218,12 @@ export default function EntryForm({ entryId }: EntryFormProps) {
 
               {/* Cover Image */}
               <div className="space-y-2">
-                <Label htmlFor="coverImage" className="text-sm font-medium">封面图片URL</Label>
-                <Input
-                  id="coverImage"
-                  placeholder="https://..."
+                <Label className="text-sm font-medium">封面图片</Label>
+                <ImageUploader
                   value={form.coverImage}
-                  onChange={(e) => setForm({ ...form, coverImage: e.target.value })}
-                  className="bg-background border-border/60"
+                  onChange={(url) => setForm({ ...form, coverImage: url })}
+                  label="上传封面图片"
                 />
-                {form.coverImage && (
-                  <div className="rounded-xl overflow-hidden aspect-[3/1] mt-2 shadow-sm">
-                    <img src={form.coverImage} alt="封面预览" className="w-full h-full object-cover" onError={() => setForm({ ...form, coverImage: "" })} />
-                  </div>
-                )}
               </div>
 
               {/* Mood */}

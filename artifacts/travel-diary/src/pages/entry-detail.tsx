@@ -18,8 +18,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  MapPin, CalendarDays, Star, Pencil, Trash2, ArrowLeft, Image as ImageIcon, X
+  MapPin, CalendarDays, Star, Pencil, Trash2, ArrowLeft, Image as ImageIcon, X, Plus
 } from "lucide-react";
+import { PhotoUploader } from "@/components/photo-uploader";
 import { format } from "date-fns";
 
 const MOODS: Record<string, string> = {
@@ -206,9 +207,12 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         )}
 
         {/* Photos */}
-        {entry.photos && entry.photos.length > 0 && (
-          <div className="space-y-4">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
             <h2 className="text-xl font-serif font-bold text-foreground">旅途照片</h2>
+          </div>
+
+          {entry.photos && entry.photos.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {entry.photos.map((photo) => (
                 <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-xl shadow-sm bg-muted/30">
@@ -232,8 +236,10 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+
+          <PhotoUploader entryId={id} />
+        </div>
       </div>
     </Layout>
   );
