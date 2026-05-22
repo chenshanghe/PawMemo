@@ -5,6 +5,7 @@ import {
   useGetEntry,
   useDeleteEntry,
   useDeletePhoto,
+  useUpdateEntry,
   getListEntriesQueryKey,
   getGetEntryQueryKey,
 } from "@workspace/api-client-react";
@@ -13,12 +14,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  MapPin, CalendarDays, Star, Pencil, Trash2, ArrowLeft, X, ChevronLeft, ChevronRight
+  MapPin, CalendarDays, Star, Pencil, Trash2, ArrowLeft, X, ChevronLeft, ChevronRight,
+  Sparkles, Loader2, Check, RotateCcw,
 } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { format } from "date-fns";
@@ -49,9 +53,7 @@ function Lightbox({ photos, index, onClose }: { photos: { url: string; caption?:
     return () => window.removeEventListener("keydown", handler);
   }, [prev, next, onClose]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null) return;
     const diff = touchStartX.current - e.changedTouches[0].clientX;
@@ -116,6 +118,14 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
   });
   const deleteEntry = useDeleteEntry();
   const deletePhoto = useDeletePhoto();
+  const updateEntry = useUpdateEntry();
+
+  // AI state
+  const [aiInstruction, setAiInstruction] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiDraft, setAiDraft] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const handleDeleteEntry = () => {
     deleteEntry.mutate({ id }, {
@@ -132,6 +142,75 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(id) });
       },
     });
+  };
+
+  const handleAiEnhance = async () => {
+    if (!entry?.content?.trim()) return;
+    setAiLoading(true);
+    setAiError(null);
+    setAiDraft("");
+
+    abortRef.current = new AbortController();
+    let accumulated = "";
+
+    try {
+      const resp = await fetch("/api/ai/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ content: entry.content, instruction: aiInstruction }),
+        signal: abortRef.current.signal,
+      });
+
+      if (!resp.ok || !resp.body) throw new Error("请求失败");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value, { stream: true }).split("\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const json = JSON.parse(line.slice(6));
+          if (json.error) throw new Error(json.error);
+          if (json.done) break;
+          if (json.text) {
+            accumulated += json.text;
+            setAiDraft(accumulated);
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        setAiError(err.message ?? "AI 优化失败，请稍后重试");
+        setAiDraft(null);
+      }
+    } finally {
+      setAiLoading(false);
+      abortRef.current = null;
+    }
+  };
+
+  const handleApplyDraft = () => {
+    if (!aiDraft || !entry) return;
+    updateEntry.mutate(
+      { id, data: { content: aiDraft } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(id) });
+          setAiDraft(null);
+          setAiInstruction("");
+        },
+      }
+    );
+  };
+
+  const handleDiscardDraft = () => {
+    abortRef.current?.abort();
+    setAiDraft(null);
+    setAiError(null);
   };
 
   if (isLoading) {
@@ -168,11 +247,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
   return (
     <Layout>
       {lightboxIndex !== null && (
-        <Lightbox
-          photos={photos}
-          index={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
+        <Lightbox photos={photos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
       )}
 
       <div className="max-w-3xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -226,7 +301,6 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         {/* Title & Meta */}
         <div className="space-y-4">
           <h1 className="text-4xl font-serif font-bold text-foreground leading-tight">{entry.title}</h1>
-
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <MapPin className="w-4 h-4 text-primary" />
@@ -235,9 +309,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <CalendarDays className="w-4 h-4" />
               <span>{format(new Date(entry.startDate), 'yyyy年MM月dd日')}</span>
-              {entry.endDate && (
-                <span> — {format(new Date(entry.endDate), 'MM月dd日')}</span>
-              )}
+              {entry.endDate && <span> — {format(new Date(entry.endDate), 'MM月dd日')}</span>}
               <span className="text-primary ml-1">{travelDays} 天</span>
             </div>
             {entry.rating && (
@@ -253,7 +325,6 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
               </span>
             )}
           </div>
-
           {entry.tags && entry.tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {entry.tags.map((tag) => (
@@ -268,7 +339,6 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         {/* Photos */}
         <div className="space-y-4">
           <h2 className="text-xl font-serif font-bold text-foreground">旅途照片</h2>
-
           {photos.length > 0 && (
             <div className="grid grid-cols-3 gap-3">
               {photos.map((photo, idx) => (
@@ -294,19 +364,104 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
               ))}
             </div>
           )}
-
           <PhotoUploader entryId={id} />
         </div>
 
         {/* Content */}
         {entry.content && (
-          <Card className="border-border/40 bg-card/70 shadow-sm">
-            <CardContent className="p-6">
-              <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap font-serif text-base">
-                {entry.content}
+          <div className="space-y-3">
+            <Card className="border-border/40 bg-card/70 shadow-sm">
+              <CardContent className="p-6">
+                <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap font-serif text-base">
+                  {entry.content}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AI Enhancement Panel */}
+            <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                AI 优化（由 DeepSeek 驱动）
               </div>
-            </CardContent>
-          </Card>
+
+              {/* Input + trigger */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="描述优化要求（留空则自动润色语法和文笔）"
+                  value={aiInstruction}
+                  onChange={(e) => setAiInstruction(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !aiDraft) { e.preventDefault(); handleAiEnhance(); } }}
+                  disabled={aiLoading || !!aiDraft}
+                  className="bg-background border-border/60 text-sm h-9"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={aiLoading ? () => { abortRef.current?.abort(); } : handleAiEnhance}
+                  disabled={!!aiDraft && !aiLoading}
+                  className="shrink-0 gap-1.5 h-9"
+                  variant={aiLoading ? "outline" : "default"}
+                >
+                  {aiLoading ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" />停止</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5" />AI 优化</>
+                  )}
+                </Button>
+              </div>
+
+              {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+
+              {/* Streaming draft preview */}
+              {(aiLoading || aiDraft !== null) && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {aiLoading ? (
+                      <span className="animate-pulse">正在生成优化版本...</span>
+                    ) : (
+                      "优化结果预览（可直接编辑）"
+                    )}
+                  </p>
+                  <Textarea
+                    value={aiDraft ?? ""}
+                    onChange={(e) => setAiDraft(e.target.value)}
+                    rows={10}
+                    className="bg-background border-border/60 resize-none font-serif text-sm leading-relaxed"
+                    readOnly={aiLoading}
+                  />
+                  {!aiLoading && (
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={handleDiscardDraft}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        丢弃
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={handleApplyDraft}
+                        disabled={updateEntry.isPending}
+                      >
+                        {updateEntry.isPending ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5" />
+                        )}
+                        应用并保存
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </Layout>
