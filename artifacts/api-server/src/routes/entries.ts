@@ -153,6 +153,7 @@ router.post("/", async (req, res) => {
       content: data.content ?? null,
       coverImage: data.coverImage ?? null,
       mood: data.mood ?? null,
+      companions: data.companions ?? null,
       rating: data.rating ?? null,
       startDate: data.startDate,
       endDate: data.endDate ?? null,
@@ -214,6 +215,7 @@ router.patch("/:id", async (req, res) => {
   if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
   if (data.mood !== undefined) updateData.mood = data.mood;
   if (data.rating !== undefined) updateData.rating = data.rating;
+  if (data.companions !== undefined) updateData.companions = data.companions;
   if (data.startDate !== undefined) updateData.startDate = data.startDate;
   if (data.endDate !== undefined) updateData.endDate = data.endDate;
 

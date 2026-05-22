@@ -26,6 +26,8 @@ export interface DiaryEntry {
   mood?: string | null;
   /** @nullable */
   rating?: number | null;
+  /** @nullable */
+  companions?: string | null;
   startDate: string;
   /** @nullable */
   endDate?: string | null;
@@ -56,6 +58,8 @@ export interface DiaryEntryDetail {
   mood?: string | null;
   /** @nullable */
   rating?: number | null;
+  /** @nullable */
+  companions?: string | null;
   startDate: string;
   /** @nullable */
   endDate?: string | null;
@@ -78,6 +82,7 @@ export interface DiaryEntryInput {
      * @maximum 5
      */
   rating?: number;
+  companions?: string;
   startDate: string;
   endDate?: string;
   tagIds?: number[];
@@ -96,6 +101,7 @@ export interface DiaryEntryUpdate {
      * @maximum 5
      */
   rating?: number;
+  companions?: string;
   startDate?: string;
   endDate?: string;
   tagIds?: number[];

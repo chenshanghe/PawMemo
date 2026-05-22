@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   MapPin, CalendarDays, Star, Pencil, Trash2, ArrowLeft, X, ChevronLeft, ChevronRight,
-  Sparkles, Loader2, Check, RotateCcw,
+  Sparkles, Loader2, Check, RotateCcw, Users,
 } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { format } from "date-fns";
@@ -323,6 +323,12 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${MOODS[entry.mood] ?? "bg-muted text-muted-foreground"}`}>
                 {entry.mood}
               </span>
+            )}
+            {entry.companions && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Users className="w-4 h-4 shrink-0" />
+                <span>{entry.companions}</span>
+              </div>
             )}
           </div>
           {entry.tags && entry.tags.length > 0 && (

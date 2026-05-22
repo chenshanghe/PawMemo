@@ -16,6 +16,7 @@ export const diaryEntriesTable = pgTable("diary_entries", {
   coverImage: text("cover_image"),
   mood: text("mood"),
   rating: integer("rating"),
+  companions: text("companions"),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

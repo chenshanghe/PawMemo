@@ -42,6 +42,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   const [form, setForm] = useState({
     title: "",
     destination: "",
+    companions: "",
     content: "",
     coverImage: "",
     mood: "",
@@ -67,6 +68,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
         destination: existingEntry.destination,
         content: existingEntry.content ?? "",
         coverImage: existingEntry.coverImage ?? "",
+        companions: existingEntry.companions ?? "",
         mood: existingEntry.mood ?? "",
         rating: existingEntry.rating ?? 0,
         startDate: existingEntry.startDate,
@@ -150,6 +152,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
     const payload = {
       title: form.title,
       destination: form.destination,
+      companions: form.companions || undefined,
       content: form.content || undefined,
       coverImage: form.coverImage || undefined,
       mood: form.mood || undefined,
@@ -243,6 +246,18 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                   value={form.destination}
                   onChange={(e) => setForm({ ...form, destination: e.target.value })}
                   required
+                  className="bg-background border-border/60"
+                />
+              </div>
+
+              {/* Companions */}
+              <div className="space-y-2">
+                <Label htmlFor="companions" className="text-sm font-medium">同行人物</Label>
+                <Input
+                  id="companions"
+                  placeholder="和谁一起？（如：老伴、儿子一家、老朋友张三）"
+                  value={form.companions}
+                  onChange={(e) => setForm({ ...form, companions: e.target.value })}
                   className="bg-background border-border/60"
                 />
               </div>
