@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   MapPin, CalendarDays, Star, Pencil, Trash2, ArrowLeft, X, ChevronLeft, ChevronRight,
-  Sparkles, Loader2, Check, RotateCcw, Users, Lock, Globe, Link2,
+  Sparkles, Loader2, Check, RotateCcw, Users, Lock, Globe, Link2, ChevronDown,
 } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { format } from "date-fns";
@@ -122,6 +122,38 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
   const deleteEntry = useDeleteEntry();
   const deletePhoto = useDeletePhoto();
   const updateEntry = useUpdateEntry();
+
+  // Visibility switcher
+  const [visibilityOpen, setVisibilityOpen] = useState(false);
+  const [visibilityUpdating, setVisibilityUpdating] = useState(false);
+  const visibilityRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!visibilityOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (visibilityRef.current && !visibilityRef.current.contains(e.target as Node)) {
+        setVisibilityOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [visibilityOpen]);
+
+  const handleUpdateVisibility = (v: "private" | "public" | "shared") => {
+    if (visibilityUpdating || (entry as any)?.visibility === v) { setVisibilityOpen(false); return; }
+    setVisibilityUpdating(true);
+    setVisibilityOpen(false);
+    updateEntry.mutate(
+      { id, data: { visibility: v } as any },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(id) });
+          queryClient.invalidateQueries({ queryKey: getListEntriesQueryKey() });
+        },
+        onSettled: () => setVisibilityUpdating(false),
+      }
+    );
+  };
 
   // AI state
   const [aiInstruction, setAiInstruction] = useState("");
@@ -334,17 +366,53 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
               </div>
             )}
             {(() => {
-              const v = (entry as any).visibility ?? "private";
-              const cfg = v === "public"
-                ? { Icon: Globe,  label: "公开",    cls: "text-green-600 bg-green-50 border-green-200" }
-                : v === "shared"
-                ? { Icon: Link2,  label: "分享可见", cls: "text-blue-600 bg-blue-50 border-blue-200" }
-                : { Icon: Lock,   label: "私密",    cls: "text-muted-foreground bg-muted/40 border-border/50" };
+              const v: "private" | "public" | "shared" = (entry as any).visibility ?? "private";
+              const isOwner = !!user && entry.userId === user.id;
+              const opts = [
+                { value: "private" as const, Icon: Lock,  label: "私密",     cls: "text-muted-foreground bg-muted/40 border-border/50", optCls: "hover:bg-muted/60" },
+                { value: "shared"  as const, Icon: Link2, label: "分享可见",  cls: "text-blue-600 bg-blue-50 border-blue-200",            optCls: "hover:bg-blue-50" },
+                { value: "public"  as const, Icon: Globe, label: "公开",      cls: "text-green-600 bg-green-50 border-green-200",          optCls: "hover:bg-green-50" },
+              ];
+              const cur = opts.find((o) => o.value === v) ?? opts[0];
+
+              if (!isOwner) {
+                return (
+                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${cur.cls}`}>
+                    <cur.Icon className="w-3 h-3" />
+                    {cur.label}
+                  </span>
+                );
+              }
+
               return (
-                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${cfg.cls}`}>
-                  <cfg.Icon className="w-3 h-3" />
-                  {cfg.label}
-                </span>
+                <div ref={visibilityRef} className="relative">
+                  <button
+                    onClick={() => setVisibilityOpen((o) => !o)}
+                    disabled={visibilityUpdating}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-opacity ${cur.cls} ${visibilityUpdating ? "opacity-50" : "hover:opacity-80"}`}
+                  >
+                    {visibilityUpdating
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <cur.Icon className="w-3 h-3" />}
+                    {cur.label}
+                    <ChevronDown className="w-3 h-3 ml-0.5 opacity-60" />
+                  </button>
+                  {visibilityOpen && (
+                    <div className="absolute left-0 top-full mt-1.5 z-50 bg-popover border border-border/60 rounded-xl shadow-lg py-1 min-w-[9rem] animate-in fade-in slide-in-from-top-1 duration-150">
+                      {opts.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => handleUpdateVisibility(opt.value)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors ${opt.optCls} ${opt.value === v ? "font-semibold" : ""}`}
+                        >
+                          <opt.Icon className="w-3.5 h-3.5 shrink-0" />
+                          {opt.label}
+                          {opt.value === v && <Check className="w-3 h-3 ml-auto text-primary" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
             })()}
           </div>
