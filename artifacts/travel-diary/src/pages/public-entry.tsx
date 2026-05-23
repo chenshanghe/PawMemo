@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { Link } from "wouter";
 import { useUser } from "@clerk/react";
 import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Globe, Bookmark, UserPlus, UserCheck } from "lucide-react";
 import { format } from "date-fns";
@@ -256,13 +257,15 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
           {/* Author */}
           {author && (
             <div className="flex items-center gap-3 p-3 rounded-2xl border border-border/50 bg-card/40">
-              <div className="w-10 h-10 rounded-full bg-primary/15 overflow-hidden shrink-0 flex items-center justify-center text-sm font-semibold text-primary">
-                {author.avatar ? <img src={author.avatar} alt="" className="w-full h-full object-cover" /> : author.name[0]}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{author.name}</p>
-                <p className="text-xs text-muted-foreground">旅行者</p>
-              </div>
+              <Link href={`/users/${author.userId}`} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                <div className="w-10 h-10 rounded-full bg-primary/15 overflow-hidden shrink-0 flex items-center justify-center text-sm font-semibold text-primary">
+                  {author.avatar ? <img src={author.avatar} alt="" className="w-full h-full object-cover" /> : author.name[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{author.name}</p>
+                  <p className="text-xs text-muted-foreground">旅行者</p>
+                </div>
+              </Link>
               {isSignedIn && user?.id !== author.userId && (
                 <button
                   onClick={handleToggleFollow}

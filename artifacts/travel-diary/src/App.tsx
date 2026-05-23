@@ -17,6 +17,8 @@ import Square from "@/pages/square";
 import PublicEntry from "@/pages/public-entry";
 import MyFavorites from "@/pages/my-favorites";
 import MyFeed from "@/pages/my-feed";
+import Me from "@/pages/me";
+import UserProfile from "@/pages/user-profile";
 
 const queryClient = new QueryClient();
 
@@ -186,6 +188,10 @@ function AppRouter() {
       <Route path="/square">{() => <Square />}</Route>
       <Route path="/favorites">{() => <ProtectedRoute component={MyFavorites} />}</Route>
       <Route path="/feed">{() => <ProtectedRoute component={MyFeed} />}</Route>
+      <Route path="/me">{() => <ProtectedRoute component={Me} />}</Route>
+      <Route path="/users/:userId">
+        {(params) => <UserProfile params={params as { userId: string }} />}
+      </Route>
       <Route path="/public/:id">
         {(params) => <PublicEntry params={params as { id: string }} />}
       </Route>

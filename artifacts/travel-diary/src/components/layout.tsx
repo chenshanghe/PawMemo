@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, User, Bell, Bookmark, Users } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, User, Bell, Users, UserCircle2 } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -16,7 +16,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isEntries = location.startsWith("/entries") && location !== "/entries/new";
   const isSquare = location === "/square" || location.startsWith("/public/");
   const isFeed = location === "/feed";
-  const isFavorites = location === "/favorites";
+  const isMe = location === "/me" || location === "/favorites" || location.startsWith("/users/");
 
   return (
     <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background">
@@ -73,18 +73,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
             }`}
           >
             <Users className="w-4.5 h-4.5" />
-            关注
+            动态
           </Link>
           <Link
-            href="/favorites"
+            href="/me"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-              isFavorites
+              isMe
                 ? "bg-primary/12 text-primary font-semibold"
                 : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             }`}
           >
-            <Bookmark className="w-4.5 h-4.5" />
-            收藏
+            <UserCircle2 className="w-4.5 h-4.5" />
+            我
           </Link>
         </nav>
 
@@ -184,16 +184,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
           }`}
         >
           <Users className="w-5 h-5" />
-          <span className="text-[10px] font-medium">关注</span>
+          <span className="text-[10px] font-medium">动态</span>
         </Link>
         <Link
-          href="/favorites"
+          href="/me"
           className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
-            isFavorites ? "text-primary" : "text-muted-foreground"
+            isMe ? "text-primary" : "text-muted-foreground"
           }`}
         >
-          <Bookmark className="w-5 h-5" />
-          <span className="text-[10px] font-medium">收藏</span>
+          <UserCircle2 className="w-5 h-5" />
+          <span className="text-[10px] font-medium">我</span>
         </Link>
       </nav>
     </div>

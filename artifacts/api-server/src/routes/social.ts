@@ -31,10 +31,15 @@ function optionalAuth(req: any, _res: any, next: any) {
 async function getAuthorProfile(userId: string | null) {
   if (!userId) return null;
   const [p] = await db
-    .select({ userId: userProfilesTable.userId, name: userProfilesTable.name, avatar: userProfilesTable.avatar })
+    .select({
+      userId: userProfilesTable.userId,
+      name: userProfilesTable.name,
+      avatar: userProfilesTable.avatar,
+      bio: userProfilesTable.bio,
+    })
     .from(userProfilesTable)
     .where(eq(userProfilesTable.userId, userId));
-  return p ?? { userId, name: "旅行者", avatar: null };
+  return p ?? { userId, name: "旅行者", avatar: null, bio: null };
 }
 
 async function isViewerFavorited(entryId: number, viewerUserId: string | null) {
@@ -357,26 +362,141 @@ router.post("/me/profile", requireAuth, async (req, res) => {
     res.status(400).json({ error: "name required" });
     return;
   }
-  const trimmedAvatar = typeof avatar === "string" ? avatar : null;
-  const trimmedBio = typeof bio === "string" ? bio : null;
+  const hasAvatar = typeof avatar === "string";
+  const hasBio = typeof bio === "string";
+
+  // On insert, seed with what we have (null where not provided).
+  // On update, only overwrite fields the caller explicitly sent — so the
+  // sign-in sync (which only sends name+avatar from Clerk) never wipes a
+  // user's edited bio.
+  const updateSet: Record<string, unknown> = {
+    name: name.trim(),
+    updatedAt: new Date(),
+  };
+  if (hasAvatar) updateSet.avatar = avatar;
+  if (hasBio) updateSet.bio = bio.trim() || null;
 
   const [row] = await db
     .insert(userProfilesTable)
-    .values({ userId, name: name.trim(), avatar: trimmedAvatar, bio: trimmedBio })
+    .values({
+      userId,
+      name: name.trim(),
+      avatar: hasAvatar ? avatar : null,
+      bio: hasBio ? (bio.trim() || null) : null,
+    })
     .onConflictDoUpdate({
       target: userProfilesTable.userId,
-      set: { name: name.trim(), avatar: trimmedAvatar, bio: trimmedBio, updatedAt: new Date() },
+      set: updateSet,
     })
     .returning();
   res.json(row);
 });
 
-// GET /api/me/profile  — returns own profile, or 404 if not yet synced.
+// GET /api/me/profile  — returns own profile + stats. Synthesizes a stub
+// profile if the row isn't synced yet, so the page never 404s.
 router.get("/me/profile", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).userId;
   const [row] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId));
-  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  const profile = row ?? { userId, name: "旅行者", avatar: null, bio: null, updatedAt: null };
+
+  const [
+    [{ entryCount }],
+    [{ publicEntryCount }],
+    [{ followingCount }],
+    [{ followerCount }],
+    [{ likesReceived }],
+    [{ favoritesReceived }],
+  ] = await Promise.all([
+    db
+      .select({ entryCount: sql<number>`count(*)::int` })
+      .from(diaryEntriesTable)
+      .where(eq(diaryEntriesTable.userId, userId)),
+    db
+      .select({ publicEntryCount: sql<number>`count(*)::int` })
+      .from(diaryEntriesTable)
+      .where(and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.visibility, "public"))),
+    db
+      .select({ followingCount: sql<number>`count(*)::int` })
+      .from(userFollowsTable)
+      .where(eq(userFollowsTable.followerId, userId)),
+    db
+      .select({ followerCount: sql<number>`count(*)::int` })
+      .from(userFollowsTable)
+      .where(eq(userFollowsTable.followeeId, userId)),
+    db
+      .select({ likesReceived: sql<number>`count(*)::int` })
+      .from(entryLikesTable)
+      .innerJoin(diaryEntriesTable, eq(diaryEntriesTable.id, entryLikesTable.entryId))
+      .where(eq(diaryEntriesTable.userId, userId)),
+    db
+      .select({ favoritesReceived: sql<number>`count(*)::int` })
+      .from(entryFavoritesTable)
+      .innerJoin(diaryEntriesTable, eq(diaryEntriesTable.id, entryFavoritesTable.entryId))
+      .where(eq(diaryEntriesTable.userId, userId)),
+  ]);
+
+  res.json({
+    ...profile,
+    entryCount: entryCount ?? 0,
+    publicEntryCount: publicEntryCount ?? 0,
+    followingCount: followingCount ?? 0,
+    followerCount: followerCount ?? 0,
+    likesReceived: likesReceived ?? 0,
+    favoritesReceived: favoritesReceived ?? 0,
+  });
+});
+
+// PATCH /api/me/profile — edit name + bio (avatar comes from Clerk via POST sync)
+router.patch("/me/profile", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  const { name, bio } = req.body ?? {};
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (typeof name === "string" && name.trim()) updates.name = name.trim();
+  if (typeof bio === "string") updates.bio = bio.trim() || null;
+  if (Object.keys(updates).length === 1) {
+    res.status(400).json({ error: "Nothing to update" });
+    return;
+  }
+
+  // Ensure a row exists first.
+  const [existing] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId));
+  if (!existing) {
+    await db.insert(userProfilesTable).values({
+      userId,
+      name: typeof name === "string" && name.trim() ? name.trim() : "旅行者",
+      bio: typeof bio === "string" ? bio.trim() || null : null,
+    });
+  } else {
+    await db.update(userProfilesTable).set(updates).where(eq(userProfilesTable.userId, userId));
+  }
+  const [row] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId));
   res.json(row);
+});
+
+// GET /api/users/:userId/entries — paginated public entries by user
+router.get("/users/:userId/entries", optionalAuth, async (req, res) => {
+  const { userId } = req.params;
+  const viewerUserId: string | null = (req as any).userId;
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(40, Number(req.query.limit) || 20);
+  const offset = (page - 1) * limit;
+
+  const baseEntries = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.visibility, "public")))
+    .orderBy(desc(diaryEntriesTable.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  const entries = await hydrateEntries(baseEntries, viewerUserId);
+
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(diaryEntriesTable)
+    .where(and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.visibility, "public")));
+
+  res.json({ entries, total, page, limit });
 });
 
 // GET /api/users/:userId  — public profile + counts + viewer relation
