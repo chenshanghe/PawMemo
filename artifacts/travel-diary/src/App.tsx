@@ -13,6 +13,8 @@ import Entries from "@/pages/entries";
 import EntryDetail from "@/pages/entry-detail";
 import EntryForm from "@/pages/entry-form";
 import ShareView from "@/pages/share-view";
+import Square from "@/pages/square";
+import PublicEntry from "@/pages/public-entry";
 
 const queryClient = new QueryClient();
 
@@ -162,6 +164,10 @@ function AppRouter() {
       </Route>
       <Route path="/share/:token">
         {(params) => <ShareView params={params as { token: string }} />}
+      </Route>
+      <Route path="/square">{() => <Square />}</Route>
+      <Route path="/public/:id">
+        {(params) => <PublicEntry params={params as { id: string }} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

@@ -230,6 +230,103 @@ router.delete("/comments/:commentId", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Public Square ─────────────────────────────────────────────────────────────
+
+// GET /api/square — list all public entries with stats (no auth required)
+router.get("/square", optionalAuth, async (req, res) => {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(40, Number(req.query.limit) || 20);
+  const offset = (page - 1) * limit;
+
+  const entries = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.visibility, "public"))
+    .orderBy(sql`${diaryEntriesTable.createdAt} desc`)
+    .limit(limit)
+    .offset(offset);
+
+  const viewerUserId: string | null = (req as any).userId;
+
+  const result = await Promise.all(
+    entries.map(async (entry) => {
+      const [{ likeCount }] = await db
+        .select({ likeCount: sql<number>`count(*)::int` })
+        .from(entryLikesTable)
+        .where(eq(entryLikesTable.entryId, entry.id));
+
+      const [{ commentCount }] = await db
+        .select({ commentCount: sql<number>`count(*)::int` })
+        .from(entryCommentsTable)
+        .where(eq(entryCommentsTable.entryId, entry.id));
+
+      const [coverPhoto] = await db
+        .select({ url: photosTable.url })
+        .from(photosTable)
+        .where(eq(photosTable.entryId, entry.id))
+        .orderBy(photosTable.createdAt)
+        .limit(1);
+
+      const tags = await db
+        .select({ id: tagsTable.id, name: tagsTable.name })
+        .from(entryTagsTable)
+        .innerJoin(tagsTable, eq(entryTagsTable.tagId, tagsTable.id))
+        .where(eq(entryTagsTable.entryId, entry.id));
+
+      let viewerLiked = false;
+      if (viewerUserId) {
+        const [row] = await db
+          .select()
+          .from(entryLikesTable)
+          .where(and(eq(entryLikesTable.entryId, entry.id), eq(entryLikesTable.userId, viewerUserId)));
+        viewerLiked = !!row;
+      }
+
+      return { ...entry, likeCount: likeCount ?? 0, commentCount: commentCount ?? 0, coverPhotoUrl: coverPhoto?.url ?? null, tags, viewerLiked };
+    })
+  );
+
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.visibility, "public"));
+
+  res.json({ entries: result, total, page, limit });
+});
+
+// GET /api/entries/:id/public — full public entry detail (no auth, visibility must be 'public')
+router.get("/entries/:id/public", optionalAuth, async (req, res) => {
+  const entryId = Number(req.params.id);
+  if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const entry = await getFullEntry(entryId);
+  if (!entry) { res.status(404).json({ error: "Not found" }); return; }
+  if (entry.visibility !== "public") { res.status(403).json({ error: "此随记不是公开状态" }); return; }
+
+  const [{ likeCount }] = await db
+    .select({ likeCount: sql<number>`count(*)::int` })
+    .from(entryLikesTable)
+    .where(eq(entryLikesTable.entryId, entryId));
+
+  const comments = await db
+    .select()
+    .from(entryCommentsTable)
+    .where(eq(entryCommentsTable.entryId, entryId))
+    .orderBy(entryCommentsTable.createdAt);
+
+  const viewerUserId: string | null = (req as any).userId;
+  let viewerLiked = false;
+  if (viewerUserId) {
+    const [row] = await db
+      .select()
+      .from(entryLikesTable)
+      .where(and(eq(entryLikesTable.entryId, entryId), eq(entryLikesTable.userId, viewerUserId)));
+    viewerLiked = !!row;
+  }
+
+  res.json({ entry, likeCount: likeCount ?? 0, viewerLiked, comments });
+});
+
 // GET /api/entries/:id/share-status — check if share exists (for owner)
 router.get("/entries/:id/share-status", requireAuth, async (req, res) => {
   const entryId = Number(req.params.id);
