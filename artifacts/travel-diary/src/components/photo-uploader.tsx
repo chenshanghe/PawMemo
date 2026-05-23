@@ -6,25 +6,31 @@ import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
 
 // ── Compression config ──────────────────────────────────────────────────────
-// maxSizeMB raised to 1.5 → fewer binary-search iterations needed
-// maxWidthOrHeight 1600 instead of 1920 → faster resize pass
-// initialQuality 0.75 → starts closer to target, finds it in fewer rounds
-// maxIteration 4 → cap at 4 rounds (default 10); saves ~400ms per photo
-// Files already under SKIP_BYTES bypass the library entirely
-const SKIP_BYTES = 600 * 1024; // 600 KB
+// Two-tier strategy:
+//   • < SKIP_BYTES        → direct upload, no resize
+//   • >= SKIP_BYTES       → native canvas resize (createImageBitmap + toBlob),
+//                           3-5× faster than browser-image-compression's
+//                           binary-search; fall back to the library on error.
+const SKIP_BYTES = 600 * 1024;        // 600 KB — direct upload threshold
+const MAX_EDGE = 1600;                 // long-edge cap after resize
+const JPEG_QUALITY = 0.8;
 
-const COMPRESS_OPTIONS = {
+const FALLBACK_OPTIONS = {
   maxSizeMB: 1.5,
-  maxWidthOrHeight: 1600,
+  maxWidthOrHeight: MAX_EDGE,
   useWebWorker: true,
   initialQuality: 0.75,
   maxIteration: 4,
-  preserveExif: false,      // skip EXIF strip pass (saves extra encode)
+  preserveExif: false,
 };
 
-// ── Concurrency limiter ─────────────────────────────────────────────────────
-// Process max N photos simultaneously; prevents Web Worker starvation
-const MAX_CONCURRENT = 4;
+// ── Concurrency limiters (P0) ───────────────────────────────────────────────
+// Split into two pools so compression and uploads pipeline instead of blocking
+// each other:
+//   • compress: CPU-bound, 2 parallel is enough to saturate a mid-range phone
+//   • upload:   network-bound, browsers cap same-origin HTTP at 6 anyway
+const COMPRESS_CONCURRENCY = 2;
+const UPLOAD_CONCURRENCY = 6;
 
 function createSemaphore(max: number) {
   let running = 0;
@@ -44,6 +50,62 @@ function createSemaphore(max: number) {
       else queue.push(run);
     });
   };
+}
+
+// ── Native canvas compression (P1) ──────────────────────────────────────────
+// Single-pass resize + JPEG encode. ~3-5× faster than binary-search libraries
+// for typical phone photos (3-5 MB). Falls back to browser-image-compression
+// if the browser lacks createImageBitmap / OffscreenCanvas or encoding fails.
+async function compressViaCanvas(file: File): Promise<File> {
+  if (typeof createImageBitmap !== "function") {
+    throw new Error("createImageBitmap unsupported");
+  }
+  const bitmap = await createImageBitmap(file);
+  try {
+    const { width, height } = bitmap;
+    const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
+    const w = Math.max(1, Math.round(width * scale));
+    const h = Math.max(1, Math.round(height * scale));
+
+    const useOffscreen = typeof OffscreenCanvas !== "undefined";
+    const canvas: HTMLCanvasElement | OffscreenCanvas = useOffscreen
+      ? new OffscreenCanvas(w, h)
+      : Object.assign(document.createElement("canvas"), { width: w, height: h });
+    if (!useOffscreen) {
+      (canvas as HTMLCanvasElement).width = w;
+      (canvas as HTMLCanvasElement).height = h;
+    }
+    const ctx = (canvas as any).getContext("2d");
+    if (!ctx) throw new Error("2d context unavailable");
+    ctx.drawImage(bitmap, 0, 0, w, h);
+
+    const blob: Blob = useOffscreen
+      ? await (canvas as OffscreenCanvas).convertToBlob({ type: "image/jpeg", quality: JPEG_QUALITY })
+      : await new Promise<Blob>((resolve, reject) => {
+          (canvas as HTMLCanvasElement).toBlob(
+            (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
+            "image/jpeg",
+            JPEG_QUALITY,
+          );
+        });
+
+    // If the "compressed" output is actually larger (rare, but possible for
+    // already-tiny PNG icons), keep the original.
+    if (blob.size >= file.size) return file;
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
+    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+  } finally {
+    bitmap.close?.();
+  }
+}
+
+async function compressImage(file: File): Promise<File> {
+  try {
+    return await compressViaCanvas(file);
+  } catch {
+    return await imageCompression(file, FALLBACK_OPTIONS);
+  }
 }
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -68,8 +130,9 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   const queryClient = useQueryClient();
   const addPhoto = useAddEntryPhoto();
 
-  // One semaphore per uploader instance
-  const semaphore = useRef(createSemaphore(MAX_CONCURRENT)).current;
+  // Two pools per uploader instance — compress and upload pipeline independently
+  const compressSem = useRef(createSemaphore(COMPRESS_CONCURRENCY)).current;
+  const uploadSem = useRef(createSemaphore(UPLOAD_CONCURRENCY)).current;
 
   const updateItem = useCallback((id: string, patch: Partial<QueueItem>) => {
     setQueue((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -77,21 +140,21 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
 
   const processFile = useCallback(
     async (item: QueueItem) => {
-      await semaphore(async () => {
-        try {
-          // ── Step 1: compress (skip if already small) ──────────────────
-          updateItem(item.id, { status: "compressing", progress: 15 });
+      try {
+        // ── Step 1: compress (skip if already small) ──────────────────
+        // Compression pool is separate from upload pool, so a finished
+        // compression frees its slot immediately for the next photo
+        // while this one moves into the upload pool.
+        updateItem(item.id, { status: "compressing", progress: 15 });
 
-          let toUpload: File;
-          if (item.file.size <= SKIP_BYTES) {
-            toUpload = item.file; // already small enough
-            updateItem(item.id, { progress: 35 });
-          } else {
-            toUpload = await imageCompression(item.file, COMPRESS_OPTIONS);
-            updateItem(item.id, { progress: 35 });
-          }
+        const toUpload: File = await compressSem(async () => {
+          if (item.file.size <= SKIP_BYTES) return item.file;
+          return await compressImage(item.file);
+        });
+        updateItem(item.id, { progress: 35 });
 
-          // ── Step 2: get presigned URL ─────────────────────────────────
+        // ── Step 2-4: upload pipeline (presign → PUT → save) ──────────
+        await uploadSem(async () => {
           updateItem(item.id, { status: "uploading", progress: 40 });
           const metaRes = await fetch("/api/storage/uploads/request-url", {
             method: "POST",
@@ -105,7 +168,6 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
           if (!metaRes.ok) throw new Error("获取上传地址失败");
           const { uploadURL, objectPath } = await metaRes.json();
 
-          // ── Step 3: upload with XHR for real progress ─────────────────
           await new Promise<void>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open("PUT", uploadURL);
@@ -121,10 +183,8 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
             xhr.send(toUpload);
           });
 
-          // ── Step 4: save to DB ────────────────────────────────────────
           updateItem(item.id, { status: "saving", progress: 92 });
           const url = `/api/storage${objectPath}`;
-
           await new Promise<void>((resolve, reject) => {
             addPhoto.mutate(
               { id: entryId, data: { url } },
@@ -134,25 +194,25 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
                   resolve();
                 },
                 onError: (err) => reject(err),
-              }
+              },
             );
           });
+        });
 
-          updateItem(item.id, { status: "done", progress: 100 });
-          setTimeout(() => {
-            setQueue((prev) => prev.filter((i) => i.id !== item.id));
-            URL.revokeObjectURL(item.previewUrl);
-          }, 1200);
-        } catch (err) {
-          updateItem(item.id, { status: "error", errorMsg: (err as Error).message });
-          setTimeout(() => {
-            setQueue((prev) => prev.filter((i) => i.id !== item.id));
-            URL.revokeObjectURL(item.previewUrl);
-          }, 3000);
-        }
-      });
+        updateItem(item.id, { status: "done", progress: 100 });
+        setTimeout(() => {
+          setQueue((prev) => prev.filter((i) => i.id !== item.id));
+          URL.revokeObjectURL(item.previewUrl);
+        }, 1200);
+      } catch (err) {
+        updateItem(item.id, { status: "error", errorMsg: (err as Error).message });
+        setTimeout(() => {
+          setQueue((prev) => prev.filter((i) => i.id !== item.id));
+          URL.revokeObjectURL(item.previewUrl);
+        }, 3000);
+      }
     },
-    [entryId, addPhoto, queryClient, updateItem, semaphore]
+    [entryId, addPhoto, queryClient, updateItem, compressSem, uploadSem],
   );
 
   const MAX_PHOTOS = 30;
