@@ -6,6 +6,7 @@ import {
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
+import { requireAuth } from "../middlewares/auth";
 
 function parseBatchUploadBody(body: unknown):
   | { files: { name: string; size: number; contentType: string }[] }
@@ -35,7 +36,7 @@ const objectStorageService = new ObjectStorageService();
  * The client sends JSON metadata (name, size, contentType) — NOT the file.
  * Then uploads the file directly to the returned presigned URL.
  */
-router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
@@ -68,7 +69,7 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
  * Client sends `{ files: [{name,size,contentType}, ...] }` and gets back
  * `{ items: [{uploadURL, objectPath, metadata}, ...] }` in the same order.
  */
-router.post("/storage/uploads/request-urls", async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-urls", requireAuth, async (req: Request, res: Response) => {
   const parsed = parseBatchUploadBody(req.body);
   if (!parsed) {
     res.status(400).json({ error: "Missing or invalid required fields" });
