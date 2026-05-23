@@ -7,6 +7,24 @@ import {
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
 
+function parseBatchUploadBody(body: unknown):
+  | { files: { name: string; size: number; contentType: string }[] }
+  | null {
+  if (!body || typeof body !== "object") return null;
+  const files = (body as { files?: unknown }).files;
+  if (!Array.isArray(files) || files.length === 0 || files.length > 30) return null;
+  const out: { name: string; size: number; contentType: string }[] = [];
+  for (const f of files) {
+    if (!f || typeof f !== "object") return null;
+    const { name, size, contentType } = f as Record<string, unknown>;
+    if (typeof name !== "string" || typeof size !== "number" || typeof contentType !== "string") {
+      return null;
+    }
+    out.push({ name, size, contentType });
+  }
+  return { files: out };
+}
+
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
@@ -40,6 +58,35 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
   } catch (error) {
     req.log.error({ err: error }, "Error generating upload URL");
     res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+});
+
+/**
+ * POST /storage/uploads/request-urls
+ *
+ * Batched variant — returns N presigned URLs in one round-trip.
+ * Client sends `{ files: [{name,size,contentType}, ...] }` and gets back
+ * `{ items: [{uploadURL, objectPath, metadata}, ...] }` in the same order.
+ */
+router.post("/storage/uploads/request-urls", async (req: Request, res: Response) => {
+  const parsed = parseBatchUploadBody(req.body);
+  if (!parsed) {
+    res.status(400).json({ error: "Missing or invalid required fields" });
+    return;
+  }
+
+  try {
+    const items = await Promise.all(
+      parsed.files.map(async (f) => {
+        const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+        const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+        return { uploadURL, objectPath, metadata: f };
+      }),
+    );
+    res.json({ items });
+  } catch (error) {
+    req.log.error({ err: error }, "Error generating batch upload URLs");
+    res.status(500).json({ error: "Failed to generate upload URLs" });
   }
 });
 

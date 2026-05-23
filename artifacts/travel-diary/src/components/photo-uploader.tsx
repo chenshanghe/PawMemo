@@ -1,5 +1,5 @@
-import React, { useRef, useState, useCallback } from "react";
-import { useAddEntryPhoto, getGetEntryQueryKey } from "@workspace/api-client-react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
+import { getGetEntryQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera, Images, Loader2, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -111,12 +111,24 @@ async function compressImage(file: File): Promise<File> {
 // ── Types ───────────────────────────────────────────────────────────────────
 interface QueueItem {
   id: string;
+  // Monotonically increasing index — preserves user selection order even when
+  // uploads finish out of order. Used to sort the batch DB write so photos
+  // appear in the order the user picked, not the order the network returned.
+  order: number;
   file: File;
   previewUrl: string;
   status: "compressing" | "uploading" | "saving" | "done" | "error";
   progress: number;
   errorMsg?: string;
+  // P2: presigned upload target assigned upfront in a single batched request
+  uploadURL?: string;
+  objectPath?: string;
 }
+
+// P3: how long to wait for more uploads before flushing a batched DB write.
+// Short enough to feel instant; long enough to coalesce a burst of parallel
+// uploads finishing within a few hundred ms of each other.
+const SAVE_DEBOUNCE_MS = 250;
 
 interface PhotoUploaderProps {
   entryId: number;
@@ -128,46 +140,133 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const queryClient = useQueryClient();
-  const addPhoto = useAddEntryPhoto();
 
   // Two pools per uploader instance — compress and upload pipeline independently
   const compressSem = useRef(createSemaphore(COMPRESS_CONCURRENCY)).current;
   const uploadSem = useRef(createSemaphore(UPLOAD_CONCURRENCY)).current;
 
+  // P3: debounced batch-save buffer. Each finished PUT pushes its URL here;
+  // a single coalesced POST /entries/:id/photos/batch flushes them all and
+  // invalidates the entry query exactly once. `order` carries the user-
+  // selection index so the server insert is sorted, not finish-order.
+  const pendingSaveRef = useRef<{ itemId: string; url: string; order: number }[]>([]);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Monotonic counter shared across all handleFiles invocations on this
+  // mount — guarantees a stable, unique order index even if the user
+  // selects a second batch before the first finishes.
+  const orderCounterRef = useRef(0);
+  // Track all created blob preview URLs so we can revoke them on unmount.
+  const blobUrlsRef = useRef<Set<string>>(new Set());
+
   const updateItem = useCallback((id: string, patch: Partial<QueueItem>) => {
     setQueue((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }, []);
 
-  const processFile = useCallback(
+  const removeItemSoon = useCallback((id: string, ms: number) => {
+    setTimeout(() => {
+      setQueue((prev) => {
+        const found = prev.find((i) => i.id === id);
+        if (found) {
+          URL.revokeObjectURL(found.previewUrl);
+          blobUrlsRef.current.delete(found.previewUrl);
+        }
+        return prev.filter((i) => i.id !== id);
+      });
+    }, ms);
+  }, []);
+
+  const flushSaves = useCallback(async () => {
+    const pending = pendingSaveRef.current;
+    if (!pending.length) return;
+    // Swap to a new buffer before awaiting — anything pushed during the
+    // network round-trip belongs to the next flush.
+    pendingSaveRef.current = [];
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    // Sort by user-selection order so the server INSERT (and therefore
+    // the visible photo grid) reflects the picker order, not finish order.
+    pending.sort((a, b) => a.order - b.order);
+
+    const ids = pending.map((p) => p.itemId);
+    try {
+      const resp = await fetch(`/api/entries/${entryId}/photos/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ urls: pending.map((p) => p.url) }),
+      });
+      if (!resp.ok) throw new Error("批量保存失败");
+      queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(entryId) });
+      ids.forEach((id) => {
+        updateItem(id, { status: "done", progress: 100 });
+        removeItemSoon(id, 1200);
+      });
+    } catch (err) {
+      ids.forEach((id) =>
+        updateItem(id, { status: "error", errorMsg: (err as Error).message }),
+      );
+      ids.forEach((id) => removeItemSoon(id, 3000));
+    }
+  }, [entryId, queryClient, updateItem, removeItemSoon]);
+
+  const scheduleFlush = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(flushSaves, SAVE_DEBOUNCE_MS);
+  }, [flushSaves]);
+
+  // ── Lifecycle cleanup ─────────────────────────────────────────────────
+  // On unmount: cancel any pending debounce timer, fire a best-effort
+  // sendBeacon (keepalive) for any buffered URLs so already-uploaded
+  // objects still get persisted to the DB, and revoke leftover blob URLs.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      const pending = pendingSaveRef.current;
+      if (pending.length) {
+        pendingSaveRef.current = [];
+        pending.sort((a, b) => a.order - b.order);
+        try {
+          // fetch with keepalive survives navigation; falls back silently
+          // if the browser doesn't support it.
+          fetch(`/api/entries/${entryId}/photos/batch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            keepalive: true,
+            body: JSON.stringify({ urls: pending.map((p) => p.url) }),
+          }).catch(() => {});
+        } catch {
+          /* best-effort only */
+        }
+      }
+      blobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      blobUrlsRef.current.clear();
+    };
+  }, [entryId]);
+
+  const processItem = useCallback(
     async (item: QueueItem) => {
       try {
         // ── Step 1: compress (skip if already small) ──────────────────
-        // Compression pool is separate from upload pool, so a finished
-        // compression frees its slot immediately for the next photo
-        // while this one moves into the upload pool.
         updateItem(item.id, { status: "compressing", progress: 15 });
-
         const toUpload: File = await compressSem(async () => {
           if (item.file.size <= SKIP_BYTES) return item.file;
           return await compressImage(item.file);
         });
         updateItem(item.id, { progress: 35 });
 
-        // ── Step 2-4: upload pipeline (presign → PUT → save) ──────────
+        // ── Step 2: PUT to pre-assigned presigned URL ─────────────────
+        // No per-photo presign round-trip — URL was fetched in batch upfront.
+        const { uploadURL, objectPath } = item;
+        if (!uploadURL || !objectPath) throw new Error("缺少上传地址");
+
         await uploadSem(async () => {
           updateItem(item.id, { status: "uploading", progress: 40 });
-          const metaRes = await fetch("/api/storage/uploads/request-url", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: toUpload.name,
-              size: toUpload.size,
-              contentType: toUpload.type || "image/jpeg",
-            }),
-          });
-          if (!metaRes.ok) throw new Error("获取上传地址失败");
-          const { uploadURL, objectPath } = await metaRes.json();
-
           await new Promise<void>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open("PUT", uploadURL);
@@ -178,59 +277,92 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
                 updateItem(item.id, { progress: pct });
               }
             };
-            xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("上传到存储失败")));
+            xhr.onload = () =>
+              xhr.status >= 200 && xhr.status < 300
+                ? resolve()
+                : reject(new Error("上传到存储失败"));
             xhr.onerror = () => reject(new Error("网络错误"));
             xhr.send(toUpload);
           });
-
-          updateItem(item.id, { status: "saving", progress: 92 });
-          const url = `/api/storage${objectPath}`;
-          await new Promise<void>((resolve, reject) => {
-            addPhoto.mutate(
-              { id: entryId, data: { url } },
-              {
-                onSuccess: () => {
-                  queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(entryId) });
-                  resolve();
-                },
-                onError: (err) => reject(err),
-              },
-            );
-          });
         });
 
-        updateItem(item.id, { status: "done", progress: 100 });
-        setTimeout(() => {
-          setQueue((prev) => prev.filter((i) => i.id !== item.id));
-          URL.revokeObjectURL(item.previewUrl);
-        }, 1200);
+        // ── Step 3: queue for debounced batch DB save ─────────────────
+        updateItem(item.id, { status: "saving", progress: 95 });
+        pendingSaveRef.current.push({
+          itemId: item.id,
+          url: `/api/storage${objectPath}`,
+          order: item.order,
+        });
+        scheduleFlush();
       } catch (err) {
         updateItem(item.id, { status: "error", errorMsg: (err as Error).message });
-        setTimeout(() => {
-          setQueue((prev) => prev.filter((i) => i.id !== item.id));
-          URL.revokeObjectURL(item.previewUrl);
-        }, 3000);
+        removeItemSoon(item.id, 3000);
       }
     },
-    [entryId, addPhoto, queryClient, updateItem, compressSem, uploadSem],
+    [compressSem, uploadSem, updateItem, scheduleFlush, removeItemSoon],
   );
 
   const MAX_PHOTOS = 30;
 
-  const handleFiles = (files: FileList) => {
+  const handleFiles = async (files: FileList) => {
     const sliced = Array.from(files).slice(0, MAX_PHOTOS);
     if (files.length > MAX_PHOTOS) {
       alert(`一次最多可选 ${MAX_PHOTOS} 张，已自动取前 ${MAX_PHOTOS} 张。`);
     }
-    const newItems: QueueItem[] = sliced.map((file) => ({
-      id: `${Date.now()}-${Math.random()}`,
-      file,
-      previewUrl: URL.createObjectURL(file),
-      status: "compressing" as const,
-      progress: 0,
-    }));
+    const newItems: QueueItem[] = sliced.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      blobUrlsRef.current.add(previewUrl);
+      return {
+        id: `${Date.now()}-${Math.random()}`,
+        order: orderCounterRef.current++,
+        file,
+        previewUrl,
+        status: "compressing" as const,
+        progress: 0,
+      };
+    });
     setQueue((prev) => [...prev, ...newItems]);
-    newItems.forEach((item) => processFile(item));
+
+    // ── P2: batch-presign all upload URLs in a single round-trip ───────
+    // The server doesn't use size/contentType to build the URL — they're
+    // just echoed back — so it's safe to presign with the *original*
+    // file metadata before we even start compressing.
+    try {
+      const resp = await fetch("/api/storage/uploads/request-urls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          files: sliced.map((f) => ({
+            name: f.name,
+            size: f.size,
+            contentType: f.type || "image/jpeg",
+          })),
+        }),
+      });
+      if (!resp.ok) throw new Error("获取上传地址失败");
+      const { items } = (await resp.json()) as {
+        items: { uploadURL: string; objectPath: string }[];
+      };
+      // Pair URLs back to items by index, then kick off processing.
+      const ready: QueueItem[] = newItems.map((it, i) => ({
+        ...it,
+        uploadURL: items[i]?.uploadURL,
+        objectPath: items[i]?.objectPath,
+      }));
+      setQueue((prev) =>
+        prev.map((it) => ready.find((r) => r.id === it.id) ?? it),
+      );
+      ready.forEach((it) => processItem(it));
+    } catch (err) {
+      newItems.forEach((it) => {
+        updateItem(it.id, {
+          status: "error",
+          errorMsg: (err as Error).message,
+        });
+        removeItemSoon(it.id, 3000);
+      });
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

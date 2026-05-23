@@ -188,7 +188,7 @@ router.get("/:id", async (req, res) => {
   }
   const [tags, photos] = await Promise.all([
     getEntryTags(id),
-    db.select().from(photosTable).where(eq(photosTable.entryId, id)).orderBy(photosTable.createdAt),
+    db.select().from(photosTable).where(eq(photosTable.entryId, id)).orderBy(photosTable.createdAt, photosTable.id),
   ]);
   res.json({ ...entry, tags, photos });
 });
@@ -278,7 +278,7 @@ router.get("/:id/photos", async (req, res) => {
     .select()
     .from(photosTable)
     .where(eq(photosTable.entryId, parsed.data.id))
-    .orderBy(photosTable.createdAt);
+    .orderBy(photosTable.createdAt, photosTable.id);
   res.json(photos);
 });
 
@@ -312,6 +312,48 @@ router.post("/:id/photos", async (req, res) => {
     })
     .returning();
   res.status(201).json(photo);
+});
+
+// POST /entries/:id/photos/batch
+// Bulk insert N photos in a single transaction. Pairs with batched presign
+// + parallel PUTs on the client to eliminate per-photo round-trips.
+router.post("/:id/photos/batch", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  const paramsParsed = AddEntryPhotoParams.safeParse({ id: Number(req.params.id) });
+  if (!paramsParsed.success) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+  const rawUrls = (req.body as { urls?: unknown } | null)?.urls;
+  if (
+    !Array.isArray(rawUrls) ||
+    rawUrls.length === 0 ||
+    rawUrls.length > 30 ||
+    !rawUrls.every((u) => typeof u === "string" && u.length > 0)
+  ) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const urls = rawUrls as string[];
+  const [entry] = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(and(eq(diaryEntriesTable.id, paramsParsed.data.id), eq(diaryEntriesTable.userId, userId)));
+  if (!entry) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const photos = await db
+    .insert(photosTable)
+    .values(
+      urls.map((url) => ({
+        entryId: paramsParsed.data.id,
+        url,
+        caption: null,
+      })),
+    )
+    .returning();
+  res.status(201).json({ photos });
 });
 
 export default router;
