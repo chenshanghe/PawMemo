@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { useUser } from "@clerk/react";
+import { useUser, useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
 import { SocialPanel } from "@/components/social-panel";
 import {
@@ -115,6 +115,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
   const queryClient = useQueryClient();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const { user } = useUser();
+  const { getToken } = useAuth();
 
   const { data: entry, isLoading } = useGetEntry(id, {
     query: { enabled: !!id, queryKey: getGetEntryQueryKey(id) },
@@ -189,9 +190,13 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
     let accumulated = "";
 
     try {
+      const token = await getToken();
       const resp = await fetch("/api/ai/enhance", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         credentials: "include",
         body: JSON.stringify({ content: entry.content, instruction: aiInstruction }),
         signal: abortRef.current.signal,

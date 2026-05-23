@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
 import {
   useCreateEntry,
@@ -29,6 +30,7 @@ interface EntryFormProps {
 export default function EntryForm({ entryId }: EntryFormProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
   const isEditing = !!entryId;
 
   const { data: existingEntry, isLoading: loadingEntry } = useGetEntry(entryId!, {
@@ -107,9 +109,13 @@ export default function EntryForm({ entryId }: EntryFormProps) {
     let accumulated = "";
 
     try {
+      const token = await getToken();
       const resp = await fetch("/api/ai/enhance", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         credentials: "include",
         body: JSON.stringify({ content: form.content, instruction: aiInstruction }),
         signal: abortRef.current.signal,
