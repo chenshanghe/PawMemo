@@ -4,6 +4,7 @@ import { MapPin, Heart, MessageCircle, Image as ImageIcon, CalendarDays, Chevron
 import { format } from "date-fns";
 import { useUser } from "@clerk/react";
 import { cn } from "@/lib/utils";
+import { Layout } from "@/components/layout";
 
 interface SquareEntry {
   id: number;
@@ -79,6 +80,7 @@ export default function Square() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
+    <Layout>
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -231,5 +233,6 @@ export default function Square() {
         </>
       )}
     </div>
+    </Layout>
   );
 }
