@@ -102,6 +102,7 @@ router.get("/share/:token", optionalAuth, async (req, res) => {
 
   const entry = await getFullEntry(share.entryId);
   if (!entry) { res.status(404).json({ error: "Not found" }); return; }
+  if (entry.visibility === "private") { res.status(403).json({ error: "此随记已设为私密" }); return; }
 
   const [likeCount] = await db
     .select({ count: sql<number>`count(*)::int` })

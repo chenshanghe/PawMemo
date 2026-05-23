@@ -14,6 +14,8 @@ export interface Tag {
   name: string;
 }
 
+export type EntryVisibility = 'private' | 'public' | 'shared';
+
 export interface DiaryEntry {
   id: number;
   title: string;
@@ -28,6 +30,7 @@ export interface DiaryEntry {
   rating?: number | null;
   /** @nullable */
   companions?: string | null;
+  visibility?: EntryVisibility;
   startDate: string;
   /** @nullable */
   endDate?: string | null;
@@ -61,6 +64,7 @@ export interface DiaryEntryDetail {
   rating?: number | null;
   /** @nullable */
   companions?: string | null;
+  visibility?: EntryVisibility;
   startDate: string;
   /** @nullable */
   endDate?: string | null;
@@ -84,6 +88,7 @@ export interface DiaryEntryInput {
      */
   rating?: number;
   companions?: string;
+  visibility?: EntryVisibility;
   startDate: string;
   endDate?: string;
   tagIds?: number[];
@@ -103,6 +108,7 @@ export interface DiaryEntryUpdate {
      */
   rating?: number;
   companions?: string;
+  visibility?: EntryVisibility;
   startDate?: string;
   endDate?: string;
   tagIds?: number[];

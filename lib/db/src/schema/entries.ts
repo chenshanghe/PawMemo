@@ -17,6 +17,7 @@ export const diaryEntriesTable = pgTable("diary_entries", {
   mood: text("mood"),
   rating: integer("rating"),
   companions: text("companions"),
+  visibility: text("visibility").notNull().default("private"),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

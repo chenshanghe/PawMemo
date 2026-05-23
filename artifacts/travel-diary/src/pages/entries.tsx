@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MapPin, CalendarDays, Image as ImageIcon, Search, Plus, Trash2, Star, X, MoreHorizontal } from "lucide-react";
+import { MapPin, CalendarDays, Image as ImageIcon, Search, Plus, Trash2, Star, X, MoreHorizontal, Lock, Globe, Link2 } from "lucide-react";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -244,7 +244,14 @@ export default function Entries() {
                       {entry.destination}
                     </div>
                     {/* Date range */}
-                    <div className="absolute top-3 right-10 bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs text-muted-foreground shadow-sm">
+                    <div className="absolute top-3 right-10 bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs text-muted-foreground shadow-sm flex items-center gap-1">
+                      {(entry as any).visibility === "public" ? (
+                        <Globe className="w-3 h-3 text-green-600" />
+                      ) : (entry as any).visibility === "shared" ? (
+                        <Link2 className="w-3 h-3 text-blue-500" />
+                      ) : (
+                        <Lock className="w-3 h-3 text-muted-foreground/60" />
+                      )}
                       {format(new Date(entry.startDate), 'MM.dd')}
                       {entry.endDate && ` — ${format(new Date(entry.endDate), 'MM.dd')}`}
                     </div>

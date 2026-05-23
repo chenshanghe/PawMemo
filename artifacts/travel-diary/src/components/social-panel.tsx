@@ -10,9 +10,10 @@ import type { EntryComment, LikesStatus } from "@workspace/api-client-react";
 interface SocialPanelProps {
   entryId: number;
   isOwner: boolean;
+  visibility?: string;
 }
 
-export function SocialPanel({ entryId, isOwner }: SocialPanelProps) {
+export function SocialPanel({ entryId, isOwner, visibility = "private" }: SocialPanelProps) {
   const { user, isSignedIn } = useUser();
 
   // ── Likes ──────────────────────────────────────────────────────────────────
@@ -212,9 +213,25 @@ export function SocialPanel({ entryId, isOwner }: SocialPanelProps) {
         <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
           <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
             <Link2 className="w-4 h-4 text-primary" />
-            公开分享链接
+            分享链接
           </div>
-          {shareToken ? (
+
+          {visibility === "private" ? (
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                此随记当前为<strong>私密</strong>，无法生成分享链接。
+              </p>
+              <p className="text-xs text-muted-foreground">
+                请先在编辑页面将可见范围改为「分享可见」或「公开」。
+              </p>
+              <a
+                href={`/entries/${entryId}/edit`}
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+              >
+                前往编辑 →
+              </a>
+            </div>
+          ) : shareToken ? (
             <div className="space-y-2">
               <div className="flex gap-2">
                 <input
@@ -228,7 +245,7 @@ export function SocialPanel({ entryId, isOwner }: SocialPanelProps) {
                   {copied ? "已复制" : "复制"}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">任何人打开此链接均可查看随记，无需登录。</p>
+              <p className="text-xs text-muted-foreground">任何人打开此链接均可查看，无需登录。</p>
               <button
                 onClick={handleRevokeShare}
                 disabled={shareLoading}

@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   MapPin, CalendarDays, Star, Pencil, Trash2, ArrowLeft, X, ChevronLeft, ChevronRight,
-  Sparkles, Loader2, Check, RotateCcw, Users,
+  Sparkles, Loader2, Check, RotateCcw, Users, Lock, Globe, Link2,
 } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { format } from "date-fns";
@@ -333,6 +333,20 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                 <span>{entry.companions}</span>
               </div>
             )}
+            {(() => {
+              const v = (entry as any).visibility ?? "private";
+              const cfg = v === "public"
+                ? { Icon: Globe,  label: "公开",    cls: "text-green-600 bg-green-50 border-green-200" }
+                : v === "shared"
+                ? { Icon: Link2,  label: "分享可见", cls: "text-blue-600 bg-blue-50 border-blue-200" }
+                : { Icon: Lock,   label: "私密",    cls: "text-muted-foreground bg-muted/40 border-border/50" };
+              return (
+                <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${cfg.cls}`}>
+                  <cfg.Icon className="w-3 h-3" />
+                  {cfg.label}
+                </span>
+              );
+            })()}
           </div>
           {entry.tags && entry.tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -377,7 +391,11 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         </div>
 
         {/* Social: likes, comments, share */}
-        <SocialPanel entryId={id} isOwner={!!user && entry.userId === user.id} />
+        <SocialPanel
+          entryId={id}
+          isOwner={!!user && entry.userId === user.id}
+          visibility={(entry as any).visibility ?? "private"}
+        />
 
         {/* Content */}
         {entry.content && (

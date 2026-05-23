@@ -63,6 +63,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
   const [data, setData] = useState<PublicEntryView | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const [likes, setLikes] = useState({ count: 0, viewerLiked: false });
@@ -76,6 +77,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
     (async () => {
       try {
         const res = await fetch(`/api/share/${token}`, { credentials: "include" });
+        if (res.status === 403) { setIsPrivate(true); setLoading(false); return; }
         if (!res.ok) { setNotFound(true); return; }
         const d: PublicEntryView = await res.json();
         setData(d);
@@ -135,6 +137,17 @@ export default function ShareView({ params }: { params: { token: string } }) {
     return (
       <div className="min-h-[100dvh] bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isPrivate) {
+    return (
+      <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center text-3xl">🔒</div>
+        <h2 className="text-xl font-serif font-bold">此随记已设为私密</h2>
+        <p className="text-muted-foreground text-sm">作者已将该随记改为私密，链接暂时无法访问。</p>
+        <a href="/" className="text-primary text-sm hover:underline">返回首页</a>
       </div>
     );
   }

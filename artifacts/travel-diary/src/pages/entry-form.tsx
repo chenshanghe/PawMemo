@@ -49,6 +49,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
     rating: 0,
     startDate: "",
     endDate: "",
+    visibility: "private" as "private" | "public" | "shared",
   });
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [newTagName, setNewTagName] = useState("");
@@ -69,6 +70,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
         content: existingEntry.content ?? "",
         coverImage: existingEntry.coverImage ?? "",
         companions: existingEntry.companions ?? "",
+        visibility: (existingEntry.visibility as any) ?? "private",
         mood: existingEntry.mood ?? "",
         rating: existingEntry.rating ?? 0,
         startDate: existingEntry.startDate,
@@ -157,6 +159,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
       coverImage: form.coverImage || undefined,
       mood: form.mood || undefined,
       rating: form.rating || undefined,
+      visibility: form.visibility,
       startDate: form.startDate,
       endDate: form.endDate || undefined,
       tagIds: selectedTagIds,
@@ -260,6 +263,33 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                   onChange={(e) => setForm({ ...form, companions: e.target.value })}
                   className="bg-background border-border/60"
                 />
+              </div>
+
+              {/* Visibility */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">可见范围</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: "private", label: "🔒 私密", desc: "仅自己可见" },
+                    { value: "shared",  label: "🔗 分享可见", desc: "持链接可看" },
+                    { value: "public",  label: "🌍 公开",  desc: "所有人可见" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, visibility: opt.value })}
+                      className={`flex flex-col items-center gap-0.5 py-2.5 px-2 rounded-xl text-xs font-medium border transition-all ${
+                        form.visibility === opt.value
+                          ? "bg-primary/10 border-primary/40 text-primary"
+                          : "bg-background border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                      }`}
+                    >
+                      <span className="text-base">{opt.label.split(" ")[0]}</span>
+                      <span>{opt.label.split(" ").slice(1).join(" ")}</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Dates */}
