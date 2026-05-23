@@ -38,7 +38,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             }`}
           >
             <Compass className="w-4.5 h-4.5" />
-            首页
+            随记
           </Link>
           <Link
             href="/entries"
@@ -49,7 +49,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             }`}
           >
             <BookText className="w-4.5 h-4.5" />
-            日记
+            旅记
           </Link>
           <Link
             href="/square"
@@ -133,7 +133,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           }`}
         >
           <Compass className="w-5 h-5" />
-          <span className="text-[10px] font-medium">首页</span>
+          <span className="text-[10px] font-medium">随记</span>
         </Link>
         <Link
           href="/entries"
@@ -142,7 +142,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           }`}
         >
           <BookText className="w-5 h-5" />
-          <span className="text-[10px] font-medium">日记</span>
+          <span className="text-[10px] font-medium">旅记</span>
         </Link>
         <Link
           href="/square"
