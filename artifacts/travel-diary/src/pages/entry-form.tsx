@@ -448,23 +448,24 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                     <Sparkles className="w-3.5 h-3.5 text-primary" />
                     AI 优化（由 DeepSeek 驱动）
                   </div>
-                  <div className="flex gap-2">
-                    <Input
+                  <div className="flex gap-2 items-stretch">
+                    <Textarea
                       placeholder="描述优化要求（留空则自动润色语法和文笔）"
                       value={aiInstruction}
                       onChange={(e) => setAiInstruction(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") { e.preventDefault(); handleAiEnhance(); }
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleAiEnhance(); }
                       }}
                       disabled={aiLoading}
-                      className="bg-background border-border/60 text-sm h-9"
+                      rows={3}
+                      className="bg-background border-border/60 text-sm min-h-[80px] resize-y flex-1"
                     />
                     <Button
                       type="button"
                       size="sm"
                       onClick={aiLoading ? () => abortRef.current?.abort() : handleAiEnhance}
                       disabled={!form.content.trim()}
-                      className="shrink-0 gap-1.5 h-9"
+                      className="shrink-0 gap-1.5 self-stretch h-auto"
                       variant={aiLoading ? "outline" : "default"}
                     >
                       {aiLoading ? (

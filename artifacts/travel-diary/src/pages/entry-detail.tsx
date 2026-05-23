@@ -489,21 +489,22 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
               </div>
 
               {/* Input + trigger */}
-              <div className="flex gap-2">
-                <Input
+              <div className="flex gap-2 items-stretch">
+                <Textarea
                   placeholder="描述优化要求（留空则自动润色语法和文笔）"
                   value={aiInstruction}
                   onChange={(e) => setAiInstruction(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !aiDraft) { e.preventDefault(); handleAiEnhance(); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !aiDraft) { e.preventDefault(); handleAiEnhance(); } }}
                   disabled={aiLoading || !!aiDraft}
-                  className="bg-background border-border/60 text-sm h-9"
+                  rows={3}
+                  className="bg-background border-border/60 text-sm min-h-[80px] resize-y flex-1"
                 />
                 <Button
                   type="button"
                   size="sm"
                   onClick={aiLoading ? () => { abortRef.current?.abort(); } : handleAiEnhance}
                   disabled={!!aiDraft && !aiLoading}
-                  className="shrink-0 gap-1.5 h-9"
+                  className="shrink-0 gap-1.5 self-stretch h-auto"
                   variant={aiLoading ? "outline" : "default"}
                 >
                   {aiLoading ? (
