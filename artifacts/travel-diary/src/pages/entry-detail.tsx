@@ -483,11 +483,6 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
 
             {/* AI Enhancement Panel */}
             <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Sparkles className="w-3.5 h-3.5 text-primary" />
-                AI 优化（由 DeepSeek 驱动）
-              </div>
-
               {/* Input + trigger */}
               <div className="flex gap-2 items-stretch">
                 <Textarea
@@ -496,8 +491,8 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                   onChange={(e) => setAiInstruction(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !aiDraft) { e.preventDefault(); handleAiEnhance(); } }}
                   disabled={aiLoading || !!aiDraft}
-                  rows={3}
-                  className="bg-background border-border/60 text-sm min-h-[80px] resize-y flex-1"
+                  rows={5}
+                  className="bg-background border-border/60 text-sm min-h-[120px] resize-y flex-1"
                 />
                 <Button
                   type="button"

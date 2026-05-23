@@ -444,10 +444,6 @@ export default function EntryForm({ entryId }: EntryFormProps) {
 
                 {/* AI Enhancement Panel */}
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
-                    AI 优化（由 DeepSeek 驱动）
-                  </div>
                   <div className="flex gap-2 items-stretch">
                     <Textarea
                       placeholder="描述优化要求（留空则自动润色语法和文笔）"
@@ -457,8 +453,8 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleAiEnhance(); }
                       }}
                       disabled={aiLoading}
-                      rows={3}
-                      className="bg-background border-border/60 text-sm min-h-[80px] resize-y flex-1"
+                      rows={5}
+                      className="bg-background border-border/60 text-sm min-h-[120px] resize-y flex-1"
                     />
                     <Button
                       type="button"
