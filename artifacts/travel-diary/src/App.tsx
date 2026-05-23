@@ -12,6 +12,7 @@ import Home from "@/pages/home";
 import Entries from "@/pages/entries";
 import EntryDetail from "@/pages/entry-detail";
 import EntryForm from "@/pages/entry-form";
+import ShareView from "@/pages/share-view";
 
 const queryClient = new QueryClient();
 
@@ -158,6 +159,9 @@ function AppRouter() {
       </Route>
       <Route path="/entries/:id">
         {(params) => <ProtectedRoute component={EntryDetail} params={params as { id: string }} />}
+      </Route>
+      <Route path="/share/:token">
+        {(params) => <ShareView params={params as { token: string }} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

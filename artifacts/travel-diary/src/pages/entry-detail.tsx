@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation } from "wouter";
+import { useUser } from "@clerk/react";
 import { Layout } from "@/components/layout";
+import { SocialPanel } from "@/components/social-panel";
 import {
   useGetEntry,
   useDeleteEntry,
@@ -112,6 +114,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const { user } = useUser();
 
   const { data: entry, isLoading } = useGetEntry(id, {
     query: { enabled: !!id, queryKey: getGetEntryQueryKey(id) },
@@ -372,6 +375,9 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
           )}
           <PhotoUploader entryId={id} />
         </div>
+
+        {/* Social: likes, comments, share */}
+        <SocialPanel entryId={id} isOwner={!!user && entry.userId === user.id} />
 
         {/* Content */}
         {entry.content && (

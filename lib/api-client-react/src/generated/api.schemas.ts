@@ -48,6 +48,7 @@ export interface Photo {
 
 export interface DiaryEntryDetail {
   id: number;
+  userId?: string | null;
   title: string;
   destination: string;
   /** @nullable */
@@ -151,4 +152,31 @@ search?: string;
 dateFrom?: string;
 dateTo?: string;
 };
+
+export interface EntryComment {
+  id: number;
+  entryId: number;
+  userId: string;
+  userName: string;
+  userAvatar?: string | null;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LikesStatus {
+  count: number;
+  viewerLiked: boolean;
+}
+
+export interface ShareStatus {
+  token: string | null;
+}
+
+export interface PublicEntryView {
+  entry: DiaryEntryDetail;
+  likeCount: number;
+  viewerLiked: boolean;
+  comments: EntryComment[];
+}
 
