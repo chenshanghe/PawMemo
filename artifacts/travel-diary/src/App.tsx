@@ -15,6 +15,8 @@ import EntryForm from "@/pages/entry-form";
 import ShareView from "@/pages/share-view";
 import Square from "@/pages/square";
 import PublicEntry from "@/pages/public-entry";
+import MyFavorites from "@/pages/my-favorites";
+import MyFeed from "@/pages/my-feed";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +100,22 @@ function ClerkQueryClientCacheInvalidator() {
         qc.clear();
       }
       prevUserIdRef.current = userId;
+
+      // Sync profile to server on sign-in so others can see name/avatar.
+      // Best-effort — we don't block on failure.
+      if (user) {
+        const name =
+          user.fullName ||
+          user.username ||
+          user.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+          "旅行者";
+        fetch("/api/me/profile", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, avatar: user.imageUrl ?? null }),
+        }).catch(() => {});
+      }
     });
     return unsubscribe;
   }, [addListener, qc]);
@@ -166,6 +184,8 @@ function AppRouter() {
         {(params) => <ShareView params={params as { token: string }} />}
       </Route>
       <Route path="/square">{() => <Square />}</Route>
+      <Route path="/favorites">{() => <ProtectedRoute component={MyFavorites} />}</Route>
+      <Route path="/feed">{() => <ProtectedRoute component={MyFeed} />}</Route>
       <Route path="/public/:id">
         {(params) => <PublicEntry params={params as { id: string }} />}
       </Route>

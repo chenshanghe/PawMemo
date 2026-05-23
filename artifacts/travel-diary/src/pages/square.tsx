@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
-import { MapPin, Heart, MessageCircle, Image as ImageIcon, CalendarDays, ChevronRight, Loader2, RefreshCw } from "lucide-react";
+import { MapPin, Heart, MessageCircle, Image as ImageIcon, CalendarDays, ChevronRight, Loader2, RefreshCw, Bookmark } from "lucide-react";
 import { format } from "date-fns";
 import { useUser } from "@clerk/react";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,9 @@ interface SquareEntry {
   commentCount: number;
   coverPhotoUrl: string | null;
   viewerLiked: boolean;
+  viewerFavorited?: boolean;
   tags: { id: number; name: string }[];
+  author?: { userId: string; name: string; avatar: string | null } | null;
   createdAt: string;
 }
 
@@ -38,7 +40,9 @@ export default function Square() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [likedMap, setLikedMap] = useState<Record<number, { count: number; liked: boolean }>>({});
+  const [favMap, setFavMap] = useState<Record<number, boolean>>({});
   const [likePending, setLikePending] = useState<number | null>(null);
+  const [favPending, setFavPending] = useState<number | null>(null);
   const LIMIT = 20;
 
   const fetchSquare = useCallback(async (p: number) => {
@@ -50,10 +54,13 @@ export default function Square() {
       setEntries(data.entries);
       setTotal(data.total);
       const map: Record<number, { count: number; liked: boolean }> = {};
+      const fav: Record<number, boolean> = {};
       for (const e of data.entries) {
         map[e.id] = { count: e.likeCount, liked: e.viewerLiked };
+        if (e.viewerFavorited) fav[e.id] = true;
       }
       setLikedMap(map);
+      setFavMap(fav);
     } finally {
       setLoading(false);
     }
@@ -74,6 +81,22 @@ export default function Square() {
       }
     } finally {
       setLikePending(null);
+    }
+  };
+
+  const handleFavorite = async (entryId: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isSignedIn || favPending) return;
+    setFavPending(entryId);
+    try {
+      const res = await fetch(`/api/entries/${entryId}/favorite`, { method: "POST", credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setFavMap((prev) => ({ ...prev, [entryId]: data.favorited }));
+      }
+    } finally {
+      setFavPending(null);
     }
   };
 
@@ -144,9 +167,24 @@ export default function Square() {
 
                       {/* Mood */}
                       {entry.mood && (
-                        <div className={cn("absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-xs font-medium", MOODS[entry.mood] ?? "bg-muted text-muted-foreground")}>
+                        <div className={cn("absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full text-xs font-medium", MOODS[entry.mood] ?? "bg-muted text-muted-foreground")}>
                           {entry.mood}
                         </div>
+                      )}
+
+                      {/* Favorite */}
+                      {isSignedIn && (
+                        <button
+                          onClick={(e) => handleFavorite(entry.id, e)}
+                          disabled={favPending === entry.id}
+                          title={favMap[entry.id] ? "取消收藏" : "收藏"}
+                          className={cn(
+                            "absolute top-2.5 right-2.5 p-1.5 rounded-full backdrop-blur-sm transition-colors shadow-sm",
+                            favMap[entry.id] ? "bg-amber-100/90 text-amber-600" : "bg-background/90 text-muted-foreground hover:text-amber-500",
+                          )}
+                        >
+                          {favPending === entry.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bookmark className={cn("w-3.5 h-3.5", favMap[entry.id] && "fill-amber-500")} />}
+                        </button>
                       )}
                     </div>
 

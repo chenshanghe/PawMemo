@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, date, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, date, unique, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -77,3 +77,44 @@ export const entryCommentsTable = pgTable("entry_comments", {
 export type EntryShare = typeof entrySharesTable.$inferSelect;
 export type EntryLike = typeof entryLikesTable.$inferSelect;
 export type EntryComment = typeof entryCommentsTable.$inferSelect;
+
+// ── Profile / follow / favorite ─────────────────────────────────────────────
+// Lightweight profile cache, kept in sync from Clerk session on every authed
+// request. We don't rely on Clerk to be reachable when rendering authors.
+export const userProfilesTable = pgTable("user_profiles", {
+  userId: text("user_id").primaryKey(),
+  name: text("name").notNull(),
+  avatar: text("avatar"),
+  bio: text("bio"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const userFollowsTable = pgTable(
+  "user_follows",
+  {
+    followerId: text("follower_id").notNull(),
+    followeeId: text("followee_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.followerId, t.followeeId] }),
+  }),
+);
+
+export const entryFavoritesTable = pgTable(
+  "entry_favorites",
+  {
+    userId: text("user_id").notNull(),
+    entryId: integer("entry_id")
+      .notNull()
+      .references(() => diaryEntriesTable.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.entryId] }),
+  }),
+);
+
+export type UserProfile = typeof userProfilesTable.$inferSelect;
+export type UserFollow = typeof userFollowsTable.$inferSelect;
+export type EntryFavorite = typeof entryFavoritesTable.$inferSelect;

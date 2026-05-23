@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useUser } from "@clerk/react";
-import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Globe } from "lucide-react";
+import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Globe, Bookmark, UserPlus, UserCheck } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,6 +72,12 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commentPending, setCommentPending] = useState(false);
+  // Author / follow / favorite
+  const [author, setAuthor] = useState<{ userId: string; name: string; avatar: string | null } | null>(null);
+  const [viewerFollowing, setViewerFollowing] = useState(false);
+  const [followPending, setFollowPending] = useState(false);
+  const [viewerFavorited, setViewerFavorited] = useState(false);
+  const [favPending, setFavPending] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -79,10 +85,13 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
         const res = await fetch(`/api/entries/${entryId}/public`, { credentials: "include" });
         if (res.status === 403) { setNotPublic(true); setLoading(false); return; }
         if (!res.ok) { setNotFound(true); return; }
-        const d: PublicEntryView = await res.json();
+        const d: any = await res.json();
         setData(d);
         setLikes({ count: d.likeCount, viewerLiked: d.viewerLiked });
         setComments(d.comments);
+        setAuthor(d.author ?? null);
+        setViewerFollowing(!!d.viewerFollowing);
+        setViewerFavorited(!!d.viewerFavorited);
       } catch {
         setNotFound(true);
       } finally {
@@ -90,6 +99,34 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
       }
     })();
   }, [entryId]);
+
+  const handleToggleFollow = async () => {
+    if (!isSignedIn || followPending || !author) return;
+    setFollowPending(true);
+    try {
+      const res = await fetch(`/api/users/${author.userId}/follow`, { method: "POST", credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setViewerFollowing(data.following);
+      }
+    } finally {
+      setFollowPending(false);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!isSignedIn || favPending || !data) return;
+    setFavPending(true);
+    try {
+      const res = await fetch(`/api/entries/${data.entry.id}/favorite`, { method: "POST", credentials: "include" });
+      if (res.ok) {
+        const r = await res.json();
+        setViewerFavorited(r.favorited);
+      }
+    } finally {
+      setFavPending(false);
+    }
+  };
 
   const handleToggleLike = async () => {
     if (!isSignedIn || likePending || !data) return;
@@ -216,6 +253,34 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
             </div>
           )}
 
+          {/* Author */}
+          {author && (
+            <div className="flex items-center gap-3 p-3 rounded-2xl border border-border/50 bg-card/40">
+              <div className="w-10 h-10 rounded-full bg-primary/15 overflow-hidden shrink-0 flex items-center justify-center text-sm font-semibold text-primary">
+                {author.avatar ? <img src={author.avatar} alt="" className="w-full h-full object-cover" /> : author.name[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">{author.name}</p>
+                <p className="text-xs text-muted-foreground">旅行者</p>
+              </div>
+              {isSignedIn && user?.id !== author.userId && (
+                <button
+                  onClick={handleToggleFollow}
+                  disabled={followPending}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all shrink-0",
+                    viewerFollowing
+                      ? "bg-muted/60 text-muted-foreground border border-border/50 hover:bg-muted"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+                  )}
+                >
+                  {followPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : viewerFollowing ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                  {viewerFollowing ? "已关注" : "关注"}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Meta */}
           <div className="space-y-3">
             <h1 className="text-2xl font-serif font-bold text-foreground leading-snug">{entry.title}</h1>
@@ -299,8 +364,23 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
                 <span>{comments.length > 0 ? comments.length : ""} 评论</span>
               </button>
 
+              <button
+                onClick={handleToggleFavorite}
+                disabled={!isSignedIn || favPending}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+                  viewerFavorited
+                    ? "bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100"
+                    : "bg-muted/40 text-muted-foreground border border-border/50 hover:bg-muted/70 hover:text-foreground",
+                  !isSignedIn && "cursor-default opacity-60",
+                )}
+              >
+                {favPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bookmark className={cn("w-4 h-4", viewerFavorited && "fill-amber-500")} />}
+                <span>{viewerFavorited ? "已收藏" : "收藏"}</span>
+              </button>
+
               {!isSignedIn && (
-                <span className="text-xs text-muted-foreground ml-1">登录后可点赞和评论</span>
+                <span className="text-xs text-muted-foreground ml-1">登录后可点赞、评论、收藏</span>
               )}
             </div>
 

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, User, Bell } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, User, Bell, Bookmark, Users } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -15,6 +15,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isDashboard = location === "/dashboard" || location === "/";
   const isEntries = location.startsWith("/entries") && location !== "/entries/new";
   const isSquare = location === "/square" || location.startsWith("/public/");
+  const isFeed = location === "/feed";
+  const isFavorites = location === "/favorites";
 
   return (
     <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background">
@@ -61,6 +63,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             <Globe className="w-4.5 h-4.5" />
             广场
+          </Link>
+          <Link
+            href="/feed"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+              isFeed
+                ? "bg-primary/12 text-primary font-semibold"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            }`}
+          >
+            <Users className="w-4.5 h-4.5" />
+            关注
+          </Link>
+          <Link
+            href="/favorites"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+              isFavorites
+                ? "bg-primary/12 text-primary font-semibold"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            }`}
+          >
+            <Bookmark className="w-4.5 h-4.5" />
+            收藏
           </Link>
         </nav>
 
@@ -146,12 +170,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </Link>
         <Link
           href="/square"
-          className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors ${
+          className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
             isSquare ? "text-primary" : "text-muted-foreground"
           }`}
         >
           <Globe className="w-5 h-5" />
           <span className="text-[10px] font-medium">广场</span>
+        </Link>
+        <Link
+          href="/feed"
+          className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
+            isFeed ? "text-primary" : "text-muted-foreground"
+          }`}
+        >
+          <Users className="w-5 h-5" />
+          <span className="text-[10px] font-medium">关注</span>
+        </Link>
+        <Link
+          href="/favorites"
+          className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${
+            isFavorites ? "text-primary" : "text-muted-foreground"
+          }`}
+        >
+          <Bookmark className="w-5 h-5" />
+          <span className="text-[10px] font-medium">收藏</span>
         </Link>
       </nav>
     </div>
