@@ -11,6 +11,7 @@ import {
   userProfilesTable,
   userFollowsTable,
   entryFavoritesTable,
+  composeStylesTable,
 } from "@workspace/db";
 import { eq, sql, and, desc, inArray } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
@@ -810,6 +811,45 @@ router.get("/me/feed", requireAuth, async (req, res) => {
     );
 
   res.json({ entries, total, page, limit, followingCount: followeeIds.length });
+});
+
+// ── Compose style presets ────────────────────────────────────────────────────
+
+// GET /api/me/compose-styles
+router.get("/me/compose-styles", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  const rows = await db
+    .select()
+    .from(composeStylesTable)
+    .where(eq(composeStylesTable.userId, userId))
+    .orderBy(desc(composeStylesTable.createdAt));
+  res.json(rows);
+});
+
+// POST /api/me/compose-styles
+router.post("/me/compose-styles", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  const { name, style } = req.body ?? {};
+  if (typeof name !== "string" || !name.trim() || typeof style !== "string" || !style.trim()) {
+    res.status(400).json({ error: "name and style are required" });
+    return;
+  }
+  const [row] = await db
+    .insert(composeStylesTable)
+    .values({ userId, name: name.trim(), style: style.trim() })
+    .returning();
+  res.status(201).json(row);
+});
+
+// DELETE /api/me/compose-styles/:id
+router.delete("/me/compose-styles/:id", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  const id = Number(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  await db
+    .delete(composeStylesTable)
+    .where(and(eq(composeStylesTable.id, id), eq(composeStylesTable.userId, userId)));
+  res.json({ ok: true });
 });
 
 export default router;

@@ -432,37 +432,6 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
           )}
         </div>
 
-        {/* Photos */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-serif font-bold text-foreground">旅途照片</h2>
-          {photos.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {photos.map((photo, idx) => (
-                <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-xl shadow-sm bg-muted/30">
-                  <img
-                    src={photo.url}
-                    alt={photo.caption ?? "旅途照片"}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
-                    onClick={() => setLightboxIndex(idx)}
-                  />
-                  {photo.caption && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-white text-xs">{photo.caption}</p>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => handleDeletePhoto(photo.id)}
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <PhotoUploader entryId={id} />
-        </div>
-
         {/* Social: likes, comments, share */}
         <SocialPanel
           entryId={id}
@@ -470,99 +439,239 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
           visibility={(entry as any).visibility ?? "private"}
         />
 
-        {/* Content */}
-        {entry.content && (
-          <div className="space-y-3">
-            <Card className="border-border/40 bg-card/70 shadow-sm">
-              <CardContent className="p-6">
-                <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap font-serif text-base">
-                  {entry.content}
+        {/* Content — narrative entries get 图文混排, regular entries get photo grid + plain text */}
+        {(entry as any).entryType === "narrative" && entry.content ? (
+          <NarrativeContent
+            content={entry.content}
+            photos={photos}
+            lightboxIndex={lightboxIndex}
+            onPhotoClick={setLightboxIndex}
+            onDeletePhoto={handleDeletePhoto}
+            entryId={id}
+          />
+        ) : (
+          <>
+            {/* Photos grid for regular entries */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-serif font-bold text-foreground">旅途照片</h2>
+              {photos.length > 0 && (
+                <div className="grid grid-cols-3 gap-3">
+                  {photos.map((photo, idx) => (
+                    <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-xl shadow-sm bg-muted/30">
+                      <img
+                        src={photo.url}
+                        alt={photo.caption ?? "旅途照片"}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
+                        onClick={() => setLightboxIndex(idx)}
+                      />
+                      {photo.caption && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <p className="text-white text-xs">{photo.caption}</p>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleDeletePhoto(photo.id)}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+              <PhotoUploader entryId={id} />
+            </div>
 
-            {/* AI Enhancement Panel */}
-            <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
-              {/* Input + trigger */}
-              <div className="flex gap-2 items-stretch">
-                <Textarea
-                  placeholder="描述优化要求（留空则自动润色语法和文笔）"
-                  value={aiInstruction}
-                  onChange={(e) => setAiInstruction(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !aiDraft) { e.preventDefault(); handleAiEnhance(); } }}
-                  disabled={aiLoading || !!aiDraft}
-                  rows={5}
-                  className="bg-background border-border/60 text-sm min-h-[120px] resize-y flex-1"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={aiLoading ? () => { abortRef.current?.abort(); } : handleAiEnhance}
-                  disabled={!!aiDraft && !aiLoading}
-                  className="shrink-0 gap-1.5 self-stretch h-auto"
-                  variant={aiLoading ? "outline" : "default"}
-                >
-                  {aiLoading ? (
-                    <><Loader2 className="w-3.5 h-3.5 animate-spin" />停止</>
-                  ) : (
-                    <><Sparkles className="w-3.5 h-3.5" />AI 优化</>
-                  )}
-                </Button>
-              </div>
+            {entry.content && (
+              <div className="space-y-3">
+                <Card className="border-border/40 bg-card/70 shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap font-serif text-base">
+                      {entry.content}
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+                {/* AI Enhancement Panel */}
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+                  <div className="flex gap-2 items-stretch">
+                    <Textarea
+                      placeholder="描述优化要求（留空则自动润色语法和文笔）"
+                      value={aiInstruction}
+                      onChange={(e) => setAiInstruction(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !aiDraft) { e.preventDefault(); handleAiEnhance(); } }}
+                      disabled={aiLoading || !!aiDraft}
+                      rows={5}
+                      className="bg-background border-border/60 text-sm min-h-[120px] resize-y flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={aiLoading ? () => { abortRef.current?.abort(); } : handleAiEnhance}
+                      disabled={!!aiDraft && !aiLoading}
+                      className="shrink-0 gap-1.5 self-stretch h-auto"
+                      variant={aiLoading ? "outline" : "default"}
+                    >
+                      {aiLoading ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" />停止</>
+                      ) : (
+                        <><Sparkles className="w-3.5 h-3.5" />AI 优化</>
+                      )}
+                    </Button>
+                  </div>
 
-              {/* Streaming draft preview */}
-              {(aiLoading || aiDraft !== null) && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground font-medium">
-                    {aiLoading ? (
-                      <span className="animate-pulse">正在生成优化版本...</span>
-                    ) : (
-                      "优化结果预览（可直接编辑）"
-                    )}
-                  </p>
-                  <Textarea
-                    value={aiDraft ?? ""}
-                    onChange={(e) => setAiDraft(e.target.value)}
-                    rows={10}
-                    className="bg-background border-border/60 resize-none font-serif text-sm leading-relaxed"
-                    readOnly={aiLoading}
-                  />
-                  {!aiLoading && (
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={handleDiscardDraft}
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        丢弃
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={handleApplyDraft}
-                        disabled={updateEntry.isPending}
-                      >
-                        {updateEntry.isPending ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+
+                  {(aiLoading || aiDraft !== null) && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        {aiLoading ? (
+                          <span className="animate-pulse">正在生成优化版本...</span>
                         ) : (
-                          <Check className="w-3.5 h-3.5" />
+                          "优化结果预览（可直接编辑）"
                         )}
-                        应用并保存
-                      </Button>
+                      </p>
+                      <Textarea
+                        value={aiDraft ?? ""}
+                        onChange={(e) => setAiDraft(e.target.value)}
+                        rows={10}
+                        className="bg-background border-border/60 resize-none font-serif text-sm leading-relaxed"
+                        readOnly={aiLoading}
+                      />
+                      {!aiLoading && (
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={handleDiscardDraft}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            丢弃
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={handleApplyDraft}
+                            disabled={updateEntry.isPending}
+                          >
+                            {updateEntry.isPending ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5" />
+                            )}
+                            应用并保存
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </Layout>
+  );
+}
+
+// ── 图文混排 for narrative entries ──────────────────────────────────────────────
+interface NarrativeContentProps {
+  content: string;
+  photos: { id: number; url: string; caption: string | null }[];
+  lightboxIndex: number | null;
+  onPhotoClick: (idx: number) => void;
+  onDeletePhoto: (id: number) => void;
+  entryId: number;
+}
+
+function NarrativeContent({ content, photos, onPhotoClick, onDeletePhoto, entryId }: NarrativeContentProps) {
+  // Split content into paragraph blocks
+  const paragraphs = content
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (photos.length === 0) {
+    // No photos — just render plain content + uploader
+    return (
+      <div className="space-y-4">
+        <Card className="border-border/40 bg-card/70 shadow-sm">
+          <CardContent className="p-6">
+            <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap font-serif text-base">
+              {content}
+            </div>
+          </CardContent>
+        </Card>
+        <PhotoUploader entryId={entryId} />
+      </div>
+    );
+  }
+
+  // Distribute photos between paragraph chunks
+  const chunkSize = Math.max(1, Math.ceil(paragraphs.length / (photos.length + 1)));
+  const blocks: Array<{ type: "text"; paragraphs: string[] } | { type: "photo"; photo: { id: number; url: string; caption: string | null }; photoIndex: number }> = [];
+  let paraIdx = 0;
+  let photoIdx = 0;
+
+  while (paraIdx < paragraphs.length || photoIdx < photos.length) {
+    // Add a text chunk
+    const chunk = paragraphs.slice(paraIdx, paraIdx + chunkSize);
+    if (chunk.length > 0) {
+      blocks.push({ type: "text", paragraphs: chunk });
+      paraIdx += chunkSize;
+    }
+    // Add a photo if available
+    if (photoIdx < photos.length) {
+      blocks.push({ type: "photo", photo: photos[photoIdx], photoIndex: photoIdx });
+      photoIdx++;
+    }
+  }
+
+  return (
+    <div className="space-y-0">
+      {blocks.map((block, i) => {
+        if (block.type === "text") {
+          return (
+            <div key={i} className="py-5">
+              <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed font-serif text-base space-y-3">
+                {block.paragraphs.map((p, j) => (
+                  <p key={j} className="text-foreground/90 leading-[1.9] whitespace-pre-wrap">{p}</p>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div key={i} className="py-2">
+            <div className="group relative rounded-2xl overflow-hidden shadow-md bg-muted/30">
+              <img
+                src={block.photo.url}
+                alt={block.photo.caption ?? "旅途照片"}
+                className="w-full object-cover max-h-[480px] cursor-pointer transition-transform duration-500 group-hover:scale-[1.01]"
+                onClick={() => onPhotoClick(block.photoIndex)}
+              />
+              {block.photo.caption && (
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
+                  <p className="text-white text-xs font-serif text-center">{block.photo.caption}</p>
+                </div>
+              )}
+              <button
+                onClick={() => onDeletePhoto(block.photo.id)}
+                className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+      <div className="pt-3">
+        <PhotoUploader entryId={entryId} />
+      </div>
+    </div>
   );
 }

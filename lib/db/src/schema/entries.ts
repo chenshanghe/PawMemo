@@ -120,3 +120,14 @@ export const entryFavoritesTable = pgTable(
 export type UserProfile = typeof userProfilesTable.$inferSelect;
 export type UserFollow = typeof userFollowsTable.$inferSelect;
 export type EntryFavorite = typeof entryFavoritesTable.$inferSelect;
+
+// ── Compose style presets ────────────────────────────────────────────────────
+export const composeStylesTable = pgTable("compose_styles", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  style: text("style").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ComposeStyle = typeof composeStylesTable.$inferSelect;
