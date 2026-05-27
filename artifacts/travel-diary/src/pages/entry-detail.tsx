@@ -588,87 +588,108 @@ interface NarrativeContentProps {
   entryId: number;
 }
 
+// Parse [s:N]: section prefix from caption — returns { sectionIdx, displayCaption }
+function parseSectionCaption(caption: string | null): { sectionIdx: number; displayCaption: string | null } {
+  if (!caption) return { sectionIdx: -1, displayCaption: null };
+  const m = caption.match(/^\[s:(\d+)\]:(.*)/s);
+  if (m) {
+    return { sectionIdx: Number(m[1]), displayCaption: m[2].trim() || null };
+  }
+  return { sectionIdx: -1, displayCaption: caption };
+}
+
 function NarrativeContent({ content, photos, onPhotoClick, onDeletePhoto, entryId }: NarrativeContentProps) {
-  // Split content into paragraph blocks
-  const paragraphs = content
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  // Split on [===] section dividers (inserted by AI between source-entry sections)
+  const rawSections = content.split(/\n?\[===\]\n?/).map((s) => s.trim()).filter(Boolean);
+  const sections = rawSections.length > 1 ? rawSections : [content]; // fallback: single section
 
-  if (photos.length === 0) {
-    // No photos — just render plain content + uploader
+  // Group photos by their [s:N] section index; untagged photos go into last section
+  const photosBySection = new Map<number, typeof photos>();
+  const untagged: typeof photos = [];
+  photos.forEach((p) => {
+    const { sectionIdx } = parseSectionCaption(p.caption);
+    if (sectionIdx >= 0) {
+      const arr = photosBySection.get(sectionIdx) ?? [];
+      arr.push(p);
+      photosBySection.set(sectionIdx, arr);
+    } else {
+      untagged.push(p);
+    }
+  });
+  // Distribute untagged photos evenly across sections
+  untagged.forEach((p, i) => {
+    const idx = i % sections.length;
+    const arr = photosBySection.get(idx) ?? [];
+    arr.push(p);
+    photosBySection.set(idx, arr);
+  });
+
+  // Build the flat global photo list for lightbox index tracking
+  const allPhotosOrdered = sections.flatMap((_, si) => photosBySection.get(si) ?? []);
+  // Also include any photos that don't map to a valid section index
+  const overflowPhotos = [...photosBySection.entries()]
+    .filter(([k]) => k >= sections.length)
+    .flatMap(([, ps]) => ps);
+
+  const renderPhotoGrid = (sectionPhotos: typeof photos, baseIdx: number) => {
+    if (sectionPhotos.length === 0) return null;
     return (
-      <div className="space-y-4">
-        <Card className="border-border/40 bg-card/70 shadow-sm">
-          <CardContent className="p-6">
-            <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap font-serif text-base">
-              {content}
-            </div>
-          </CardContent>
-        </Card>
-        <PhotoUploader entryId={entryId} />
-      </div>
-    );
-  }
-
-  // Distribute photos between paragraph chunks
-  const chunkSize = Math.max(1, Math.ceil(paragraphs.length / (photos.length + 1)));
-  const blocks: Array<{ type: "text"; paragraphs: string[] } | { type: "photo"; photo: { id: number; url: string; caption: string | null }; photoIndex: number }> = [];
-  let paraIdx = 0;
-  let photoIdx = 0;
-
-  while (paraIdx < paragraphs.length || photoIdx < photos.length) {
-    // Add a text chunk
-    const chunk = paragraphs.slice(paraIdx, paraIdx + chunkSize);
-    if (chunk.length > 0) {
-      blocks.push({ type: "text", paragraphs: chunk });
-      paraIdx += chunkSize;
-    }
-    // Add a photo if available
-    if (photoIdx < photos.length) {
-      blocks.push({ type: "photo", photo: photos[photoIdx], photoIndex: photoIdx });
-      photoIdx++;
-    }
-  }
-
-  return (
-    <div className="space-y-0">
-      {blocks.map((block, i) => {
-        if (block.type === "text") {
+      <div className="py-3 space-y-2">
+        {sectionPhotos.map((photo, i) => {
+          const { displayCaption } = parseSectionCaption(photo.caption);
+          const globalIdx = allPhotosOrdered.findIndex((p) => p.id === photo.id);
           return (
-            <div key={i} className="py-5">
-              <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed font-serif text-base space-y-3">
-                {block.paragraphs.map((p, j) => (
-                  <p key={j} className="text-foreground/90 leading-[1.9] whitespace-pre-wrap">{p}</p>
-                ))}
-              </div>
-            </div>
-          );
-        }
-        return (
-          <div key={i} className="py-2">
-            <div className="group relative rounded-2xl overflow-hidden shadow-md bg-muted/30">
+            <div key={photo.id} className="group relative rounded-2xl overflow-hidden shadow-md bg-muted/20">
               <img
-                src={block.photo.url}
-                alt={block.photo.caption ?? "旅途照片"}
-                className="w-full object-cover max-h-[480px] cursor-pointer transition-transform duration-500 group-hover:scale-[1.01]"
-                onClick={() => onPhotoClick(block.photoIndex)}
+                src={photo.url}
+                alt={displayCaption ?? "旅途照片"}
+                className="w-full object-cover max-h-[500px] cursor-pointer transition-transform duration-500 group-hover:scale-[1.01]"
+                onClick={() => onPhotoClick(globalIdx >= 0 ? globalIdx : baseIdx + i)}
               />
-              {block.photo.caption && (
+              {displayCaption && (
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
-                  <p className="text-white text-xs font-serif text-center">{block.photo.caption}</p>
+                  <p className="text-white text-xs font-serif text-center">{displayCaption}</p>
                 </div>
               )}
               <button
-                onClick={() => onDeletePhoto(block.photo.id)}
+                onClick={() => onDeletePhoto(photo.id)}
                 className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
               >
                 <X className="w-3 h-3" />
               </button>
             </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderSection = (text: string) => {
+    const paragraphs = text.split(/\n+/).map((p) => p.trim()).filter(Boolean);
+    return (
+      <div className="py-4 space-y-4">
+        {paragraphs.map((p, j) => (
+          <p key={j} className="text-foreground/90 leading-[1.9] font-serif text-base whitespace-pre-wrap">{p}</p>
+        ))}
+      </div>
+    );
+  };
+
+  let photoOffset = 0;
+  return (
+    <div>
+      {sections.map((sectionText, si) => {
+        const sectionPhotos = photosBySection.get(si) ?? [];
+        const node = (
+          <div key={si}>
+            {renderSection(sectionText)}
+            {renderPhotoGrid(sectionPhotos, photoOffset)}
           </div>
         );
+        photoOffset += sectionPhotos.length;
+        return node;
       })}
+      {overflowPhotos.length > 0 && renderPhotoGrid(overflowPhotos, photoOffset)}
       <div className="pt-3">
         <PhotoUploader entryId={entryId} />
       </div>

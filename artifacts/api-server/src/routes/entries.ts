@@ -319,8 +319,7 @@ router.post("/:id/photos", async (req, res) => {
 });
 
 // POST /entries/:id/photos/batch
-// Bulk insert N photos in a single transaction. Pairs with batched presign
-// + parallel PUTs on the client to eliminate per-photo round-trips.
+// Accepts { photos: [{url, caption?}][] } OR legacy { urls: string[] }
 router.post("/:id/photos/batch", async (req, res) => {
   const userId = (req as AuthedRequest).userId;
   const paramsParsed = AddEntryPhotoParams.safeParse({ id: Number(req.params.id) });
@@ -328,17 +327,36 @@ router.post("/:id/photos/batch", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const rawUrls = (req.body as { urls?: unknown } | null)?.urls;
-  if (
-    !Array.isArray(rawUrls) ||
-    rawUrls.length === 0 ||
-    rawUrls.length > 30 ||
-    !rawUrls.every((u) => typeof u === "string" && u.length > 0)
-  ) {
+
+  // Support both formats
+  const body = req.body as { photos?: unknown; urls?: unknown } | null;
+  let photoRows: { url: string; caption?: string | null }[] = [];
+
+  if (Array.isArray(body?.photos) && body.photos.length > 0) {
+    // New format: { photos: [{url, caption?}] }
+    if (
+      body.photos.length > 30 ||
+      !body.photos.every((p: any) => typeof p?.url === "string" && p.url.length > 0)
+    ) {
+      res.status(400).json({ error: "Invalid body" });
+      return;
+    }
+    photoRows = (body.photos as any[]).map((p) => ({ url: p.url, caption: p.caption ?? null }));
+  } else if (Array.isArray(body?.urls) && body.urls.length > 0) {
+    // Legacy format: { urls: string[] }
+    if (
+      body.urls.length > 30 ||
+      !body.urls.every((u: any) => typeof u === "string" && u.length > 0)
+    ) {
+      res.status(400).json({ error: "Invalid body" });
+      return;
+    }
+    photoRows = (body.urls as string[]).map((url) => ({ url, caption: null }));
+  } else {
     res.status(400).json({ error: "Invalid body" });
     return;
   }
-  const urls = rawUrls as string[];
+
   const [entry] = await db
     .select()
     .from(diaryEntriesTable)
@@ -350,10 +368,10 @@ router.post("/:id/photos/batch", async (req, res) => {
   const photos = await db
     .insert(photosTable)
     .values(
-      urls.map((url) => ({
+      photoRows.map((p) => ({
         entryId: paramsParsed.data.id,
-        url,
-        caption: null,
+        url: p.url,
+        caption: p.caption ?? null,
       })),
     )
     .returning();

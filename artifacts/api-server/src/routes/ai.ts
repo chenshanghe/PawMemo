@@ -49,14 +49,16 @@ router.post("/compose", async (req, res) => {
     return `【第${i + 1}篇：${e.title}】\n目的地：${e.destination}\n日期：${date}${e.mood ? `\n心情：${e.mood}` : ""}\n\n${e.content ?? "（无正文）"}`;
   }).join("\n\n---\n\n");
 
+  const sectionCount = rows.length;
   const systemPrompt = `你是一位擅长写游记的中文旅行作家，文笔优美、情感细腻、善于营造画面感。
 将旅行者提供的多篇随手日记整合成一篇完整、流畅的游记文章。
 要求：
 1. 保持第一人称视角，忠实原文事实，不捏造细节
 2. 按时间或地点顺序组织内容，加入自然的过渡衔接
 3. 适当增加环境描写和情感表达，使文章更具感染力
-4. 输出完整游记正文，不要任何说明文字或标题
-5. 字数建议 800-2000 字`;
+4. 【重要】每完成一篇原始日记对应的段落后，必须在该段落末尾另起一行输出恰好 ${sectionCount - 1} 个分隔符 [===]（每个单独占一行），共 ${sectionCount} 段、${sectionCount - 1} 个分隔符
+5. 输出完整游记正文，除 [===] 分隔符外不要任何说明文字或标题
+6. 字数建议 800-2000 字`;
 
   const userPrompt = style?.trim()
     ? `请按照以下风格要求：${style.trim()}\n\n将下面这些日记合成为一篇游记：\n\n${sections}`

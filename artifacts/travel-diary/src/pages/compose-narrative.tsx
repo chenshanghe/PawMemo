@@ -230,16 +230,25 @@ export default function ComposeNarrative() {
       if (!res.ok) return;
       const data = await res.json();
 
-      // Copy selected photos to new entry
-      const photosToCopy = sourcePhotos.filter((p) => selectedPhotoIds.has(p.id));
+      // Copy selected photos with section markers [s:N]: so NarrativeContent
+      // can place each photo next to its source entry's section
+      const sortedSourceIds = [...sources]
+        .sort((a, b) => a.startDate.localeCompare(b.startDate))
+        .map((e) => e.id);
+      const photosToCopy = sourcePhotos
+        .filter((p) => selectedPhotoIds.has(p.id))
+        .map((p) => {
+          const sectionIdx = sortedSourceIds.indexOf(p.entryId);
+          const prefix = sectionIdx >= 0 ? `[s:${sectionIdx}]:` : "";
+          const caption = p.caption ? `${prefix}${p.caption}` : (prefix || null);
+          return { url: p.url, caption };
+        });
       if (photosToCopy.length > 0) {
         await fetch(`/api/entries/${data.id}/photos/batch`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            photos: photosToCopy.map((p) => ({ url: p.url, caption: p.caption })),
-          }),
+          body: JSON.stringify({ photos: photosToCopy }),
         });
       }
 
@@ -412,47 +421,76 @@ export default function ComposeNarrative() {
           </div>
         )}
 
-        {/* Photo selection (shown after generation is done) */}
-        {done && photosLoaded && sourcePhotos.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-muted-foreground">
-                选择配图 — 已选 {selectedPhotoIds.size}/{sourcePhotos.length}
-              </p>
-              <div className="flex gap-2 text-[11px]">
-                <button onClick={() => setSelectedPhotoIds(new Set(sourcePhotos.map((p) => p.id)))} className="text-primary hover:underline">全选</button>
-                <button onClick={() => setSelectedPhotoIds(new Set())} className="text-muted-foreground hover:underline">清空</button>
+        {/* Photo selection grouped by source entry */}
+        {done && photosLoaded && sourcePhotos.length > 0 && (() => {
+          const sortedSources = [...sources].sort((a, b) => a.startDate.localeCompare(b.startDate));
+          const totalSelected = selectedPhotoIds.size;
+          const totalPhotos = sourcePhotos.length;
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  选择配图（按来源随记分组）— 已选 {totalSelected}/{totalPhotos}
+                </p>
+                <div className="flex gap-2 text-[11px]">
+                  <button onClick={() => setSelectedPhotoIds(new Set(sourcePhotos.map((p) => p.id)))} className="text-primary hover:underline">全选</button>
+                  <button onClick={() => setSelectedPhotoIds(new Set())} className="text-muted-foreground hover:underline">清空</button>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-              {sourcePhotos.map((p) => {
-                const sel = selectedPhotoIds.has(p.id);
+
+              {sortedSources.map((src, sIdx) => {
+                const entryPhotos = sourcePhotos.filter((p) => p.entryId === src.id);
+                if (entryPhotos.length === 0) return null;
+                const allSel = entryPhotos.every((p) => selectedPhotoIds.has(p.id));
                 return (
-                  <button
-                    key={p.id}
-                    onClick={() => togglePhoto(p.id)}
-                    className={cn(
-                      "relative aspect-square rounded-xl overflow-hidden border-2 transition-all",
-                      sel ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-60 hover:opacity-90",
-                    )}
-                  >
-                    <img src={p.url} alt="" className="w-full h-full object-cover" />
-                    <div className={cn(
-                      "absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white transition-all",
-                      sel ? "bg-primary" : "bg-black/40",
-                    )}>
-                      {sel
-                        ? <CheckSquare className="w-3 h-3" />
-                        : <Square className="w-3 h-3" />
-                      }
+                  <div key={src.id} className="space-y-2 p-3 rounded-xl border border-border/30 bg-card/40">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded">第{sIdx + 1}段</span>
+                        <span className="text-xs font-medium text-foreground truncate max-w-[160px]">{src.title}</span>
+                        <span className="text-[10px] text-muted-foreground">{src.destination}</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const ids = new Set(selectedPhotoIds);
+                          entryPhotos.forEach((p) => (allSel ? ids.delete(p.id) : ids.add(p.id)));
+                          setSelectedPhotoIds(ids);
+                        }}
+                        className="text-[11px] text-primary hover:underline shrink-0"
+                      >
+                        {allSel ? "取消全选" : "全选"}
+                      </button>
                     </div>
-                  </button>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {entryPhotos.map((p) => {
+                        const sel = selectedPhotoIds.has(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => togglePhoto(p.id)}
+                            className={cn(
+                              "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                              sel ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-55 hover:opacity-80",
+                            )}
+                          >
+                            <img src={p.url} alt="" className="w-full h-full object-cover" />
+                            <div className={cn(
+                              "absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-white transition-all",
+                              sel ? "bg-primary" : "bg-black/40",
+                            )}>
+                              {sel ? <CheckSquare className="w-2.5 h-2.5" /> : <Square className="w-2.5 h-2.5" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
+              <p className="text-[11px] text-muted-foreground">每段随记的照片将紧跟该段文字显示</p>
             </div>
-            <p className="text-[11px] text-muted-foreground">选中的照片将插入游记中图文混排显示</p>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Save section */}
         {done && narrative.trim() && (
