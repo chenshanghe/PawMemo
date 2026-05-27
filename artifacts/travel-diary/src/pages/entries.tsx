@@ -106,12 +106,6 @@ export default function Entries() {
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
                   合成游记
                 </button>
-                <Link href="/entries/new">
-                  <Button size="sm" className="gap-1.5 shadow-sm rounded-xl font-semibold">
-                    <Plus className="w-4 h-4" />
-                    写日记
-                  </Button>
-                </Link>
               </>
             ) : (
               <>
