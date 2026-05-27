@@ -144,6 +144,8 @@ router.post("/", async (req, res) => {
   }
   const { tagIds = [], tagNames = [], ...data } = parsed.data;
 
+  const { entryType, sourceEntryIds } = req.body ?? {};
+
   const [entry] = await db
     .insert(diaryEntriesTable)
     .values({
@@ -158,6 +160,8 @@ router.post("/", async (req, res) => {
       rating: data.rating ?? null,
       startDate: data.startDate,
       endDate: data.endDate ?? null,
+      entryType: typeof entryType === "string" ? entryType : "note",
+      sourceEntryIds: Array.isArray(sourceEntryIds) ? sourceEntryIds : null,
     })
     .returning();
 

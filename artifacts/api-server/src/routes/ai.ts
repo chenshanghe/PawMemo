@@ -1,6 +1,9 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { requireAuth } from "../middlewares/auth";
+import { db } from "@workspace/db";
+import { diaryEntriesTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
+import { requireAuth, AuthedRequest } from "../middlewares/auth";
 
 const router = Router();
 router.use(requireAuth);
@@ -8,6 +11,82 @@ router.use(requireAuth);
 const deepseek = new OpenAI({
   baseURL: "https://api.deepseek.com",
   apiKey: process.env.DEEPSEEK_API_KEY,
+});
+
+// POST /ai/compose — merge multiple owned entries into a narrative (SSE stream)
+router.post("/compose", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  const { entryIds, style } = req.body as { entryIds: number[]; style?: string };
+
+  if (!Array.isArray(entryIds) || entryIds.length < 2) {
+    res.status(400).json({ error: "至少选择 2 篇日记" });
+    return;
+  }
+  if (entryIds.length > 10) {
+    res.status(400).json({ error: "最多选择 10 篇日记" });
+    return;
+  }
+
+  // Fetch entries — only allow user's own entries
+  const rows = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(and(inArray(diaryEntriesTable.id, entryIds), eq(diaryEntriesTable.userId, userId)));
+
+  if (rows.length < 2) {
+    res.status(400).json({ error: "找不到足够的日记，请检查权限" });
+    return;
+  }
+
+  // Sort by date
+  rows.sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+  // Build prompt sections
+  const sections = rows.map((e, i) => {
+    const date = e.endDate
+      ? `${e.startDate} 至 ${e.endDate}`
+      : e.startDate;
+    return `【第${i + 1}篇：${e.title}】\n目的地：${e.destination}\n日期：${date}${e.mood ? `\n心情：${e.mood}` : ""}\n\n${e.content ?? "（无正文）"}`;
+  }).join("\n\n---\n\n");
+
+  const systemPrompt = `你是一位擅长写游记的中文旅行作家，文笔优美、情感细腻、善于营造画面感。
+将旅行者提供的多篇随手日记整合成一篇完整、流畅的游记文章。
+要求：
+1. 保持第一人称视角，忠实原文事实，不捏造细节
+2. 按时间或地点顺序组织内容，加入自然的过渡衔接
+3. 适当增加环境描写和情感表达，使文章更具感染力
+4. 输出完整游记正文，不要任何说明文字或标题
+5. 字数建议 800-2000 字`;
+
+  const userPrompt = style?.trim()
+    ? `请按照以下风格要求：${style.trim()}\n\n将下面这些日记合成为一篇游记：\n\n${sections}`
+    : `请将下面这些日记合成为一篇完整的游记：\n\n${sections}`;
+
+  try {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const stream = await deepseek.chat.completions.create({
+      model: "deepseek-chat",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      const text = chunk.choices[0]?.delta?.content;
+      if (text) res.write(`data: ${JSON.stringify({ text })}\n\n`);
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+  } catch (err: any) {
+    res.write(`data: ${JSON.stringify({ error: err.message ?? "AI 服务异常" })}\n\n`);
+    res.end();
+  }
 });
 
 // POST /ai/enhance

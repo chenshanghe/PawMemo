@@ -19,6 +19,7 @@ import MyFavorites from "@/pages/my-favorites";
 import MyFeed from "@/pages/my-feed";
 import Me from "@/pages/me";
 import UserProfile from "@/pages/user-profile";
+import ComposeNarrative from "@/pages/compose-narrative";
 
 const queryClient = new QueryClient();
 
@@ -176,6 +177,7 @@ function AppRouter() {
       <Route path="/dashboard">{() => <ProtectedRoute component={Home} />}</Route>
       <Route path="/entries">{() => <ProtectedRoute component={Entries} />}</Route>
       <Route path="/entries/new">{() => <ProtectedRoute component={EntryForm} />}</Route>
+      <Route path="/entries/compose">{() => <ProtectedRoute component={ComposeNarrative} />}</Route>
       <Route path="/entries/:id/edit">
         {(params) => <ProtectedRoute component={EntryForm} entryId={Number(params.id)} />}
       </Route>

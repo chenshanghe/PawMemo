@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, date, unique, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, date, unique, primaryKey, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -20,6 +20,8 @@ export const diaryEntriesTable = pgTable("diary_entries", {
   visibility: text("visibility").notNull().default("private"),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
+  entryType: text("entry_type").notNull().default("note"),
+  sourceEntryIds: json("source_entry_ids").$type<number[]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
