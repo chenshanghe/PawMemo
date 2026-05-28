@@ -135,3 +135,22 @@ export const composeStylesTable = pgTable("compose_styles", {
 });
 
 export type ComposeStyle = typeof composeStylesTable.$inferSelect;
+
+// ── Subscription orders ──────────────────────────────────────────────────────
+export const subscriptionOrdersTable = pgTable("subscription_orders", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  outTradeNo: text("out_trade_no").notNull().unique(),
+  tier: text("tier").notNull(),
+  period: text("period").notNull().default("monthly"),
+  amountCents: integer("amount_cents").notNull(),
+  status: text("status").notNull().default("pending"),
+  alipayTradeNo: text("alipay_trade_no"),
+  qrCodeUrl: text("qr_code_url"),
+  paidAt: timestamp("paid_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type SubscriptionOrder = typeof subscriptionOrdersTable.$inferSelect;

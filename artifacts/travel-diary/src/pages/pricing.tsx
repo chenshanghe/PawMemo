@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Check, Sparkles, Camera, BookText, Zap, Users, Globe, ArrowLeft } from "lucide-react";
 import { useUser } from "@clerk/react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
+import { PayDialog } from "@/components/pay-dialog";
 
 interface SubscriptionInfo {
   tier: string;
@@ -78,17 +79,36 @@ const PLANS = [
   },
 ];
 
+interface PayState {
+  tier: "pro" | "plus";
+  period: "monthly" | "yearly";
+}
+
 export default function Pricing() {
   const { isSignedIn } = useUser();
+  const [, navigate] = useLocation();
   const [sub, setSub] = useState<SubscriptionInfo | null>(null);
+  const [paying, setPaying] = useState<PayState | null>(null);
+  const [periods, setPeriods] = useState<Record<string, "monthly" | "yearly">>({
+    pro: "monthly",
+    plus: "monthly",
+  });
 
-  useEffect(() => {
+  const fetchSub = () => {
     if (!isSignedIn) return;
     fetch("/api/me/subscription", { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d) setSub(d); })
       .catch(() => {});
-  }, [isSignedIn]);
+  };
+
+  useEffect(() => { fetchSub(); }, [isSignedIn]);
+
+  function handlePaySuccess(_tier: string) {
+    setPaying(null);
+    fetchSub();
+    setTimeout(() => navigate("/me"), 800);
+  }
 
   return (
     <Layout>
@@ -144,6 +164,26 @@ export default function Pricing() {
                   ))}
                 </div>
 
+                {/* Period toggle for paid plans */}
+                {plan.tier !== "free" && !isCurrent && (
+                  <div className="px-5 pb-3">
+                    <div className="flex rounded-xl overflow-hidden border border-border/40 text-[11px] font-medium">
+                      <button
+                        className={`flex-1 py-1.5 transition-colors ${periods[plan.tier] === "monthly" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/40"}`}
+                        onClick={() => setPeriods((p) => ({ ...p, [plan.tier]: "monthly" }))}
+                      >
+                        月付
+                      </button>
+                      <button
+                        className={`flex-1 py-1.5 transition-colors ${periods[plan.tier] === "yearly" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/40"}`}
+                        onClick={() => setPeriods((p) => ({ ...p, [plan.tier]: "yearly" }))}
+                      >
+                        年付 <span className="opacity-70">省钱</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* CTA */}
                 <div className="p-5 pt-0">
                   {isCurrent ? (
@@ -158,7 +198,7 @@ export default function Pricing() {
                     <div className="space-y-2">
                       <button
                         className="w-full py-2.5 text-sm font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                        onClick={() => alert("支付宝收款功能即将开放，敬请期待！")}
+                        onClick={() => setPaying({ tier: plan.tier as "pro" | "plus", period: periods[plan.tier] ?? "monthly" })}
                       >
                         {plan.cta}
                       </button>
@@ -189,6 +229,15 @@ export default function Pricing() {
           </div>
         </div>
       </div>
+
+      {paying && (
+        <PayDialog
+          tier={paying.tier}
+          period={paying.period}
+          onClose={() => setPaying(null)}
+          onSuccess={handlePaySuccess}
+        />
+      )}
     </Layout>
   );
 }
