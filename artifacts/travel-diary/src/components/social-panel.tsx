@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useUser } from "@clerk/react";
-import { Heart, MessageCircle, Share2, Trash2, Copy, Check, Link2, X } from "lucide-react";
+import { Heart, MessageCircle, Share2, Trash2, Copy, Check, Link2, X, Mail, MessageSquare, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -153,6 +153,19 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Try native share (invokes system share sheet: WeChat, SMS, etc.)
+  const [nativeShareSupported] = useState(() => typeof navigator !== "undefined" && !!navigator.share);
+
+  const handleNativeShare = async (title: string) => {
+    if (!shareUrl) return;
+    try {
+      await navigator.share({ title, text: `分享我的旅行日记：${title}`, url: shareUrl });
+    } catch (e: any) {
+      // User cancelled or not supported — fall back silently
+      if (e?.name !== "AbortError") handleCopy();
+    }
+  };
+
   return (
     <div className="border-t border-border/40 pt-6 space-y-4">
       {/* Action bar */}
@@ -232,7 +245,8 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
               </a>
             </div>
           ) : shareToken ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
+              {/* URL row */}
               <div className="flex gap-2">
                 <input
                   readOnly
@@ -245,6 +259,47 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
                   {copied ? "已复制" : "复制"}
                 </Button>
               </div>
+
+              {/* Share buttons */}
+              <div className="flex flex-wrap gap-2">
+                {/* System share sheet — triggers WeChat / SMS / etc. on mobile */}
+                {nativeShareSupported && (
+                  <button
+                    onClick={() => handleNativeShare(document.title)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/50 text-xs font-medium text-foreground transition-colors"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-primary" />
+                    分享到…
+                  </button>
+                )}
+                {/* Email */}
+                <a
+                  href={shareUrl ? `mailto:?subject=${encodeURIComponent("分享一篇旅行日记")}&body=${encodeURIComponent(`我的旅行日记，点击查看：\n${shareUrl}`)}` : "#"}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/50 text-xs font-medium text-foreground transition-colors"
+                >
+                  <Mail className="w-3.5 h-3.5 text-blue-500" />
+                  邮件
+                </a>
+                {/* SMS */}
+                <a
+                  href={shareUrl ? `sms:?body=${encodeURIComponent(`我的旅行日记，点击查看：${shareUrl}`)}` : "#"}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/50 text-xs font-medium text-foreground transition-colors"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-green-500" />
+                  短信
+                </a>
+                {/* Open in new tab */}
+                <a
+                  href={shareUrl ?? "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/50 text-xs font-medium text-foreground transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
+                  预览
+                </a>
+              </div>
+
               <p className="text-xs text-muted-foreground">任何人打开此链接均可查看，无需登录。</p>
               <button
                 onClick={handleRevokeShare}
