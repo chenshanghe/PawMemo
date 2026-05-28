@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { UpgradeDialog } from "@/components/upgrade-dialog";
 
 interface SourceEntry {
   id: number;
@@ -35,6 +36,8 @@ interface StylePreset {
   style: string;
 }
 
+interface UpgradeInfo { code: "AI_LIMIT" | "STYLE_LIMIT"; tier: string; limit: number; used?: number }
+
 export default function ComposeNarrative() {
   const [, navigate] = useLocation();
 
@@ -45,6 +48,7 @@ export default function ComposeNarrative() {
 
   const [sources, setSources] = useState<SourceEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [upgradeInfo, setUpgradeInfo] = useState<UpgradeInfo | null>(null);
 
   // Photos
   const [sourcePhotos, setSourcePhotos] = useState<SourcePhoto[]>([]);
@@ -132,9 +136,19 @@ export default function ComposeNarrative() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entryIds: ids, style: style.trim() || undefined }),
       });
-      if (!res.ok || !res.body) {
+      if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        if (res.status === 403 && err.code === "AI_LIMIT") {
+          setUpgradeInfo({ code: "AI_LIMIT", tier: err.tier, limit: err.limit, used: err.used });
+          setDone(true);
+          return;
+        }
         setNarrative(`[错误] ${err.error ?? "AI 服务异常"}`);
+        setDone(true);
+        return;
+      }
+      if (!res.body) {
+        setNarrative("[错误] AI 服务异常");
         setDone(true);
         return;
       }
@@ -177,6 +191,13 @@ export default function ComposeNarrative() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: styleName.trim(), style: style.trim() }),
       });
+      if (res.status === 403) {
+        const err = await res.json().catch(() => ({}));
+        if (err.code === "STYLE_LIMIT") {
+          setUpgradeInfo({ code: "STYLE_LIMIT", tier: err.tier, limit: err.limit });
+          return;
+        }
+      }
       if (res.ok) {
         const p = await res.json();
         setSavedStyles((prev) => [...prev, p]);
@@ -527,6 +548,14 @@ export default function ComposeNarrative() {
           </div>
         )}
       </div>
+      {upgradeInfo && (
+        <UpgradeDialog
+          code={upgradeInfo.code}
+          tier={upgradeInfo.tier}
+          limit={upgradeInfo.limit}
+          onClose={() => setUpgradeInfo(null)}
+        />
+      )}
     </Layout>
   );
 }

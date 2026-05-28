@@ -13,10 +13,11 @@ import {
   entryFavoritesTable,
   composeStylesTable,
 } from "@workspace/db";
-import { eq, sql, and, desc, inArray } from "drizzle-orm";
+import { eq, sql, and, desc, inArray, count } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { getAuth } from "@clerk/express";
 import crypto from "crypto";
+import { getUserTier, getAiComposeUsage, TIER_NAMES } from "../lib/tiers";
 
 const router = Router();
 
@@ -834,11 +835,41 @@ router.post("/me/compose-styles", requireAuth, async (req, res) => {
     res.status(400).json({ error: "name and style are required" });
     return;
   }
+  // Quota: style presets
+  const { tier: sTier, limits: sLimits } = await getUserTier(userId);
+  if (sLimits.styles < 999999) {
+    const [{ cnt }] = await db
+      .select({ cnt: count() })
+      .from(composeStylesTable)
+      .where(eq(composeStylesTable.userId, userId));
+    if (cnt >= sLimits.styles) {
+      res.status(403).json({ code: "STYLE_LIMIT", tier: sTier, limit: sLimits.styles });
+      return;
+    }
+  }
   const [row] = await db
     .insert(composeStylesTable)
     .values({ userId, name: name.trim(), style: style.trim() })
     .returning();
   res.status(201).json(row);
+});
+
+// GET /api/me/subscription
+router.get("/me/subscription", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  const { tier } = await getUserTier(userId);
+  const { used, limit } = await getAiComposeUsage(userId);
+  const [profile] = await db
+    .select({ subscriptionExpiresAt: userProfilesTable.subscriptionExpiresAt })
+    .from(userProfilesTable)
+    .where(eq(userProfilesTable.userId, userId));
+  res.json({
+    tier,
+    tierName: TIER_NAMES[tier],
+    expiresAt: profile?.subscriptionExpiresAt ?? null,
+    aiComposedThisMonth: used,
+    aiComposeLimit: limit,
+  });
 });
 
 // DELETE /api/me/compose-styles/:id

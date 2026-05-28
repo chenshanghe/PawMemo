@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
+import { UpgradeDialog } from "@/components/upgrade-dialog";
 import {
   useCreateEntry,
   useUpdateEntry,
@@ -63,6 +64,9 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Quota upgrade dialog
+  const [upgradeInfo, setUpgradeInfo] = useState<{ code: "ENTRY_LIMIT" | "PHOTO_LIMIT"; tier: string; limit: number } | null>(null);
 
   useEffect(() => {
     if (existingEntry) {
@@ -190,6 +194,12 @@ export default function EntryForm({ entryId }: EntryFormProps) {
           onSuccess: (created) => {
             queryClient.invalidateQueries({ queryKey: getListEntriesQueryKey() });
             setLocation(`/entries/${created.id}`);
+          },
+          onError: (err: any) => {
+            const body = err?.data ?? err;
+            if (body?.code === "ENTRY_LIMIT") {
+              setUpgradeInfo({ code: "ENTRY_LIMIT", tier: body.tier ?? "free", limit: body.limit ?? 20 });
+            }
           },
         }
       );
@@ -499,6 +509,14 @@ export default function EntryForm({ entryId }: EntryFormProps) {
           </div>
         </form>
       </div>
+      {upgradeInfo && (
+        <UpgradeDialog
+          code={upgradeInfo.code}
+          tier={upgradeInfo.tier}
+          limit={upgradeInfo.limit}
+          onClose={() => setUpgradeInfo(null)}
+        />
+      )}
     </Layout>
   );
 }

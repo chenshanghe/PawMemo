@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { diaryEntriesTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
+import { checkAndIncrAiCompose } from "../lib/tiers";
 
 const router = Router();
 router.use(requireAuth);
@@ -24,6 +25,13 @@ router.post("/compose", async (req, res) => {
   }
   if (entryIds.length > 10) {
     res.status(400).json({ error: "最多选择 10 篇日记" });
+    return;
+  }
+
+  // Quota: AI compose monthly limit
+  const quota = await checkAndIncrAiCompose(userId);
+  if (!quota.ok) {
+    res.status(403).json({ code: "AI_LIMIT", tier: quota.tier, limit: quota.limit, used: quota.used });
     return;
   }
 

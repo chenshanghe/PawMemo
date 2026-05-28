@@ -20,6 +20,7 @@ import MyFeed from "@/pages/my-feed";
 import Me from "@/pages/me";
 import UserProfile from "@/pages/user-profile";
 import ComposeNarrative from "@/pages/compose-narrative";
+import Pricing from "@/pages/pricing";
 
 const queryClient = new QueryClient();
 
@@ -197,6 +198,7 @@ function AppRouter() {
       <Route path="/public/:id">
         {(params) => <PublicEntry params={params as { id: string }} />}
       </Route>
+      <Route path="/pricing">{() => <ProtectedRoute component={Pricing} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

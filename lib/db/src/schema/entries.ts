@@ -88,6 +88,10 @@ export const userProfilesTable = pgTable("user_profiles", {
   name: text("name").notNull(),
   avatar: text("avatar"),
   bio: text("bio"),
+  subscriptionTier: text("subscription_tier").notNull().default("free"),
+  subscriptionExpiresAt: timestamp("subscription_expires_at"),
+  aiComposeUsed: integer("ai_compose_used").notNull().default(0),
+  aiComposeResetAt: timestamp("ai_compose_reset_at"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

@@ -76,12 +76,27 @@ const VIS_ICON = {
   unlisted: <EyeOff className="w-3 h-3" />,
 };
 
+interface SubInfo {
+  tier: string;
+  tierName: string;
+  aiComposedThisMonth: number;
+  aiComposeLimit: number;
+  expiresAt: string | null;
+}
+
+const TIER_BADGE: Record<string, { label: string; cls: string }> = {
+  free: { label: "免费版", cls: "bg-muted text-muted-foreground" },
+  pro:  { label: "Pro",    cls: "bg-primary/15 text-primary" },
+  plus: { label: "Plus",   cls: "bg-amber-100 text-amber-700" },
+};
+
 export default function Me() {
   const { user } = useUser();
   const { signOut } = useClerk();
 
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [stats, setStats] = useState<SummaryStats | null>(null);
+  const [sub, setSub] = useState<SubInfo | null>(null);
   const [tab, setTab] = useState<Tab>("notes");
   const [editing, setEditing] = useState(false);
 
@@ -95,12 +110,14 @@ export default function Me() {
   const [followersLoaded, setFollowersLoaded] = useState(false);
 
   const fetchProfile = useCallback(async () => {
-    const [pRes, sRes] = await Promise.all([
+    const [pRes, sRes, subRes] = await Promise.all([
       fetch("/api/me/profile", { credentials: "include" }),
       fetch("/api/stats/summary", { credentials: "include" }),
+      fetch("/api/me/subscription", { credentials: "include" }),
     ]);
     if (pRes.ok) setProfile(await pRes.json());
     if (sRes.ok) setStats(await sRes.json());
+    if (subRes.ok) setSub(await subRes.json());
   }, []);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
@@ -180,7 +197,14 @@ export default function Me() {
           </div>
 
           <div className="mt-3">
-            <h2 className="text-xl font-serif font-bold text-foreground">{profile.name}</h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-serif font-bold text-foreground">{profile.name}</h2>
+              {sub && (
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${TIER_BADGE[sub.tier]?.cls ?? TIER_BADGE.free.cls}`}>
+                  {TIER_BADGE[sub.tier]?.label ?? "免费版"}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               旅行号：{profile.userId.slice(-10)}
             </p>
@@ -190,6 +214,28 @@ export default function Me() {
               <button onClick={() => setEditing(true)} className="text-sm text-muted-foreground/70 mt-2 hover:text-primary transition-colors">
                 还没有简介，去写一句吧 →
               </button>
+            )}
+            {/* AI 叙事用量进度 */}
+            {sub && (
+              <div className="mt-3 p-2.5 rounded-xl bg-muted/40 border border-border/30">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] text-muted-foreground">✨ AI 叙事本月用量</span>
+                  <span className="text-[11px] font-semibold text-foreground">
+                    {sub.aiComposedThisMonth} / {sub.aiComposeLimit === 999999 ? "无限" : sub.aiComposeLimit}
+                  </span>
+                </div>
+                {sub.aiComposeLimit < 999999 && (
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${Math.min(100, (sub.aiComposedThisMonth / sub.aiComposeLimit) * 100)}%` }}
+                    />
+                  </div>
+                )}
+                {sub.tier === "free" && (
+                  <a href="/pricing" className="block text-[10px] text-primary mt-1.5 hover:underline">升级以获得更多次数 →</a>
+                )}
+              </div>
             )}
           </div>
 

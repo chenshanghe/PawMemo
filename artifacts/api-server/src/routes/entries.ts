@@ -6,7 +6,7 @@ import {
   entryTagsTable,
   photosTable,
 } from "@workspace/db";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, count } from "drizzle-orm";
 import {
   ListEntriesQueryParams,
   CreateEntryBody,
@@ -19,6 +19,7 @@ import {
   AddEntryPhotoParams,
 } from "@workspace/api-zod";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
+import { getUserTier } from "../lib/tiers";
 
 const router = Router();
 
@@ -145,6 +146,19 @@ router.post("/", async (req, res) => {
   const { tagIds = [], tagNames = [], ...data } = parsed.data;
 
   const { entryType, sourceEntryIds } = req.body ?? {};
+
+  // Quota: entry count
+  const { tier, limits } = await getUserTier(userId);
+  if (limits.entries < 999999) {
+    const [{ cnt }] = await db
+      .select({ cnt: count() })
+      .from(diaryEntriesTable)
+      .where(eq(diaryEntriesTable.userId, userId));
+    if (cnt >= limits.entries) {
+      res.status(403).json({ code: "ENTRY_LIMIT", tier, limit: limits.entries });
+      return;
+    }
+  }
 
   const [entry] = await db
     .insert(diaryEntriesTable)
@@ -307,6 +321,16 @@ router.post("/:id/photos", async (req, res) => {
     res.status(404).json({ error: "Not found" });
     return;
   }
+  // Quota: photos per entry
+  const { tier: pTier, limits: pLimits } = await getUserTier(userId);
+  const [{ cnt: existingCount }] = await db
+    .select({ cnt: count() })
+    .from(photosTable)
+    .where(eq(photosTable.entryId, paramsParsed.data.id));
+  if (existingCount >= pLimits.photosPerEntry) {
+    res.status(403).json({ code: "PHOTO_LIMIT", tier: pTier, limit: pLimits.photosPerEntry });
+    return;
+  }
   const [photo] = await db
     .insert(photosTable)
     .values({
@@ -363,6 +387,16 @@ router.post("/:id/photos/batch", async (req, res) => {
     .where(and(eq(diaryEntriesTable.id, paramsParsed.data.id), eq(diaryEntriesTable.userId, userId)));
   if (!entry) {
     res.status(404).json({ error: "Not found" });
+    return;
+  }
+  // Quota: photos per entry
+  const { tier: bTier, limits: bLimits } = await getUserTier(userId);
+  const [{ cnt: bExisting }] = await db
+    .select({ cnt: count() })
+    .from(photosTable)
+    .where(eq(photosTable.entryId, paramsParsed.data.id));
+  if (bExisting + photoRows.length > bLimits.photosPerEntry) {
+    res.status(403).json({ code: "PHOTO_LIMIT", tier: bTier, limit: bLimits.photosPerEntry, current: bExisting });
     return;
   }
   const photos = await db
