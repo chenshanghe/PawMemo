@@ -157,7 +157,11 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
               {/* QR code area */}
               <div className="w-48 h-48 rounded-xl border-2 border-border/40 bg-muted/20 flex items-center justify-center overflow-hidden">
                 {qrCodeUrl ? (
-                  <img src={qrCodeUrl} alt="支付宝二维码" className="w-full h-full object-contain" />
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeUrl)}`}
+                    alt="支付宝二维码"
+                    className="w-full h-full object-contain p-1"
+                  />
                 ) : mockMode ? (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <QrCode className="w-12 h-12 opacity-30" />

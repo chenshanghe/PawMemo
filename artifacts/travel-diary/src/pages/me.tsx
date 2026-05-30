@@ -215,10 +215,10 @@ export default function Me() {
                 还没有简介，去写一句吧 →
               </button>
             )}
-            {/* AI 叙事用量进度 */}
+            {/* AI 叙事用量进度 + 套餐管理 */}
             {sub && (
-              <div className="mt-3 p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                <div className="flex items-center justify-between mb-1.5">
+              <div className="mt-3 p-2.5 rounded-xl bg-muted/40 border border-border/30 space-y-1.5">
+                <div className="flex items-center justify-between">
                   <span className="text-[11px] text-muted-foreground">✨ AI 叙事本月用量</span>
                   <span className="text-[11px] font-semibold text-foreground">
                     {sub.aiComposedThisMonth} / {sub.aiComposeLimit === 999999 ? "无限" : sub.aiComposeLimit}
@@ -232,9 +232,18 @@ export default function Me() {
                     />
                   </div>
                 )}
-                {sub.tier === "free" && (
-                  <a href="/pricing" className="block text-[10px] text-primary mt-1.5 hover:underline">升级以获得更多次数 →</a>
+                {sub.tier !== "free" && sub.expiresAt && (
+                  <p className="text-[10px] text-muted-foreground">
+                    套餐到期：{format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}
+                  </p>
                 )}
+                <div className="flex items-center justify-between pt-0.5">
+                  {sub.tier === "free" ? (
+                    <a href="/pricing" className="text-[10px] text-primary hover:underline">升级以获得更多次数 →</a>
+                  ) : (
+                    <a href="/pricing" className="text-[10px] text-muted-foreground hover:text-primary transition-colors">管理套餐 →</a>
+                  )}
+                </div>
               </div>
             )}
           </div>
