@@ -12,6 +12,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { UpgradeDialog } from "@/components/upgrade-dialog";
+import { WRITING_STYLES } from "@/lib/writing-styles";
 
 interface SourceEntry {
   id: number;
@@ -345,7 +346,30 @@ export default function ComposeNarrative() {
             </button>
           </div>
 
-          {/* Preset chips */}
+          {/* Built-in style presets */}
+          <div className="flex flex-wrap gap-1.5">
+            {WRITING_STYLES.map((s) => {
+              const active = style === s.prompt;
+              return (
+                <button
+                  key={s.name}
+                  type="button"
+                  onClick={() => setStyle(active ? "" : s.prompt)}
+                  className={cn(
+                    "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                    active
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground hover:bg-primary/5",
+                  )}
+                >
+                  <span>{s.emoji}</span>
+                  <span>{s.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* User-saved preset chips */}
           {savedStyles.length > 0 && (
             <div className="flex gap-1.5 flex-wrap">
               {savedStyles.map((s) => (

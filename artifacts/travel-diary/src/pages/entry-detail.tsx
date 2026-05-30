@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { WRITING_STYLES } from "@/lib/writing-styles";
 
 const MOODS: Record<string, string> = {
   开心: "bg-yellow-100 text-yellow-800",
@@ -494,6 +496,30 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
 
                 {/* AI Enhancement Panel */}
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+                  {/* Writing style presets */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {WRITING_STYLES.map((s) => {
+                      const active = aiInstruction === s.prompt;
+                      return (
+                        <button
+                          key={s.name}
+                          type="button"
+                          disabled={aiLoading || !!aiDraft}
+                          onClick={() => setAiInstruction(active ? "" : s.prompt)}
+                          className={cn(
+                            "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                            active
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground hover:bg-primary/5",
+                            (aiLoading || !!aiDraft) && "opacity-50 cursor-not-allowed",
+                          )}
+                        >
+                          <span>{s.emoji}</span>
+                          <span>{s.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                   <div className="flex gap-2 items-stretch">
                     <Textarea
                       placeholder="描述优化要求（留空则自动润色语法和文笔）"
