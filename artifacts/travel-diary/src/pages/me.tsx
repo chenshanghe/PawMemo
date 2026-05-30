@@ -81,6 +81,8 @@ interface SubInfo {
   tierName: string;
   aiComposedThisMonth: number;
   aiComposeLimit: number;
+  aiEnhancedThisMonth: number;
+  aiEnhanceLimit: number;
   expiresAt: string | null;
 }
 
@@ -229,6 +231,20 @@ export default function Me() {
                     <div
                       className="h-full rounded-full bg-primary transition-all"
                       style={{ width: `${Math.min(100, (sub.aiComposedThisMonth / sub.aiComposeLimit) * 100)}%` }}
+                    />
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">✍️ AI 优化本月用量</span>
+                  <span className="text-[11px] font-semibold text-foreground">
+                    {sub.aiEnhancedThisMonth} / {sub.aiEnhanceLimit === 999999 ? "无限" : sub.aiEnhanceLimit}
+                  </span>
+                </div>
+                {sub.aiEnhanceLimit < 999999 && (
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-400 transition-all"
+                      style={{ width: `${Math.min(100, (sub.aiEnhancedThisMonth / sub.aiEnhanceLimit) * 100)}%` }}
                     />
                   </div>
                 )}

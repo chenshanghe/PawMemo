@@ -650,6 +650,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                     </div>
                   )}
                 </div>
+                )}
               </div>
             )}
           </>
