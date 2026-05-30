@@ -17,7 +17,7 @@ import { eq, sql, and, desc, inArray, count } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { getAuth } from "@clerk/express";
 import crypto from "crypto";
-import { getUserTier, getAiComposeUsage, TIER_NAMES } from "../lib/tiers";
+import { getUserTier, getAiComposeUsage, getAiEnhanceUsage, TIER_NAMES } from "../lib/tiers";
 
 const router = Router();
 
@@ -858,7 +858,10 @@ router.post("/me/compose-styles", requireAuth, async (req, res) => {
 router.get("/me/subscription", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).userId;
   const { tier } = await getUserTier(userId);
-  const { used, limit } = await getAiComposeUsage(userId);
+  const [compose, enhance] = await Promise.all([
+    getAiComposeUsage(userId),
+    getAiEnhanceUsage(userId),
+  ]);
   const [profile] = await db
     .select({ subscriptionExpiresAt: userProfilesTable.subscriptionExpiresAt })
     .from(userProfilesTable)
@@ -867,8 +870,10 @@ router.get("/me/subscription", requireAuth, async (req, res) => {
     tier,
     tierName: TIER_NAMES[tier],
     expiresAt: profile?.subscriptionExpiresAt ?? null,
-    aiComposedThisMonth: used,
-    aiComposeLimit: limit,
+    aiComposedThisMonth: compose.used,
+    aiComposeLimit: compose.limit,
+    aiEnhancedThisMonth: enhance.used,
+    aiEnhanceLimit: enhance.limit,
   });
 });
 

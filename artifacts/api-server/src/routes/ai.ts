@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { diaryEntriesTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
-import { checkAndIncrAiCompose } from "../lib/tiers";
+import { checkAndIncrAiCompose, checkAndIncrAiEnhance } from "../lib/tiers";
 
 const router = Router();
 router.use(requireAuth);
@@ -101,6 +101,7 @@ router.post("/compose", async (req, res) => {
 
 // POST /ai/enhance
 router.post("/enhance", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
   const { content, instruction } = req.body as {
     content: string;
     instruction?: string;
@@ -108,6 +109,12 @@ router.post("/enhance", async (req, res) => {
 
   if (!content || typeof content !== "string" || content.trim().length === 0) {
     res.status(400).json({ error: "content 不能为空" });
+    return;
+  }
+
+  const quota = await checkAndIncrAiEnhance(userId);
+  if (!quota.ok) {
+    res.status(403).json({ code: "AI_ENHANCE_LIMIT", tier: quota.tier, limit: quota.limit, used: quota.used });
     return;
   }
 

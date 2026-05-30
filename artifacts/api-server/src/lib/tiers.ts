@@ -8,15 +8,16 @@ export interface TierLimits {
   entries: number;
   photosPerEntry: number;
   aiCompose: number;
+  aiEnhance: number;
   styles: number;
 }
 
 const INF = 999999;
 
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
-  free: { entries: 20, photosPerEntry: 3, aiCompose: 3,   styles: 3 },
-  pro:  { entries: INF, photosPerEntry: 9, aiCompose: 30,  styles: INF },
-  plus: { entries: INF, photosPerEntry: 30, aiCompose: 100, styles: INF },
+  free: { entries: 20, photosPerEntry: 3, aiCompose: 3,   aiEnhance: 5,   styles: 3 },
+  pro:  { entries: INF, photosPerEntry: 9, aiCompose: 30,  aiEnhance: INF, styles: INF },
+  plus: { entries: INF, photosPerEntry: 30, aiCompose: 100, aiEnhance: INF, styles: INF },
 };
 
 export const TIER_NAMES: Record<Tier, string> = {
@@ -99,4 +100,44 @@ export async function getAiComposeUsage(userId: string): Promise<{ used: number;
   const needsReset = !lastReset || lastReset < resetPoint;
   const used = needsReset ? 0 : (profile?.aiComposeUsed ?? 0);
   return { used, limit: limits.aiCompose, tier };
+}
+
+export async function checkAndIncrAiEnhance(userId: string): Promise<
+  { ok: true; used: number; limit: number; tier: Tier } |
+  { ok: false; used: number; limit: number; tier: Tier }
+> {
+  const { tier, limits, profile } = await getUserTier(userId);
+
+  const resetPoint = startOfMonth();
+  const lastReset = profile?.aiEnhanceResetAt ?? null;
+  const needsReset = !lastReset || lastReset < resetPoint;
+
+  let used = needsReset ? 0 : (profile?.aiEnhanceUsed ?? 0);
+
+  if (used >= limits.aiEnhance) {
+    return { ok: false, used, limit: limits.aiEnhance, tier };
+  }
+
+  if (needsReset) {
+    await db
+      .update(userProfilesTable)
+      .set({ aiEnhanceUsed: 1, aiEnhanceResetAt: new Date() })
+      .where(eq(userProfilesTable.userId, userId));
+  } else {
+    await db
+      .update(userProfilesTable)
+      .set({ aiEnhanceUsed: used + 1 })
+      .where(eq(userProfilesTable.userId, userId));
+  }
+
+  return { ok: true, used: used + 1, limit: limits.aiEnhance, tier };
+}
+
+export async function getAiEnhanceUsage(userId: string): Promise<{ used: number; limit: number; tier: Tier }> {
+  const { tier, limits, profile } = await getUserTier(userId);
+  const resetPoint = startOfMonth();
+  const lastReset = profile?.aiEnhanceResetAt ?? null;
+  const needsReset = !lastReset || lastReset < resetPoint;
+  const used = needsReset ? 0 : (profile?.aiEnhanceUsed ?? 0);
+  return { used, limit: limits.aiEnhance, tier };
 }

@@ -92,6 +92,8 @@ export const userProfilesTable = pgTable("user_profiles", {
   subscriptionExpiresAt: timestamp("subscription_expires_at"),
   aiComposeUsed: integer("ai_compose_used").notNull().default(0),
   aiComposeResetAt: timestamp("ai_compose_reset_at"),
+  aiEnhanceUsed: integer("ai_enhance_used").notNull().default(0),
+  aiEnhanceResetAt: timestamp("ai_enhance_reset_at"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

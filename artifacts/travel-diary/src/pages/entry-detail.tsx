@@ -165,6 +165,22 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
   const [aiDraft, setAiDraft] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // AI enhance usage quota
+  const [enhanceUsed, setEnhanceUsed] = useState<number | null>(null);
+  const [enhanceLimit, setEnhanceLimit] = useState<number>(5);
+
+  useEffect(() => {
+    fetch("/api/me/subscription", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d) {
+          setEnhanceUsed(d.aiEnhancedThisMonth ?? 0);
+          setEnhanceLimit(d.aiEnhanceLimit ?? 5);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const handleDeleteEntry = () => {
     deleteEntry.mutate({ id }, {
       onSuccess: () => {
@@ -204,7 +220,18 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         signal: abortRef.current.signal,
       });
 
+      if (resp.status === 403) {
+        const err = await resp.json().catch(() => ({}));
+        if (err.code === "AI_ENHANCE_LIMIT") {
+          setEnhanceUsed(err.used ?? enhanceLimit);
+          setAiDraft(null);
+          return;
+        }
+      }
+
       if (!resp.ok || !resp.body) throw new Error("请求失败");
+
+      setEnhanceUsed((prev) => (prev !== null ? prev + 1 : null));
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
@@ -495,7 +522,35 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                 </Card>
 
                 {/* AI Enhancement Panel */}
+                {enhanceUsed !== null && enhanceLimit < 999999 && enhanceUsed >= enhanceLimit ? (
+                  <div className="rounded-xl border border-border/50 bg-muted/10 p-4 flex items-start gap-3">
+                    <span className="text-2xl">✨</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">本月 AI 优化次数已用完</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        免费版每月可使用 {enhanceLimit} 次 AI 优化，下月自动重置。
+                      </p>
+                      <a href="/pricing" className="inline-block mt-2 text-xs text-primary hover:underline font-medium">
+                        升级套餐，解锁更多次数 →
+                      </a>
+                    </div>
+                  </div>
+                ) : (
                 <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+                  {/* Usage counter */}
+                  {enhanceUsed !== null && enhanceLimit < 999999 && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />AI 优化本月用量
+                      </span>
+                      <span className={cn(
+                        "font-semibold tabular-nums",
+                        enhanceUsed >= enhanceLimit ? "text-destructive" : enhanceUsed >= enhanceLimit * 0.8 ? "text-amber-600" : "text-foreground"
+                      )}>
+                        {enhanceUsed} / {enhanceLimit}
+                      </span>
+                    </div>
+                  )}
                   {/* Writing style presets */}
                   <div className="flex flex-wrap gap-1.5">
                     {WRITING_STYLES.map((s) => {
