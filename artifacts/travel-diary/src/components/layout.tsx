@@ -26,7 +26,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [isSignedIn]);
 
-  const handleSignOut = () => signOut({ redirectUrl: basePath || "/" });
+  const handleSignOut = () => signOut();
 
   const isDashboard = location === "/dashboard" || location === "/";
   const isEntries = location.startsWith("/entries") && location !== "/entries/new";

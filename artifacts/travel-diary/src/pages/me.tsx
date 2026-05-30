@@ -153,7 +153,7 @@ export default function Me() {
     }
   }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded]);
 
-  const handleSignOut = () => signOut({ redirectUrl: "/" });
+  const handleSignOut = () => signOut();
 
   if (!profile) {
     return (
