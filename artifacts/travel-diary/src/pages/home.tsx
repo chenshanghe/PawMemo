@@ -136,7 +136,7 @@ export default function Home() {
                 className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:bg-primary/90 transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                写新日记
+                写随记
               </Link>
             </div>
           ) : (

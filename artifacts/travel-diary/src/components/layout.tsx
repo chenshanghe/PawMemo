@@ -99,7 +99,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             href="/entries/new"
             className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 py-2.5 rounded-xl shadow-sm transition-all hover:shadow-md active:scale-95 font-semibold text-sm"
           >
-            <Plus className="w-4 h-4" />写新日记
+            <Plus className="w-4 h-4" />写随记
           </Link>
 
           {/* ── User card ── */}

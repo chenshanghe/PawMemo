@@ -233,7 +233,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
 
         <div>
           <h2 className="text-3xl font-serif font-bold text-foreground">
-            {isEditing ? "编辑日记" : "写新日记"}
+            {isEditing ? "编辑日记" : "写随记"}
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
             {isEditing ? "修改你的旅行记忆" : "记录这段珍贵的旅程"}
