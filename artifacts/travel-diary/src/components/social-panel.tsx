@@ -148,36 +148,82 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
   const makeShareUrl = (token: string) =>
     `${window.location.origin}${import.meta.env.BASE_URL}share/${token}`;
 
-  const handleShareAction = async (action: "copy" | "native" | "weibo" | "qq") => {
+  type ShareTarget =
+    | "airdrop" | "wechat" | "moments" | "qq" | "weibo"
+    | "xiaohongshu" | "douyin" | "dingtalk" | "feishu"
+    | "notes" | "copy" | "pdf";
+
+  const handleShareAction = async (action: ShareTarget) => {
+    if (action === "pdf") {
+      window.print();
+      return;
+    }
     const token = await ensureShareToken();
     if (!token) return;
     const url = makeShareUrl(token);
     const title = document.title.replace(" - 红薯旅行日记", "").trim() || "旅行日记";
+    const text = `分享我的旅行日记：${title}`;
 
-    if (action === "copy") {
+    const copyToClipboard = async () => {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } else if (action === "native") {
-      try {
-        await navigator.share({ title, text: `分享我的旅行日记：${title}`, url });
-      } catch (e: any) {
-        if (e?.name !== "AbortError") {
-          await navigator.clipboard.writeText(url);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
+    };
+
+    const nativeShare = async (targetHint?: string) => {
+      if (navigator.share) {
+        try {
+          await navigator.share({ title, text: targetHint ? `${text}\n（${targetHint}）` : text, url });
+          return true;
+        } catch (e: any) {
+          if (e?.name === "AbortError") return true;
         }
       }
-    } else if (action === "weibo") {
-      window.open(
-        `https://service.weibo.com/share/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(`分享我的旅行日记：${title}`)}`,
-        "_blank"
-      );
-    } else if (action === "qq") {
-      window.open(
-        `https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent("红薯旅行日记")}`,
-        "_blank"
-      );
+      return false;
+    };
+
+    switch (action) {
+      case "airdrop":
+        if (!await nativeShare("隔空投送")) await copyToClipboard();
+        break;
+      case "wechat":
+        if (!await nativeShare("微信")) await copyToClipboard();
+        break;
+      case "moments":
+        if (!await nativeShare("朋友圈")) await copyToClipboard();
+        break;
+      case "qq":
+        if (!await nativeShare("QQ")) {
+          window.open(`https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent("红薯旅行日记")}`, "_blank");
+        }
+        break;
+      case "weibo":
+        window.open(`https://service.weibo.com/share/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`, "_blank");
+        break;
+      case "xiaohongshu":
+        await copyToClipboard();
+        break;
+      case "douyin":
+        await copyToClipboard();
+        break;
+      case "dingtalk":
+        if (!await nativeShare("钉钉")) {
+          window.open(`dingtalk://dingtalkclient/action/share?sourceType=link&contentType=url&url=${encodeURIComponent(url)}&content=${encodeURIComponent(text)}`, "_blank");
+          setTimeout(async () => { await copyToClipboard(); }, 500);
+        }
+        break;
+      case "feishu":
+        if (!await nativeShare("飞书")) {
+          window.open(`https://applink.feishu.cn/client/message/share?content=${encodeURIComponent(url)}`, "_blank");
+          setTimeout(async () => { await copyToClipboard(); }, 500);
+        }
+        break;
+      case "notes":
+        if (!await nativeShare("备忘录")) await copyToClipboard();
+        break;
+      case "copy":
+        await copyToClipboard();
+        break;
     }
   };
 
@@ -249,62 +295,43 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
             </div>
           )}
 
-          {/* Share options */}
-          <div className="divide-y divide-border/40">
-            {/* Copy link */}
-            <button
-              onClick={() => handleShareAction("copy")}
-              disabled={shareLoading}
-              className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left disabled:opacity-60"
-            >
-              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
-                {shareLoading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : copied ? <Check className="w-5 h-5 text-white" /> : <Link2 className="w-5 h-5 text-white" />}
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                {shareLoading ? "生成链接中…" : copied ? "已复制！" : "复制链接"}
-              </span>
-            </button>
+          {shareLoading && (
+            <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground border-b border-border/30">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />生成链接中…
+            </div>
+          )}
 
-            {/* WeChat / native share */}
-            {nativeShareSupported && (
+          {/* App grid */}
+          <div className="p-4 grid grid-cols-4 gap-x-2 gap-y-4">
+            {[
+              { id: "airdrop",     label: "隔空投送", bg: "bg-gradient-to-br from-blue-400 to-cyan-500",   icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 3a7 7 0 0 1 5.94 10.67L15 13h1a4 4 0 0 0-8 0h1l-2.94 2.67A7 7 0 0 1 12 5zm0 5a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg> },
+              { id: "wechat",      label: "微信",     bg: "bg-green-500",                                   icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M9.5 4C5.36 4 2 6.69 2 10c0 1.89 1.08 3.57 2.78 4.71l-.55 2.08 2.36-1.18c.87.24 1.88.39 2.91.39.28 0 .56-.01.83-.04a5.6 5.6 0 0 1-.33-1.87c0-3.12 2.88-5.59 6.5-5.59.28 0 .56.02.83.04C16.73 6.38 13.4 4 9.5 4zM7 8.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm5 0a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm2.5 1.5c-2.9 0-5.5 1.86-5.5 4.25 0 2.39 2.6 4.25 5.5 4.25.82 0 1.63-.14 2.35-.38l1.9.95-.44-1.68A4.38 4.38 0 0 0 20 14.25C20 11.86 17.4 10 14.5 10zm-2 3a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm4 0a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5z"/></svg> },
+              { id: "moments",     label: "朋友圈",   bg: "bg-green-600",                                   icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="4.5" r="1.8"/><circle cx="19.5" cy="8.25" r="1.8"/><circle cx="19.5" cy="15.75" r="1.8"/><circle cx="12" cy="19.5" r="1.8"/><circle cx="4.5" cy="15.75" r="1.8"/><circle cx="4.5" cy="8.25" r="1.8"/></svg> },
+              { id: "qq",          label: "QQ",       bg: "bg-sky-500",                                     icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.5 13.5c-.28.41-.7.5-1.16.5H8.66c-.46 0-.88-.09-1.16-.5C6.17 13.6 6 11.64 6 11c0-2.12 1.26-3.9 3.04-4.72A2.5 2.5 0 0 1 12 4.5a2.5 2.5 0 0 1 2.96 1.78C16.74 7.1 18 8.88 18 11c0 .64-.17 2.6-1.5 4.5z"/></svg> },
+              { id: "weibo",       label: "微博",     bg: "bg-red-500",                                     icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M10.1 19.32c-3.59.35-6.7-1.27-6.93-3.63-.23-2.36 2.49-4.56 6.09-4.92 3.6-.36 6.7 1.27 6.94 3.63.23 2.36-2.49 4.56-6.1 4.92zM8.7 16.9a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6zm8.43-7.05c.75 0 1.36.6 1.36 1.35s-.61 1.36-1.36 1.36-1.35-.61-1.35-1.36.6-1.35 1.35-1.35zm-4.07-3.61c1.74 0 3.16 1.42 3.16 3.16s-1.42 3.17-3.16 3.17-3.16-1.42-3.16-3.17 1.41-3.16 3.16-3.16z"/></svg> },
+              { id: "xiaohongshu", label: "小红书",   bg: "bg-rose-600",                                    icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5" stroke="rgb(225,29,72)" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { id: "douyin",      label: "抖音",     bg: "bg-gray-900",                                    icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V9.5a8.16 8.16 0 0 0 4.78 1.52V7.57a4.85 4.85 0 0 1-1.01-.88z"/></svg> },
+              { id: "dingtalk",    label: "钉钉",     bg: "bg-blue-600",                                    icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M12 2L3 7v10l9 5 9-5V7L12 2zm0 3.5l5.5 3.06v6.88L12 18.5l-5.5-3.06V8.56L12 5.5zM9 11l5 2.5-5 2.5V11z"/></svg> },
+              { id: "feishu",      label: "飞书",     bg: "bg-indigo-500",                                  icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M12 3L4 9v12h16V9L12 3zm0 2.5l6 4.5v9H6V10l6-4.5zM10 13h4v5h-4z"/></svg> },
+              { id: "notes",       label: "备忘录",   bg: "bg-yellow-400",                                  icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-1 14H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7V6h10v2z"/></svg> },
+              { id: "copy",        label: copied ? "已复制" : "复制链接", bg: copied ? "bg-green-500" : "bg-slate-500", icon: copied ? <Check className="w-6 h-6 text-white" /> : <Link2 className="w-6 h-6 text-white" /> },
+              { id: "pdf",         label: "保存PDF",  bg: "bg-red-600",                                     icon: <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M20 2H8L4 6v16h16V2zm-9 13H9v-5h2c1.1 0 2 .9 2 2v1c0 1.1-.9 2-2 2zm4-4h-1v4h-1v-4h-1v-1h3v1zm3 0h-2v1h2v1h-2v2h-1v-5h3v1zM11 13h1v2h-1v-2z"/></svg> },
+            ].map(({ id, label, bg, icon }) => (
               <button
-                onClick={() => handleShareAction("native")}
-                disabled={shareLoading}
-                className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left disabled:opacity-60"
+                key={id}
+                onClick={() => handleShareAction(id as ShareTarget)}
+                disabled={shareLoading && id !== "pdf"}
+                className="flex flex-col items-center gap-1.5 group disabled:opacity-50"
               >
-                <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center shrink-0">
-                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M9.5 4C5.36 4 2 6.69 2 10c0 1.89 1.08 3.57 2.78 4.71l-.55 2.08 2.36-1.18c.87.24 1.88.39 2.91.39.28 0 .56-.01.83-.04a5.6 5.6 0 0 1-.33-1.87c0-3.12 2.88-5.59 6.5-5.59.28 0 .56.02.83.04C16.73 6.38 13.4 4 9.5 4zM7 8.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm5 0a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm2.5 1.5c-2.9 0-5.5 1.86-5.5 4.25 0 2.39 2.6 4.25 5.5 4.25.82 0 1.63-.14 2.35-.38l1.9.95-.44-1.68A4.38 4.38 0 0 0 20 14.25C20 11.86 17.4 10 14.5 10zm-2 3a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm4 0a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5z"/></svg>
+                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform group-active:scale-90 group-hover:scale-105", bg)}>
+                  {icon}
                 </div>
-                <span className="text-sm font-medium text-foreground">微信</span>
+                <span className="text-[10px] text-muted-foreground leading-tight text-center">{label}</span>
               </button>
-            )}
-
-            {/* Weibo */}
-            <button
-              onClick={() => handleShareAction("weibo")}
-              disabled={shareLoading}
-              className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left disabled:opacity-60"
-            >
-              <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M10.098 20.323c-3.977.391-7.414-1.406-7.672-4.02-.259-2.609 2.759-5.047 6.74-5.441 3.979-.394 7.413 1.404 7.671 4.018.259 2.6-2.759 5.049-6.739 5.443zM8.5 17.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM19 8.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm-4.5-4c1.93 0 3.5 1.57 3.5 3.5s-1.57 3.5-3.5 3.5S11 9.93 11 8s1.57-3.5 3.5-3.5z"/></svg>
-              </div>
-              <span className="text-sm font-medium text-foreground">新浪微博</span>
-            </button>
-
-            {/* QQ Space */}
-            <button
-              onClick={() => handleShareAction("qq")}
-              disabled={shareLoading}
-              className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left disabled:opacity-60"
-            >
-              <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center shrink-0">
-                <span className="text-white font-bold text-sm">Q</span>
-              </div>
-              <span className="text-sm font-medium text-foreground">QQ空间</span>
-            </button>
+            ))}
           </div>
 
-          {/* Revoke link footer */}
+          {/* Footer */}
           {shareToken && (
             <div className="border-t border-border/40 px-4 py-2.5 flex items-center justify-between">
               <span className="text-[11px] text-muted-foreground">任何人通过链接可查看，无需登录</span>
