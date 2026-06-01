@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { X, Loader2, CheckCircle2, AlertCircle, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 interface PayDialogProps {
   tier: "pro" | "plus";
   period: "monthly" | "yearly";
@@ -42,7 +44,7 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
 
   async function createOrder() {
     try {
-      const res = await fetch("/api/pay/alipay/create", {
+      const res = await fetch(`${BASE}/api/pay/alipay/create`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -72,7 +74,7 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
     pollRef.current = setInterval(async () => {
       if (!mountedRef.current) return;
       try {
-        const res = await fetch(`/api/pay/alipay/query/${tradeNo}`, {
+        const res = await fetch(`${BASE}/api/pay/alipay/query/${tradeNo}`, {
           credentials: "include",
         });
         const data = await res.json();
@@ -92,7 +94,7 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
     if (!outTradeNo) return;
     setStep("polling");
     try {
-      const res = await fetch("/api/pay/alipay/mock-complete", {
+      const res = await fetch(`${BASE}/api/pay/alipay/mock-complete`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

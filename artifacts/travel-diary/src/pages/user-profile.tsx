@@ -9,6 +9,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 interface UserProfileData {
   userId: string;
   name: string;
@@ -58,8 +60,8 @@ export default function UserProfile({ params }: { params: { userId: string } }) 
     setLoading(true);
     try {
       const [pRes, eRes] = await Promise.all([
-        fetch(`/api/users/${userId}`, { credentials: "include" }),
-        fetch(`/api/users/${userId}/entries?limit=40`, { credentials: "include" }),
+        fetch(`${BASE}/api/users/${userId}`, { credentials: "include" }),
+        fetch(`${BASE}/api/users/${userId}/entries?limit=40`, { credentials: "include" }),
       ]);
       if (pRes.ok) setProfile(await pRes.json());
       if (eRes.ok) {
@@ -77,7 +79,7 @@ export default function UserProfile({ params }: { params: { userId: string } }) 
     if (!isSignedIn || followPending || !profile || profile.isSelf) return;
     setFollowPending(true);
     try {
-      const res = await fetch(`/api/users/${userId}/follow`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/users/${userId}/follow`, { method: "POST", credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setProfile((prev) => prev ? { ...prev, viewerFollowing: data.following, followerCount: data.followerCount } : prev);

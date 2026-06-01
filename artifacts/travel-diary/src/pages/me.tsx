@@ -13,8 +13,11 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
+
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface MyProfile {
   userId: string;
@@ -139,7 +142,7 @@ export default function Me() {
   const handleSelectAvatar = async (url: string) => {
     setAvatarSaving(true);
     try {
-      const res = await fetch("/api/me/profile", {
+      const res = await fetch(`${BASE}/api/me/profile`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -158,7 +161,7 @@ export default function Me() {
   const handleUploadAvatar = async (file: File) => {
     setAvatarSaving(true);
     try {
-      const urlRes = await fetch("/api/storage/uploads/request-url", {
+      const urlRes = await fetch(`${BASE}/api/storage/uploads/request-url`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -186,9 +189,9 @@ export default function Me() {
 
   const fetchProfile = useCallback(async () => {
     const [pRes, sRes, subRes] = await Promise.all([
-      fetch("/api/me/profile", { credentials: "include" }),
-      fetch("/api/stats/summary", { credentials: "include" }),
-      fetch("/api/me/subscription", { credentials: "include" }),
+      fetch(`${BASE}/api/me/profile`, { credentials: "include" }),
+      fetch(`${BASE}/api/stats/summary`, { credentials: "include" }),
+      fetch(`${BASE}/api/me/subscription`, { credentials: "include" }),
     ]);
     if (pRes.ok) setProfile(await pRes.json());
     if (sRes.ok) setStats(await sRes.json());
@@ -200,13 +203,13 @@ export default function Me() {
   // Lazy-load tabs
   useEffect(() => {
     if (tab === "notes" && !notesLoaded) {
-      fetch("/api/entries", { credentials: "include" }).then(async (r) => {
+      fetch(`${BASE}/api/entries`, { credentials: "include" }).then(async (r) => {
         if (r.ok) setNotes(await r.json());
         setNotesLoaded(true);
       });
     }
     if (tab === "favorites" && !favoritesLoaded) {
-      fetch("/api/me/favorites?limit=40", { credentials: "include" }).then(async (r) => {
+      fetch(`${BASE}/api/me/favorites?limit=40`, { credentials: "include" }).then(async (r) => {
         if (r.ok) {
           const data = await r.json();
           setFavorites(data.entries);
@@ -215,19 +218,19 @@ export default function Me() {
       });
     }
     if (tab === "following" && !followingLoaded) {
-      fetch("/api/me/following", { credentials: "include" }).then(async (r) => {
+      fetch(`${BASE}/api/me/following`, { credentials: "include" }).then(async (r) => {
         if (r.ok) setFollowing(await r.json());
         setFollowingLoaded(true);
       });
     }
     if (tab === "followers" && !followersLoaded) {
-      fetch("/api/me/followers", { credentials: "include" }).then(async (r) => {
+      fetch(`${BASE}/api/me/followers`, { credentials: "include" }).then(async (r) => {
         if (r.ok) setFollowers(await r.json());
         setFollowersLoaded(true);
       });
     }
     if (tab === "stats" && !statsLoaded) {
-      fetch("/api/stats/monthly", { credentials: "include" })
+      fetch(`${BASE}/api/stats/monthly`, { credentials: "include" })
         .then((r) => r.ok ? r.json() : [])
         .then((data) => { setMonthlyData(data); setStatsLoaded(true); })
         .catch(() => setStatsLoaded(true));
@@ -240,7 +243,7 @@ export default function Me() {
     if (!profile) return;
     const next = !profile.weeklyDigest;
     setProfile((p) => p ? { ...p, weeklyDigest: next } : p);
-    await fetch("/api/me/profile", {
+    await fetch(`${BASE}/api/me/profile`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -252,7 +255,7 @@ export default function Me() {
     setDigestSending(true);
     setDigestToast(null);
     try {
-      const res = await fetch("/api/digest/send", { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/digest/send`, { method: "POST", credentials: "include" });
       const d = await res.json();
       if (res.ok) {
         setDigestToast(`✅ 本周回顾已发送至 ${d.to}（共 ${d.entryCount} 篇）`);
@@ -818,7 +821,7 @@ function EditProfileDialog({
     if (!name.trim() || saving) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/me/profile", {
+      const res = await fetch(`${BASE}/api/me/profile`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -896,7 +899,7 @@ function AvatarPickerModal({
     setAiLoading(true);
     setAiError("");
     try {
-      const res = await fetch("/api/ai/avatar/ai-suggest", {
+      const res = await fetch(`${BASE}/api/ai/avatar/ai-suggest`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

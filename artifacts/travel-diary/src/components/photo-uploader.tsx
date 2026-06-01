@@ -5,6 +5,8 @@ import { Camera, Images, Loader2, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 // ── Compression config ──────────────────────────────────────────────────────
 // Two-tier strategy:
 //   • < SKIP_BYTES        → direct upload, no resize
@@ -191,7 +193,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
 
     const ids = pending.map((p) => p.itemId);
     try {
-      const resp = await fetch(`/api/entries/${entryId}/photos/batch`, {
+      const resp = await fetch(`${BASE}/api/entries/${entryId}/photos/batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -233,7 +235,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
         try {
           // fetch with keepalive survives navigation; falls back silently
           // if the browser doesn't support it.
-          fetch(`/api/entries/${entryId}/photos/batch`, {
+          fetch(`${BASE}/api/entries/${entryId}/photos/batch`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -328,7 +330,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
     // just echoed back — so it's safe to presign with the *original*
     // file metadata before we even start compressing.
     try {
-      const resp = await fetch("/api/storage/uploads/request-urls", {
+      const resp = await fetch(`${BASE}/api/storage/uploads/request-urls`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

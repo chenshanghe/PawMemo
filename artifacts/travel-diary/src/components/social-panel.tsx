@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { EntryComment, LikesStatus } from "@workspace/api-client-react";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 interface SocialPanelProps {
   entryId: number;
   isOwner: boolean;
@@ -22,7 +24,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
 
   const fetchLikes = useCallback(async () => {
     try {
-      const res = await fetch(`/api/entries/${entryId}/likes`, { credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${entryId}/likes`, { credentials: "include" });
       if (res.ok) setLikes(await res.json());
     } catch {}
   }, [entryId]);
@@ -33,7 +35,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
     if (!isSignedIn || likePending) return;
     setLikePending(true);
     try {
-      const res = await fetch(`/api/entries/${entryId}/likes`, {
+      const res = await fetch(`${BASE}/api/entries/${entryId}/likes`, {
         method: "POST",
         credentials: "include",
       });
@@ -51,7 +53,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
 
   const fetchComments = useCallback(async () => {
     try {
-      const res = await fetch(`/api/entries/${entryId}/comments`, { credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${entryId}/comments`, { credentials: "include" });
       if (res.ok) setComments(await res.json());
     } catch {}
   }, [entryId]);
@@ -64,7 +66,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
     if (!commentText.trim() || commentPending || !isSignedIn) return;
     setCommentPending(true);
     try {
-      const res = await fetch(`/api/entries/${entryId}/comments`, {
+      const res = await fetch(`${BASE}/api/entries/${entryId}/comments`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -86,7 +88,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
 
   const handleDeleteComment = async (commentId: number) => {
     try {
-      const res = await fetch(`/api/comments/${commentId}`, {
+      const res = await fetch(`${BASE}/api/comments/${commentId}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -103,7 +105,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
   const fetchShareStatus = useCallback(async () => {
     if (!isOwner) return;
     try {
-      const res = await fetch(`/api/entries/${entryId}/share-status`, { credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${entryId}/share-status`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setShareToken(data.token);
@@ -117,7 +119,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
     if (shareToken) return shareToken;
     setShareLoading(true);
     try {
-      const res = await fetch(`/api/entries/${entryId}/share`, {
+      const res = await fetch(`${BASE}/api/entries/${entryId}/share`, {
         method: "POST",
         credentials: "include",
       });
@@ -135,7 +137,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
   const handleRevokeShare = async () => {
     setShareLoading(true);
     try {
-      const res = await fetch(`/api/entries/${entryId}/share`, {
+      const res = await fetch(`${BASE}/api/entries/${entryId}/share`, {
         method: "DELETE",
         credentials: "include",
       });

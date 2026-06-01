@@ -6,6 +6,8 @@ import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { PayDialog } from "@/components/pay-dialog";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 interface SubscriptionInfo {
   tier: string;
   tierName: string;
@@ -96,7 +98,7 @@ export default function Pricing() {
 
   const fetchSub = () => {
     if (!isSignedIn) return;
-    fetch("/api/me/subscription", { credentials: "include" })
+    fetch(`${BASE}/api/me/subscription`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d) setSub(d); })
       .catch(() => {});

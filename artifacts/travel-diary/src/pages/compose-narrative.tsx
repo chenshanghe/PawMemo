@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { UpgradeDialog } from "@/components/upgrade-dialog";
 import { WRITING_STYLES } from "@/lib/writing-styles";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 interface SourceEntry {
   id: number;
   title: string;
@@ -82,8 +84,8 @@ export default function ComposeNarrative() {
     (async () => {
       try {
         const [allRes, stylesRes] = await Promise.all([
-          fetch("/api/entries", { credentials: "include" }),
-          fetch("/api/me/compose-styles", { credentials: "include" }),
+          fetch(`${BASE}/api/entries`, { credentials: "include" }),
+          fetch(`${BASE}/api/me/compose-styles`, { credentials: "include" }),
         ]);
         if (allRes.ok) {
           const all: SourceEntry[] = await allRes.json();
@@ -105,7 +107,7 @@ export default function ComposeNarrative() {
     if (!sources.length) return;
     Promise.all(
       sources.map((e) =>
-        fetch(`/api/entries/${e.id}/photos`, { credentials: "include" })
+        fetch(`${BASE}/api/entries/${e.id}/photos`, { credentials: "include" })
           .then((r) => (r.ok ? r.json() : []))
           .then((photos: any[]) => photos.map((p) => ({ ...p, entryId: e.id })))
       )
@@ -131,7 +133,7 @@ export default function ComposeNarrative() {
     setSaved(false);
 
     try {
-      const res = await fetch("/api/ai/compose", {
+      const res = await fetch(`${BASE}/api/ai/compose`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -186,7 +188,7 @@ export default function ComposeNarrative() {
     if (!styleName.trim() || !style.trim() || savingPreset) return;
     setSavingPreset(true);
     try {
-      const res = await fetch("/api/me/compose-styles", {
+      const res = await fetch(`${BASE}/api/me/compose-styles`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -211,7 +213,7 @@ export default function ComposeNarrative() {
   };
 
   const deletePreset = async (id: number) => {
-    const res = await fetch(`/api/me/compose-styles/${id}`, { method: "DELETE", credentials: "include" });
+    const res = await fetch(`${BASE}/api/me/compose-styles/${id}`, { method: "DELETE", credentials: "include" });
     if (res.ok) setSavedStyles((prev) => prev.filter((s) => s.id !== id));
   };
 
@@ -234,7 +236,7 @@ export default function ComposeNarrative() {
     const destinations = [...new Set(sorted.map((e) => e.destination))];
 
     try {
-      const res = await fetch("/api/entries", {
+      const res = await fetch(`${BASE}/api/entries`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -266,7 +268,7 @@ export default function ComposeNarrative() {
           return { url: p.url, caption };
         });
       if (photosToCopy.length > 0) {
-        await fetch(`/api/entries/${data.id}/photos/batch`, {
+        await fetch(`${BASE}/api/entries/${data.id}/photos/batch`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

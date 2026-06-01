@@ -31,6 +31,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { WRITING_STYLES } from "@/lib/writing-styles";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 const MOODS: Record<string, string> = {
   开心: "bg-yellow-100 text-yellow-800",
   平静: "bg-blue-100 text-blue-800",
@@ -170,7 +172,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
   const [enhanceLimit, setEnhanceLimit] = useState<number>(5);
 
   useEffect(() => {
-    fetch("/api/me/subscription", { credentials: "include" })
+    fetch(`${BASE}/api/me/subscription`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
       .then((d) => {
         if (d) {
@@ -209,7 +211,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
 
     try {
       const token = await getToken();
-      const resp = await fetch("/api/ai/enhance", {
+      const resp = await fetch(`${BASE}/api/ai/enhance`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

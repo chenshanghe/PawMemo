@@ -5,6 +5,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 interface FeedEntry {
   id: number;
   title: string;
@@ -51,8 +53,8 @@ export default function MyFeed() {
     setLoading(true);
     try {
       const [feedRes, followingRes] = await Promise.all([
-        fetch(`/api/me/feed?page=${p}&limit=${LIMIT}`, { credentials: "include" }),
-        fetch(`/api/me/following`, { credentials: "include" }),
+        fetch(`${BASE}/api/me/feed?page=${p}&limit=${LIMIT}`, { credentials: "include" }),
+        fetch(`${BASE}/api/me/following`, { credentials: "include" }),
       ]);
       if (feedRes.ok) {
         const data = await feedRes.json();
@@ -77,7 +79,7 @@ export default function MyFeed() {
     if (favPending) return;
     setFavPending(entryId);
     try {
-      const res = await fetch(`/api/entries/${entryId}/favorite`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${entryId}/favorite`, { method: "POST", credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setEntries((prev) => prev.map((x) => x.id === entryId ? { ...x, viewerFavorited: data.favorited } : x));

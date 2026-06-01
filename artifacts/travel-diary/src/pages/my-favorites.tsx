@@ -5,6 +5,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 interface FavEntry {
   id: number;
   title: string;
@@ -42,7 +44,7 @@ export default function MyFavorites() {
   const fetchData = useCallback(async (p: number) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/me/favorites?page=${p}&limit=${LIMIT}`, { credentials: "include" });
+      const res = await fetch(`${BASE}/api/me/favorites?page=${p}&limit=${LIMIT}`, { credentials: "include" });
       if (!res.ok) return;
       const data = await res.json();
       setEntries(data.entries);
@@ -60,7 +62,7 @@ export default function MyFavorites() {
     if (unfavoritePending) return;
     setUnfavoritePending(entryId);
     try {
-      const res = await fetch(`/api/entries/${entryId}/favorite`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${entryId}/favorite`, { method: "POST", credentials: "include" });
       if (res.ok) {
         setEntries((prev) => prev.filter((e) => e.id !== entryId));
         setTotal((t) => Math.max(0, t - 1));

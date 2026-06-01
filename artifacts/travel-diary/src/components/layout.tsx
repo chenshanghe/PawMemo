@@ -3,6 +3,8 @@ import { Link, useLocation } from "wouter";
 import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface SlimProfile {
@@ -20,7 +22,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isSignedIn) return;
-    fetch("/api/me/profile", { credentials: "include" })
+    fetch(`${BASE}/api/me/profile`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d) setProfile({ name: d.name, bio: d.bio, avatar: d.avatar }); })
       .catch(() => {});

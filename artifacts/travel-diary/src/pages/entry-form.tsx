@@ -22,6 +22,8 @@ import { ArrowLeft, Save, Star, X, Plus, Sparkles, Loader2, MapPin, CheckCircle2
 import { ImageUploader } from "@/components/image-uploader";
 import { Link } from "wouter";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 const MOODS = ["开心", "平静", "感动", "疲惫", "兴奋", "思念"];
 
 interface WeatherInfo {
@@ -84,7 +86,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
     setGeocoding(true);
     setGeocoded(false);
     try {
-      const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, { credentials: "include" });
+      const r = await fetch(`${BASE}/api/geocode?q=${encodeURIComponent(q)}`, { credentials: "include" });
       if (r.ok) {
         const results = await r.json();
         if (results.length > 0) {
@@ -103,7 +105,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
     if (d >= today) { setWeather(null); return; }
     let cancelled = false;
     setFetchingWeather(true);
-    fetch(`/api/weather?lat=${form.lat}&lng=${form.lng}&date=${form.startDate}`, { credentials: "include" })
+    fetch(`${BASE}/api/weather?lat=${form.lat}&lng=${form.lng}&date=${form.startDate}`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => { if (!cancelled) setWeather(data); })
       .catch(() => { if (!cancelled) setWeather(null); })
@@ -161,7 +163,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
 
     try {
       const token = await getToken();
-      const resp = await fetch("/api/ai/enhance", {
+      const resp = await fetch(`${BASE}/api/ai/enhance`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

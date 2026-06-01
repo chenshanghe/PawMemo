@@ -3,6 +3,8 @@ import { Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { Loader2, X, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 
+const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+
 interface PhotoItem {
   id: number;
   url: string;
@@ -125,7 +127,7 @@ export default function Photos() {
     const params = new URLSearchParams({ page: String(p), limit: "60" });
     if (dest) params.set("destination", dest);
     try {
-      const r = await fetch(`/api/me/photos?${params}`, { credentials: "include" });
+      const r = await fetch(`${BASE}/api/me/photos?${params}`, { credentials: "include" });
       if (!r.ok) return;
       const data: PhotosResponse = await r.json();
       setPhotos((prev) => replace ? data.photos : [...prev, ...data.photos]);
@@ -143,7 +145,7 @@ export default function Photos() {
 
   // Load destination list for filter
   useEffect(() => {
-    fetch("/api/stats/destinations", { credentials: "include" })
+    fetch(`${BASE}/api/stats/destinations`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : [])
       .then((rows: { destination: string }[]) => setDestinations(rows.map((r) => r.destination)))
       .catch(() => {});

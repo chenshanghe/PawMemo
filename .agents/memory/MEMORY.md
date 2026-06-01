@@ -1,2 +1,3 @@
 - [Tailwind v4 breaks Leaflet tiles](tailwind-leaflet-fix.md) — Tailwind's base `img` styles (max-width:100%, height:auto, display:block) collapse Leaflet tile images to 0 size; must override with `.leaflet-container img.leaflet-tile` CSS in index.css.
 - [react-simple-maps JSON import](react-simple-maps-json.md) — must import TopoJSON as module, not string URL; Vite cold restart leaves browser on old bundle, HMR alone insufficient — restart workflow to force full reload.
+- [BASE_URL required for all fetch calls](base-url-fetch.md) — app is mounted at /travel-diary/ so bare /api/... paths silently 404; every fetch must use `${BASE}/api/...` where BASE = import.meta.env.BASE_URL.replace(/\/$/, "").
