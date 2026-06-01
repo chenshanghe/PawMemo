@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useUser } from "@clerk/react";
 import { wgs84ToGcj02 } from "@/lib/coords";
 import { Layout } from "@/components/layout";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -180,6 +181,7 @@ function SavedPlanCard({ plan, onLoad, onDelete }: { plan: SavedPlan; onLoad: (i
 }
 
 export default function PlanPage() {
+  const { isSignedIn } = useUser();
   const savedPrefs = loadPrefs();
   const [state, setState] = useState<"form" | "generating" | "result">("form");
   const [from, setFrom] = useState("");
@@ -194,6 +196,7 @@ export default function PlanPage() {
   const [hasPrefs, setHasPrefs] = useState<boolean>(savedPrefs !== null);
   const prefsInitialized = useRef(false);
   const isClearingPrefs = useRef(false);
+  const serverPrefsFetched = useRef(false);
   const [result, setResult] = useState<PlanResult | null>(null);
   const [currentPlanParams, setCurrentPlanParams] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +215,26 @@ export default function PlanPage() {
 
   useEffect(() => { setSelectedPoi(null); }, [activeDay]);
 
+  // Fetch server-side prefs when the user is signed in (overrides localStorage)
+  useEffect(() => {
+    if (!isSignedIn || serverPrefsFetched.current) return;
+    serverPrefsFetched.current = true;
+    apiFetch("/api/prefs")
+      .then(r => r.ok ? r.json() : null)
+      .then((prefs: UserPrefs | null) => {
+        if (!prefs) return;
+        // Suppress the normal save-on-change effect for these programmatic updates
+        isClearingPrefs.current = true;
+        setTravelMode(prefs.travelMode ?? "");
+        setBudget(prefs.budget ?? "");
+        setSpecialNeeds(prefs.specialNeeds ?? []);
+        const anySet = !!(prefs.travelMode || prefs.budget || (prefs.specialNeeds?.length ?? 0) > 0);
+        setHasPrefs(anySet);
+        if (anySet) savePrefs(prefs);
+      })
+      .catch(() => {});
+  }, [isSignedIn]);
+
   // Persist preferences whenever they change (skip initial mount to avoid
   // overwriting a "no prefs" state with the default empty values; also skip
   // when the user explicitly cleared prefs so we don't re-save empty values)
@@ -226,6 +249,13 @@ export default function PlanPage() {
     }
     savePrefs({ travelMode, budget, specialNeeds });
     setHasPrefs(true);
+    if (isSignedIn) {
+      apiFetch("/api/prefs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ travelMode, budget, specialNeeds }),
+      }).catch(() => {});
+    }
   }, [travelMode, budget, specialNeeds]);
 
   useEffect(() => {
@@ -254,6 +284,13 @@ export default function PlanPage() {
     setBudget("");
     setSpecialNeeds([]);
     setHasPrefs(false);
+    if (isSignedIn) {
+      apiFetch("/api/prefs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ travelMode: "", budget: "", specialNeeds: [] }),
+      }).catch(() => {});
+    }
   };
 
   const addDestination = () => setDestinations(d => [...d, ""]);
@@ -458,7 +495,7 @@ export default function PlanPage() {
             <div className="p-5 space-y-4">
               {hasPrefs && (
                 <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-primary/5 border border-primary/15 text-xs text-muted-foreground">
-                  <span>✅ 已自动填入上次的偏好设置</span>
+                  <span>{isSignedIn ? "☁️ 已从账号同步偏好设置" : "✅ 已自动填入上次的偏好设置"}</span>
                   <button onClick={handleClearPrefs} className="flex items-center gap-1 text-primary hover:text-primary/70 transition-colors font-medium shrink-0 ml-3">
                     <RotateCcw className="w-3 h-3" />清除偏好
                   </button>

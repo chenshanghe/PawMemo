@@ -222,6 +222,17 @@ export const collectionEntriesTable = pgTable("collection_entries", {
 export type Collection = typeof collectionsTable.$inferSelect;
 export type CollectionEntry = typeof collectionEntriesTable.$inferSelect;
 
+// ── User travel preferences ───────────────────────────────────────────────────
+export const userPrefsTable = pgTable("user_prefs", {
+  userId: text("user_id").primaryKey(),
+  travelMode: text("travel_mode").notNull().default(""),
+  budget: text("budget").notNull().default(""),
+  specialNeeds: json("special_needs").$type<string[]>().notNull().default([]),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type UserPref = typeof userPrefsTable.$inferSelect;
+
 // ── Entry Collaborators ───────────────────────────────────────────────────────
 export const entryCollaboratorsTable = pgTable("entry_collaborators", {
   id: serial("id").primaryKey(),
