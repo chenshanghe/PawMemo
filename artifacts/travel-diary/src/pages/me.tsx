@@ -5,7 +5,7 @@ import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
-  Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer,
+  Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, SlidersHorizontal, RotateCcw,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -20,6 +20,33 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const TRAVEL_MODES = [
+  { value: "自驾", label: "🚗 自驾" },
+  { value: "跟团", label: "🚌 跟团" },
+  { value: "背包", label: "🎒 背包" },
+  { value: "高铁", label: "🚄 高铁" },
+  { value: "飞机", label: "✈️ 飞机" },
+];
+const BUDGETS = [
+  { value: "经济实惠（人均 300 元/天以内）", label: "💰 经济" },
+  { value: "舒适中档（人均 300-800 元/天）", label: "💰💰 舒适" },
+  { value: "豪华品质（人均 800 元以上/天）", label: "💰💰💰 豪华" },
+];
+const SPECIAL_NEEDS = [
+  { value: "素食友好", label: "🥦 素食友好" },
+  { value: "宠物友好", label: "🐾 宠物友好" },
+  { value: "无障碍设施", label: "♿ 无障碍" },
+];
+const TRAVEL_STYLES = ["文化探索", "美食之旅", "自然风光", "亲子游", "休闲放松"];
+
+interface UserPrefs {
+  travelMode: string;
+  budget: string;
+  specialNeeds: string[];
+  fromCity: string;
+  travelStyle: string;
+}
 
 interface MyProfile {
   userId: string;
@@ -141,6 +168,11 @@ export default function Me() {
   const [digestSending, setDigestSending] = useState(false);
   const [digestToast, setDigestToast] = useState<string | null>(null);
 
+  const [prefs, setPrefs] = useState<UserPrefs | null>(null);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsSaved, setPrefsSaved] = useState(false);
+
   const handleSelectAvatar = async (url: string) => {
     setAvatarSaving(true);
     try {
@@ -207,7 +239,61 @@ export default function Me() {
     if (subRes.ok) setSub(await subRes.json());
   }, []);
 
+  const fetchPrefs = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE}/api/prefs`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          setPrefs({
+            travelMode: data.travelMode ?? "",
+            budget: data.budget ?? "",
+            specialNeeds: Array.isArray(data.specialNeeds) ? data.specialNeeds : [],
+            fromCity: data.fromCity ?? "",
+            travelStyle: data.travelStyle ?? "",
+          });
+        } else {
+          setPrefs({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "" });
+        }
+      }
+    } finally {
+      setPrefsLoaded(true);
+    }
+  }, []);
+
+  const savePrefs = async (updated: UserPrefs) => {
+    setPrefsSaving(true);
+    setPrefsSaved(false);
+    try {
+      await fetch(`${BASE}/api/prefs`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated),
+      });
+      setPrefsSaved(true);
+      setTimeout(() => setPrefsSaved(false), 2500);
+    } finally {
+      setPrefsSaving(false);
+    }
+  };
+
+  const handleClearPrefs = async () => {
+    const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "" };
+    setPrefs(cleared);
+    await savePrefs(cleared);
+  };
+
+  const updatePrefs = (patch: Partial<UserPrefs>) => {
+    setPrefs((prev) => {
+      const next = { ...(prev ?? { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "" }), ...patch };
+      savePrefs(next);
+      return next;
+    });
+  };
+
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useEffect(() => { fetchPrefs(); }, [fetchPrefs]);
 
   // Lazy-load tabs
   useEffect(() => {
@@ -543,6 +629,132 @@ export default function Me() {
                 </div>
               </Link>
             ))}
+          </div>
+
+          {/* ── Travel Preferences ─────────────────────────────────────── */}
+          <div className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">出行偏好</span>
+                <span className="text-[11px] text-muted-foreground">· 用于规划行程时的默认设置</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {prefsSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                {prefsSaved && !prefsSaving && <span className="text-[11px] text-green-600 font-medium">已保存 ✓</span>}
+                {prefs && (prefs.travelMode || prefs.budget || prefs.specialNeeds.length > 0 || prefs.fromCity || prefs.travelStyle) && (
+                  <button
+                    onClick={handleClearPrefs}
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    清除全部
+                  </button>
+                )}
+              </div>
+            </div>
+            {!prefsLoaded ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-primary/40" />
+              </div>
+            ) : (
+              <div className="px-4 py-3 space-y-4">
+                {/* From city */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">📍 常用出发城市</label>
+                  <input
+                    type="text"
+                    value={prefs?.fromCity ?? ""}
+                    onChange={(e) => updatePrefs({ fromCity: e.target.value })}
+                    placeholder="例如：上海"
+                    className="w-full rounded-lg border border-border/60 bg-background text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+                  />
+                </div>
+                {/* Travel mode */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">🚀 出行方式</label>
+                  <div className="flex flex-wrap gap-2">
+                    {TRAVEL_MODES.map((m) => (
+                      <button
+                        key={m.value}
+                        onClick={() => updatePrefs({ travelMode: prefs?.travelMode === m.value ? "" : m.value })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                          prefs?.travelMode === m.value
+                            ? "bg-blue-500 text-white border-blue-500"
+                            : "border-border/60 text-muted-foreground hover:border-blue-300 hover:text-foreground"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Budget */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">💰 预算档次</label>
+                  <div className="flex flex-wrap gap-2">
+                    {BUDGETS.map((b) => (
+                      <button
+                        key={b.value}
+                        onClick={() => updatePrefs({ budget: prefs?.budget === b.value ? "" : b.value })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                          prefs?.budget === b.value
+                            ? "bg-amber-500 text-white border-amber-500"
+                            : "border-border/60 text-muted-foreground hover:border-amber-300 hover:text-foreground"
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Travel style */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">🎨 旅行风格</label>
+                  <div className="flex flex-wrap gap-2">
+                    {TRAVEL_STYLES.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => updatePrefs({ travelStyle: prefs?.travelStyle === s ? "" : s })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                          prefs?.travelStyle === s
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Special needs */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">✨ 特殊需求 <span className="font-normal">（可多选）</span></label>
+                  <div className="flex flex-wrap gap-2">
+                    {SPECIAL_NEEDS.map((n) => {
+                      const selected = prefs?.specialNeeds.includes(n.value) ?? false;
+                      return (
+                        <button
+                          key={n.value}
+                          onClick={() => updatePrefs({
+                            specialNeeds: selected
+                              ? (prefs?.specialNeeds ?? []).filter((x) => x !== n.value)
+                              : [...(prefs?.specialNeeds ?? []), n.value],
+                          })}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                            selected
+                              ? "bg-green-500 text-white border-green-500"
+                              : "border-border/60 text-muted-foreground hover:border-green-300 hover:text-foreground"
+                          }`}
+                        >
+                          {n.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Tabs ───────────────────────────────────────────────────── */}
