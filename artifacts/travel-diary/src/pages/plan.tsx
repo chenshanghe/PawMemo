@@ -214,6 +214,8 @@ export default function PlanPage() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [savedId, setSavedId] = useState<number | null>(null);
   const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
+  const [syncedToAccount, setSyncedToAccount] = useState(false);
+  const syncedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setSelectedPoi(null); }, [activeDay]);
 
@@ -258,6 +260,12 @@ export default function PlanPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ travelMode, budget, specialNeeds, fromCity: from, travelStyle: style }),
+      }).then(r => {
+        if (r.ok) {
+          setSyncedToAccount(true);
+          if (syncedTimer.current) clearTimeout(syncedTimer.current);
+          syncedTimer.current = setTimeout(() => setSyncedToAccount(false), 2000);
+        }
       }).catch(() => {});
     }
   }, [travelMode, budget, specialNeeds, from, style]);
@@ -505,6 +513,12 @@ export default function PlanPage() {
                   <button onClick={handleClearPrefs} className="flex items-center gap-1 text-primary hover:text-primary/70 transition-colors font-medium shrink-0 ml-3">
                     <RotateCcw className="w-3 h-3" />清除偏好
                   </button>
+                </div>
+              )}
+              {syncedToAccount && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 border border-green-200 text-xs text-green-700 animate-in fade-in duration-300">
+                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 4L6.5 11 3 7.5"/></svg>
+                  已同步到账号
                 </div>
               )}
               <div>
