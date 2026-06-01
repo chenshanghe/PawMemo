@@ -347,7 +347,7 @@ export default function Me() {
             {/* AI 叙事用量进度 + 套餐管理 */}
             {sub && (
               <div className="mt-3 p-2.5 rounded-xl bg-muted/40 border border-border/30 space-y-1.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
                   <span className="text-[11px] text-muted-foreground">✨ AI 叙事本月用量</span>
                   <span className="text-[11px] font-semibold text-foreground">
                     {sub.aiComposedThisMonth} / {sub.aiComposeLimit === 999999 ? "无限" : sub.aiComposeLimit}
@@ -361,7 +361,7 @@ export default function Me() {
                     />
                   </div>
                 )}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
                   <span className="text-[11px] text-muted-foreground">✍️ AI 优化本月用量</span>
                   <span className="text-[11px] font-semibold text-foreground">
                     {sub.aiEnhancedThisMonth} / {sub.aiEnhanceLimit === 999999 ? "无限" : sub.aiEnhanceLimit}
