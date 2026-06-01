@@ -479,6 +479,34 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
           )}
         </div>
 
+        {/* Video embed */}
+        {(() => {
+          const videoUrl: string | null = (entry as any).videoUrl ?? null;
+          if (!videoUrl) return null;
+          const ytMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+          const bvMatch = videoUrl.match(/bilibili\.com\/video\/(BV[a-zA-Z0-9]+)/i);
+          const embedUrl = ytMatch
+            ? `https://www.youtube.com/embed/${ytMatch[1]}`
+            : bvMatch
+            ? `https://player.bilibili.com/player.html?bvid=${bvMatch[1]}&page=1&high_quality=1`
+            : null;
+          if (!embedUrl) return null;
+          return (
+            <div className="space-y-3">
+              <h2 className="text-xl font-serif font-bold text-foreground">旅途视频</h2>
+              <div className="rounded-2xl overflow-hidden aspect-video shadow-sm border border-border/40 bg-muted/20">
+                <iframe
+                  src={embedUrl}
+                  title="旅途视频"
+                  allowFullScreen
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Social: likes, comments, share */}
         <SocialPanel
           entryId={id}

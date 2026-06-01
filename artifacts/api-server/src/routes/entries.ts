@@ -179,6 +179,7 @@ router.post("/", async (req, res) => {
       lat: typeof data.lat === "number" ? data.lat : null,
       lng: typeof data.lng === "number" ? data.lng : null,
       weather: data.weather ?? null,
+      videoUrl: typeof data.videoUrl === "string" ? data.videoUrl : null,
     })
     .returning();
 
@@ -244,6 +245,7 @@ router.patch("/:id", async (req, res) => {
   if (data.lat !== undefined) updateData.lat = data.lat;
   if (data.lng !== undefined) updateData.lng = data.lng;
   if (data.weather !== undefined) updateData.weather = data.weather;
+  if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl;
 
   const [entry] = await db
     .update(diaryEntriesTable)

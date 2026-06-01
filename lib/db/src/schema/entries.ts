@@ -25,6 +25,7 @@ export const diaryEntriesTable = pgTable("diary_entries", {
   lat: real("lat"),
   lng: real("lng"),
   weather: json("weather"),
+  videoUrl: text("video_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

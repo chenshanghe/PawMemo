@@ -56,6 +56,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
     companions: "",
     content: "",
     coverImage: "",
+    videoUrl: "",
     mood: "",
     rating: 0,
     startDate: "",
@@ -137,6 +138,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
         destination: existingEntry.destination,
         content: existingEntry.content ?? "",
         coverImage: existingEntry.coverImage ?? "",
+        videoUrl: (existingEntry as any).videoUrl ?? "",
         companions: existingEntry.companions ?? "",
         visibility: (existingEntry.visibility as any) ?? "private",
         mood: existingEntry.mood ?? "",
@@ -232,6 +234,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
       companions: form.companions || undefined,
       content: form.content || undefined,
       coverImage: form.coverImage || undefined,
+      videoUrl: form.videoUrl || undefined,
       mood: form.mood || undefined,
       rating: form.rating || undefined,
       visibility: form.visibility,
@@ -480,6 +483,26 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                   onChange={(url) => setForm({ ...form, coverImage: url })}
                   label="上传封面图片"
                 />
+              </div>
+
+              {/* Video URL */}
+              <div className="space-y-2">
+                <Label htmlFor="videoUrl" className="text-sm font-medium">旅途视频链接（可选）</Label>
+                <Input
+                  id="videoUrl"
+                  type="url"
+                  placeholder="粘贴 YouTube 或哔哩哔哩视频链接"
+                  value={form.videoUrl}
+                  onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
+                  className="bg-background border-border/60"
+                />
+                {form.videoUrl && (() => {
+                  const isYT = /(?:youtube\.com\/watch\?v=|youtu\.be\/)/.test(form.videoUrl);
+                  const isBili = /bilibili\.com\/video\/BV/i.test(form.videoUrl);
+                  if (isYT) return <p className="text-xs text-green-600">✓ YouTube 视频已识别</p>;
+                  if (isBili) return <p className="text-xs text-green-600">✓ 哔哩哔哩视频已识别</p>;
+                  return <p className="text-xs text-amber-600">仅支持 YouTube 和哔哩哔哩链接</p>;
+                })()}
               </div>
 
               {/* Mood */}

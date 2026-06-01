@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/layout";
 import { useListEntries } from "@workspace/api-client-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { MapPin, LayoutGrid, Route } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -43,6 +43,7 @@ function clusterTrips(entries: any[]): any[][] {
 }
 
 export default function MapPage() {
+  const [, navigate] = useLocation();
   const { data: allEntries, isLoading } = useListEntries({});
   const [view, setView] = useState<"scatter" | "route">("scatter");
   const [selected, setSelected] = useState<any[] | null>(null);
@@ -169,6 +170,7 @@ export default function MapPage() {
                   key={key}
                   coordinates={[first.lng, first.lat]}
                   onMouseEnter={(e: any) => handleMarkerEnter(e, group)}
+                  onClick={() => { if (count === 1) navigate(`/entries/${first.id}`); }}
                 >
                   <circle
                     r={count > 1 ? 10 : 7}
@@ -216,6 +218,7 @@ export default function MapPage() {
                       key={e.id}
                       coordinates={[e.lng, e.lat]}
                       onMouseEnter={(evt: any) => handleMarkerEnter(evt, [e])}
+                      onClick={() => navigate(`/entries/${e.id}`)}
                     >
                       <circle r={10} fill={color} stroke="white" strokeWidth={2.5} style={{ cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.25))" }} />
                       <text textAnchor="middle" dominantBaseline="central" fill="white" fontSize={9} fontWeight="bold" style={{ pointerEvents: "none" }}>
@@ -230,19 +233,21 @@ export default function MapPage() {
 
           {selected && tooltipPos && (
             <div
-              className="absolute z-20 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-border/60 p-3 space-y-2 max-w-[220px] pointer-events-none"
+              className="absolute z-20 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-border/60 p-3 space-y-2 max-w-[220px]"
               style={{
                 left: Math.min(tooltipPos.x + 14, (mapRef.current?.offsetWidth ?? 400) - 240),
                 top: Math.max(8, tooltipPos.y - 12),
               }}
             >
               {selected.map((e: any) => (
-                <div key={e.id} className="border-b border-gray-100 last:border-0 pb-2 last:pb-0">
-                  <p className="font-semibold text-sm leading-tight text-foreground">{e.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">📍 {e.destination}</p>
-                  <p className="text-xs text-muted-foreground">{format(new Date(e.startDate), "yyyy.MM.dd")}</p>
-                  <span className="text-xs text-primary font-medium mt-0.5 block">悬停查看 · 点击随记</span>
-                </div>
+                <Link key={e.id} href={`/entries/${e.id}`}>
+                  <div className="border-b border-gray-100 last:border-0 pb-2 last:pb-0 hover:bg-muted/30 rounded-lg px-1 -mx-1 cursor-pointer transition-colors">
+                    <p className="font-semibold text-sm leading-tight text-foreground">{e.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">📍 {e.destination}</p>
+                    <p className="text-xs text-muted-foreground">{format(new Date(e.startDate), "yyyy.MM.dd")}</p>
+                    <span className="text-xs text-primary font-medium mt-0.5 block">点击查看 →</span>
+                  </div>
+                </Link>
               ))}
             </div>
           )}
