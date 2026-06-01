@@ -95,7 +95,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
     if (!isSignedIn || likePending || !data) return;
     setLikePending(true);
     try {
-      const res = await fetch(`/api/entries/${data.entry.id}/likes`, { method: "POST", credentials: "include" });
+      const res = await fetch(`/api/entries/${data.entry.id}/likes?shareToken=${encodeURIComponent(token)}`, { method: "POST", credentials: "include" });
       if (res.ok) setLikes(await res.json());
     } finally {
       setLikePending(false);
@@ -106,7 +106,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
     if (!commentText.trim() || commentPending || !isSignedIn || !data) return;
     setCommentPending(true);
     try {
-      const res = await fetch(`/api/entries/${data.entry.id}/comments`, {
+      const res = await fetch(`/api/entries/${data.entry.id}/comments?shareToken=${encodeURIComponent(token)}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

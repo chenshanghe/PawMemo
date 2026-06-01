@@ -7,6 +7,10 @@ import {
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
 import { requireAuth } from "../middlewares/auth";
+import { db } from "@workspace/db";
+import { photosTable, diaryEntriesTable, entrySharesTable, userProfilesTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
+import { getAuth } from "@clerk/express";
 
 function parseBatchUploadBody(body: unknown):
   | { files: { name: string; size: number; contentType: string }[] }
@@ -137,23 +141,86 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
+
+    // Enforce diary entry visibility before serving any private object.
+    // The URL stored in the database is `/api/storage/objects/<wildcardPath>`.
+    const storedUrl = `/api/storage/objects/${wildcardPath}`;
+
+    // Collect ALL entries that reference this object URL (photos table + cover
+    // image column). Using all matching rows rather than limit(1) prevents a
+    // policy-bypass if the same URL is somehow stored on multiple entries.
+    const [photoRows, coverRows] = await Promise.all([
+      db.select({ entryId: photosTable.entryId })
+        .from(photosTable)
+        .where(eq(photosTable.url, storedUrl)),
+      db.select({ id: diaryEntriesTable.id })
+        .from(diaryEntriesTable)
+        .where(eq(diaryEntriesTable.coverImage, storedUrl)),
+    ]);
+
+    const entryIds = Array.from(new Set([
+      ...photoRows.map(r => r.entryId),
+      ...coverRows.map(r => r.id),
+    ]));
+
+    if (entryIds.length === 0) {
+      // Object not in any diary entry — check if it is a user profile avatar.
+      // Avatars are public (shown on author cards, square feed, etc.) so any
+      // match here serves the file without further auth checks.
+      const [avatarRow] = await db
+        .select({ userId: userProfilesTable.userId })
+        .from(userProfilesTable)
+        .where(eq(userProfilesTable.avatar, storedUrl))
+        .limit(1);
+
+      if (!avatarRow) {
+        // Not referenced by any known entity — deny (fail closed).
+        res.status(404).json({ error: "Object not found" });
+        return;
+      }
+      // Avatar found — fall through to serve it below.
+    } else {
+      // Object belongs to one or more diary entries: enforce diary visibility.
+      const owningEntries = await db
+        .select({ id: diaryEntriesTable.id, visibility: diaryEntriesTable.visibility, userId: diaryEntriesTable.userId })
+        .from(diaryEntriesTable)
+        .where(inArray(diaryEntriesTable.id, entryIds));
+
+      if (owningEntries.length === 0) {
+        res.status(404).json({ error: "Object not found" });
+        return;
+      }
+
+      // Determine caller identity once.
+      const auth = getAuth(req);
+      const callerId = (auth?.sessionClaims?.userId as string) || auth?.userId || null;
+      const shareToken = typeof req.query.shareToken === "string" ? req.query.shareToken : null;
+
+      // The caller must satisfy the access policy for EVERY owning entry
+      // (most-restrictive wins). Policy per entry:
+      //   owner         → allowed
+      //   public        → allowed
+      //   share + valid token for that entry → allowed
+      //   otherwise     → 403
+      for (const owningEntry of owningEntries) {
+        if (callerId && callerId === owningEntry.userId) continue;
+        if (owningEntry.visibility === "public") continue;
+        if (owningEntry.visibility === "share" && shareToken) {
+          const [shareRecord] = await db
+            .select({ id: entrySharesTable.id })
+            .from(entrySharesTable)
+            .where(and(
+              eq(entrySharesTable.token, shareToken),
+              eq(entrySharesTable.entryId, owningEntry.id),
+            ));
+          if (shareRecord) continue;
+        }
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
+
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
-
-    // --- Protected route example (uncomment when using replit-auth) ---
-    // if (!req.isAuthenticated()) {
-    //   res.status(401).json({ error: "Unauthorized" });
-    //   return;
-    // }
-    // const canAccess = await objectStorageService.canAccessObjectEntity({
-    //   userId: req.user.id,
-    //   objectFile,
-    //   requestedPermission: ObjectPermission.READ,
-    // });
-    // if (!canAccess) {
-    //   res.status(403).json({ error: "Forbidden" });
-    //   return;
-    // }
-
     const response = await objectStorageService.downloadObject(objectFile);
 
     res.status(response.status);

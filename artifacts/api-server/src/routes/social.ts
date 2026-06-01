@@ -166,8 +166,63 @@ router.get("/share/:token", optionalAuth, async (req, res) => {
   const author = await getAuthorProfile(entry.userId ?? null);
   const viewerFavorited = await isViewerFavorited(share.entryId, viewerUserId);
   const viewerFollowing = await isViewerFollowing(entry.userId ?? null, viewerUserId);
-  res.json({ entry, likeCount: likeCount?.count ?? 0, viewerLiked, comments, author, viewerFavorited, viewerFollowing });
+
+  // Rewrite private object storage URLs to include the share token so that
+  // img src requests from the share-view page can pass it to the storage
+  // endpoint's access check.
+  const tokenParam = `?shareToken=${encodeURIComponent(token)}`;
+  const rewriteStorageUrl = (url: string | null | undefined): string | null | undefined => {
+    if (!url || !url.startsWith("/api/storage/")) return url;
+    return `${url}${tokenParam}`;
+  };
+  const entryWithTokenUrls = {
+    ...entry,
+    coverImage: rewriteStorageUrl(entry.coverImage),
+    photos: entry.photos.map((p) => ({ ...p, url: rewriteStorageUrl(p.url) ?? p.url })),
+  };
+
+  res.json({ entry: entryWithTokenUrls, likeCount: likeCount?.count ?? 0, viewerLiked, comments, author, viewerFavorited, viewerFollowing });
 });
+
+// ── Entry access guard ───────────────────────────────────────────────────────
+
+/**
+ * Resolve whether the given viewer may access an entry's social data.
+ * Returns the entry if access is granted, or responds with 404/403 and
+ * returns null.  Access is granted when:
+ *   - the viewer is the authenticated owner, OR
+ *   - the entry visibility is "public", OR
+ *   - the entry visibility is "share" AND a valid share token for that entry
+ *     is supplied.
+ *
+ * Raw entryId alone never authorises access to another user's private or
+ * share-only content.
+ */
+async function assertEntryAccessible(
+  entryId: number,
+  viewerUserId: string | null,
+  res: any,
+  shareToken?: string,
+): Promise<typeof diaryEntriesTable.$inferSelect | null> {
+  const [entry] = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.id, entryId));
+  if (!entry) { res.status(404).json({ error: "Not found" }); return null; }
+
+  if (viewerUserId && viewerUserId === entry.userId) return entry;
+  if (entry.visibility === "public") return entry;
+  if (entry.visibility === "share" && shareToken) {
+    const [shareRecord] = await db
+      .select({ id: entrySharesTable.id })
+      .from(entrySharesTable)
+      .where(and(eq(entrySharesTable.token, shareToken), eq(entrySharesTable.entryId, entryId)));
+    if (shareRecord) return entry;
+  }
+
+  res.status(403).json({ error: "Forbidden" });
+  return null;
+}
 
 // ── Likes ────────────────────────────────────────────────────────────────────
 
@@ -176,12 +231,16 @@ router.get("/entries/:id/likes", optionalAuth, async (req, res) => {
   const entryId = Number(req.params.id);
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+  const viewerUserId: string | null = (req as any).userId;
+  const shareToken = typeof req.query.shareToken === "string" ? req.query.shareToken : undefined;
+  const entry = await assertEntryAccessible(entryId, viewerUserId, res, shareToken);
+  if (!entry) return;
+
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(entryLikesTable)
     .where(eq(entryLikesTable.entryId, entryId));
 
-  const viewerUserId: string | null = (req as any).userId;
   let viewerLiked = false;
   if (viewerUserId) {
     const [like] = await db
@@ -199,6 +258,10 @@ router.post("/entries/:id/likes", requireAuth, async (req, res) => {
   const entryId = Number(req.params.id);
   const userId = (req as AuthedRequest).userId;
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const shareToken = typeof req.query.shareToken === "string" ? req.query.shareToken : undefined;
+  const entry = await assertEntryAccessible(entryId, userId, res, shareToken);
+  if (!entry) return;
 
   const [existing] = await db
     .select()
@@ -221,7 +284,6 @@ router.post("/entries/:id/likes", requireAuth, async (req, res) => {
   // Fire-and-forget: notify entry owner on new like (not on unlike, not on self-like)
   if (!existing) {
     try {
-      const [entry] = await db.select().from(diaryEntriesTable).where(eq(diaryEntriesTable.id, entryId));
       if (entry && entry.userId && entry.userId !== userId) {
         const [ownerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, entry.userId));
         const [likerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId));
@@ -246,6 +308,11 @@ router.get("/entries/:id/comments", optionalAuth, async (req, res) => {
   const entryId = Number(req.params.id);
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+  const viewerUserId: string | null = (req as any).userId;
+  const shareToken = typeof req.query.shareToken === "string" ? req.query.shareToken : undefined;
+  const entry = await assertEntryAccessible(entryId, viewerUserId, res, shareToken);
+  if (!entry) return;
+
   const comments = await db
     .select()
     .from(entryCommentsTable)
@@ -261,6 +328,10 @@ router.post("/entries/:id/comments", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).userId;
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+  const shareToken = typeof req.query.shareToken === "string" ? req.query.shareToken : undefined;
+  const accessibleEntry = await assertEntryAccessible(entryId, userId, res, shareToken);
+  if (!accessibleEntry) return;
+
   const { content, userName, userAvatar } = req.body;
   if (!content?.trim()) { res.status(400).json({ error: "评论内容不能为空" }); return; }
   if (!userName?.trim()) { res.status(400).json({ error: "缺少用户名" }); return; }
@@ -274,7 +345,7 @@ router.post("/entries/:id/comments", requireAuth, async (req, res) => {
 
   // Fire-and-forget: notify entry owner by email (skip if self-comment)
   try {
-    const [entry] = await db.select().from(diaryEntriesTable).where(eq(diaryEntriesTable.id, entryId));
+    const entry = accessibleEntry;
     if (entry && entry.userId && entry.userId !== userId) {
       const [ownerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, entry.userId));
       if (ownerProfile?.email) {
