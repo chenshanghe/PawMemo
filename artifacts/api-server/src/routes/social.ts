@@ -812,6 +812,45 @@ router.get("/me/favorites", requireAuth, async (req, res) => {
   res.json({ entries, total, page, limit });
 });
 
+// GET /api/me/photos — paginated photos across all user entries
+router.get("/me/photos", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(100, Number(req.query.limit) || 60);
+  const offset = (page - 1) * limit;
+  const dest = (req.query.destination as string) || undefined;
+
+  const where = dest
+    ? and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.destination, dest))
+    : eq(diaryEntriesTable.userId, userId);
+
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(photosTable)
+    .innerJoin(diaryEntriesTable, eq(photosTable.entryId, diaryEntriesTable.id))
+    .where(where);
+
+  const rows = await db
+    .select({
+      id: photosTable.id,
+      url: photosTable.url,
+      caption: photosTable.caption,
+      createdAt: photosTable.createdAt,
+      entryId: diaryEntriesTable.id,
+      entryTitle: diaryEntriesTable.title,
+      entryDestination: diaryEntriesTable.destination,
+      entryStartDate: diaryEntriesTable.startDate,
+    })
+    .from(photosTable)
+    .innerJoin(diaryEntriesTable, eq(photosTable.entryId, diaryEntriesTable.id))
+    .where(where)
+    .orderBy(desc(photosTable.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  res.json({ photos: rows, total, page, limit, hasMore: offset + rows.length < total });
+});
+
 // GET /api/me/feed — paginated public entries from followed users
 router.get("/me/feed", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).userId;

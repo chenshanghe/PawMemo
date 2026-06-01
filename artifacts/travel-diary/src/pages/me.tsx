@@ -4,8 +4,11 @@ import { useUser, useClerk } from "@clerk/react";
 import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
-  Camera, Upload, Wand2, Check, Sparkles,
+  Camera, Upload, Wand2, Check, Sparkles, BarChart2,
 } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+} from "recharts";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
@@ -31,6 +34,15 @@ interface SummaryStats {
   totalDestinations: number;
   totalPhotos: number;
   totalTravelDays: number;
+  longestTripDays: number;
+  avgRating: number | null;
+  moodCounts: { mood: string; count: number }[];
+  topDestinations: { destination: string; count: number }[];
+}
+
+interface MonthlyData {
+  month: string;
+  count: number;
 }
 
 interface MyEntry {
@@ -60,7 +72,7 @@ interface FollowItem {
   avatar: string | null;
 }
 
-type Tab = "notes" | "favorites" | "following" | "followers";
+type Tab = "notes" | "favorites" | "following" | "followers" | "stats";
 
 const MOODS: Record<string, string> = {
   开心: "bg-yellow-100 text-yellow-700",
@@ -165,6 +177,8 @@ export default function Me() {
   const [followingLoaded, setFollowingLoaded] = useState(false);
   const [followers, setFollowers] = useState<FollowItem[]>([]);
   const [followersLoaded, setFollowersLoaded] = useState(false);
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [statsLoaded, setStatsLoaded] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     const [pRes, sRes, subRes] = await Promise.all([
@@ -208,7 +222,13 @@ export default function Me() {
         setFollowersLoaded(true);
       });
     }
-  }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded]);
+    if (tab === "stats" && !statsLoaded) {
+      fetch("/api/stats/monthly", { credentials: "include" })
+        .then((r) => r.ok ? r.json() : [])
+        .then((data) => { setMonthlyData(data); setStatsLoaded(true); })
+        .catch(() => setStatsLoaded(true));
+    }
+  }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded, statsLoaded]);
 
   const handleSignOut = () => signOut();
 
@@ -382,6 +402,7 @@ export default function Me() {
               ["favorites", "收藏", Bookmark, null],
               ["following", "关注", Users, profile.followingCount],
               ["followers", "粉丝", Users, profile.followerCount],
+              ["stats", "统计", BarChart2, null],
             ] as const).map(([k, label, Icon, count]) => (
               <button
                 key={k}
@@ -413,6 +434,9 @@ export default function Me() {
             {tab === "followers" && (
               <UsersList users={followers} loaded={followersLoaded} emptyHint="还没有粉丝 — 多发几篇公开日记吧" />
             )}
+            {tab === "stats" && stats && (
+              <StatsTab stats={stats} monthlyData={monthlyData} loaded={statsLoaded} />
+            )}
           </div>
         </div>
       </div>
@@ -434,6 +458,144 @@ export default function Me() {
         />
       )}
     </Layout>
+  );
+}
+
+const MOOD_COLORS: Record<string, string> = {
+  开心: "#fbbf24", 平静: "#60a5fa", 感动: "#f472b6",
+  疲惫: "#9ca3af", 兴奋: "#fb923c", 思念: "#a78bfa",
+};
+
+function StatsTab({
+  stats, monthlyData, loaded,
+}: {
+  stats: SummaryStats;
+  monthlyData: MonthlyData[];
+  loaded: boolean;
+}) {
+  const maxCount = Math.max(...monthlyData.map((d) => d.count), 1);
+
+  const cards = [
+    { icon: "📓", value: stats.totalEntries, label: "篇日记" },
+    { icon: "📅", value: stats.totalTravelDays, label: "天旅途" },
+    { icon: "🗺️", value: stats.totalDestinations, label: "个目的地" },
+    { icon: "📷", value: stats.totalPhotos, label: "张照片" },
+    ...(stats.longestTripDays > 0 ? [{ icon: "✈️", value: stats.longestTripDays, label: "天最长旅行" }] : []),
+    ...(stats.avgRating ? [{ icon: "⭐", value: stats.avgRating.toFixed(1), label: "平均评分" }] : []),
+  ];
+
+  if (!loaded) {
+    return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary/60" /></div>;
+  }
+
+  return (
+    <div className="space-y-8 py-2">
+      {/* Key metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {cards.map((c) => (
+          <div key={c.label} className="rounded-2xl border border-border/40 bg-card/60 p-4 text-center shadow-sm">
+            <div className="text-2xl mb-1">{c.icon}</div>
+            <div className="text-2xl font-serif font-bold text-foreground">{c.value}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Monthly activity bar chart */}
+      {monthlyData.length > 0 && (
+        <div className="rounded-2xl border border-border/40 bg-card/60 p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-foreground mb-4">📈 最近 12 个月记录频率</h3>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={monthlyData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 9, fill: "#9ca3af" }}
+                tickFormatter={(v: string) => v.slice(5)}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 9, fill: "#9ca3af" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                formatter={(v: number) => [`${v} 篇`, "日记"]}
+                labelFormatter={(l: string) => `${l.slice(0, 4)}年${l.slice(5)}月`}
+                contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid #e5e7eb" }}
+              />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                {monthlyData.map((d) => (
+                  <Cell
+                    key={d.month}
+                    fill={d.count === maxCount ? "#f97316" : "#fed7aa"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Top destinations */}
+      {stats.topDestinations.length > 0 && (
+        <div className="rounded-2xl border border-border/40 bg-card/60 p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-foreground mb-4">🏆 最常去的目的地</h3>
+          <div className="space-y-3">
+            {stats.topDestinations.map((d, i) => (
+              <div key={d.destination} className="flex items-center gap-3">
+                <span className="text-base w-6 text-center">{["🥇","🥈","🥉","4️⃣","5️⃣"][i]}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-foreground truncate">{d.destination}</span>
+                    <span className="text-xs text-muted-foreground ml-2 shrink-0">{d.count} 篇</span>
+                  </div>
+                  <div className="h-1.5 bg-muted/40 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-500"
+                      style={{ width: `${(d.count / stats.topDestinations[0].count) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mood distribution */}
+      {stats.moodCounts.length > 0 && (
+        <div className="rounded-2xl border border-border/40 bg-card/60 p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-foreground mb-4">😊 旅途心情分布</h3>
+          <div className="flex flex-wrap gap-2">
+            {stats.moodCounts.map((m) => (
+              <div
+                key={m.mood}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{
+                  background: (MOOD_COLORS[m.mood] ?? "#9ca3af") + "22",
+                  color: MOOD_COLORS[m.mood] ?? "#9ca3af",
+                  border: `1px solid ${(MOOD_COLORS[m.mood] ?? "#9ca3af")}44`,
+                }}
+              >
+                <span>{m.mood}</span>
+                <span className="font-bold">{m.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {stats.totalEntries === 0 && (
+        <div className="flex flex-col items-center py-12 gap-3 text-center">
+          <div className="text-4xl">✈️</div>
+          <p className="text-sm text-muted-foreground">还没有旅行记录，快去写第一篇日记吧！</p>
+          <Link href="/entries/new" className="text-primary text-sm hover:underline">写日记 →</Link>
+        </div>
+      )}
+    </div>
   );
 }
 

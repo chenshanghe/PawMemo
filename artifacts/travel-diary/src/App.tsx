@@ -23,6 +23,7 @@ import ComposeNarrative from "@/pages/compose-narrative";
 import Pricing from "@/pages/pricing";
 import MapPage from "@/pages/map";
 import { EntryPrintPage } from "@/pages/entry-print";
+import Photos from "@/pages/photos";
 
 const queryClient = new QueryClient();
 
@@ -206,6 +207,7 @@ function AppRouter() {
       </Route>
       <Route path="/pricing">{() => <ProtectedRoute component={Pricing} />}</Route>
       <Route path="/map">{() => <ProtectedRoute component={MapPage} />}</Route>
+      <Route path="/photos">{() => <ProtectedRoute component={Photos} />}</Route>
       <Route path="/entries/:id/print">
         {(params) => <ProtectedRoute component={EntryPrintPage} params={params as { id: string }} />}
       </Route>
