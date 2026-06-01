@@ -204,7 +204,7 @@ export default function Pricing() {
                       >
                         {plan.cta}
                       </button>
-                      <p className="text-[10px] text-center text-muted-foreground/70">支付宝支付 · 随时可取消</p>
+                      <p className="text-[10px] text-center text-muted-foreground/70">支付宝 / 微信支付 · 随时可取消</p>
                     </div>
                   )}
                 </div>
@@ -220,7 +220,7 @@ export default function Pricing() {
             {[
               { q: "可以随时取消吗？", a: "可以，取消后套餐权益保留至当期结束，不会立即降级。" },
               { q: "升级后已有内容会受影响吗？", a: "不会。升级和降级都不影响已有旅记和照片。" },
-              { q: "支持哪些支付方式？", a: "当前支持支付宝，微信支付即将开放。" },
+              { q: "支持哪些支付方式？", a: "支持支付宝和微信支付，扫码即可完成，支付后自动升级。" },
               { q: "AI 叙事次数没用完会累积吗？", a: "不累积，每月初重置。" },
             ].map(({ q, a }) => (
               <div key={q}>

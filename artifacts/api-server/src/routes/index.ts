@@ -15,6 +15,7 @@ import planRouter from "./plan";
 import notificationsRouter from "./notifications";
 import collectionsRouter from "./collections";
 import collaboratorsRouter from "./collaborators";
+import payHupiRouter from "./pay-hupi";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(digestRouter);
 router.use(planRouter);
 router.use(notificationsRouter);
 router.use("/collections", collectionsRouter);
+router.use("/pay/hupi", payHupiRouter);
 
 export default router;
