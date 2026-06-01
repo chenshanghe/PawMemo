@@ -14,6 +14,36 @@ const deepseek = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
 });
 
+// POST /ai/avatar/ai-suggest — pick a DiceBear style+seed matching a description
+router.post("/avatar/ai-suggest", async (req, res) => {
+  const { description } = req.body ?? {};
+  if (!description || typeof description !== "string" || !description.trim()) {
+    res.status(400).json({ error: "description required" });
+    return;
+  }
+  const STYLES = ["adventurer", "big-smile", "fun-emoji", "micah", "pixel-art", "bottts-neutral", "lorelei"];
+  try {
+    const resp = await deepseek.chat.completions.create({
+      model: "deepseek-chat",
+      messages: [
+        {
+          role: "system",
+          content: `You are a cartoon avatar style selector. Based on the user description, pick ONE of these DiceBear styles: ${STYLES.join(", ")}. Also invent a creative short seed string (no spaces, 4-16 chars). Reply with JSON only, no markdown: {"style":"...","seed":"..."}`,
+        },
+        { role: "user", content: description.trim().slice(0, 200) },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 80,
+    });
+    const raw = JSON.parse(resp.choices[0].message.content ?? "{}");
+    const style = STYLES.includes(raw.style) ? raw.style : "adventurer";
+    const seed = encodeURIComponent((raw.seed || description.replace(/\s+/g, "-")).slice(0, 30));
+    res.json({ url: `https://api.dicebear.com/9.x/${style}/svg?seed=${seed}` });
+  } catch {
+    res.status(500).json({ error: "AI 生成失败，请重试" });
+  }
+});
+
 // POST /ai/compose — merge multiple owned entries into a narrative (SSE stream)
 router.post("/compose", async (req, res) => {
   const userId = (req as AuthedRequest).userId;
