@@ -5,7 +5,7 @@ import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
-  Bell, Award, BookOpen, Download,
+  Bell, Award, Download,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
