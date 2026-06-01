@@ -53,9 +53,9 @@ function LinkButton({ href, children }: { href: string; children: React.ReactNod
   );
 }
 
-function AttractionCard({ data, index, color }: { data: PlaceCard; index: number; color: string }) {
+function AttractionCard({ data, index, color, highlighted, id }: { data: PlaceCard; index: number; color: string; highlighted?: boolean; id?: string }) {
   return (
-    <div className="flex gap-3 p-3 rounded-xl border border-border/40 bg-card hover:border-primary/20 hover:shadow-sm transition-all">
+    <div id={id} className={`flex gap-3 p-3 rounded-xl border bg-card hover:shadow-sm transition-all ${highlighted ? "border-primary shadow-md ring-2 ring-primary/20" : "border-border/40 hover:border-primary/20"}`}>
       <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold text-white mt-0.5" style={{ background: color }}>{index}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground">{data.place}</p>
@@ -84,7 +84,12 @@ function MealCard({ data, icon }: { data: PlaceCard; icon: string }) {
           {data.cuisine && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{data.cuisine}</span>}
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">{data.description}</p>
-        {data.dianpingUrl && <div className="mt-1.5"><LinkButton href={data.dianpingUrl}>大众点评</LinkButton></div>}
+        {(data.dianpingUrl || data.gaodeUrl) && (
+          <div className="flex gap-1.5 mt-1.5">
+            {data.dianpingUrl && <LinkButton href={data.dianpingUrl}>大众点评</LinkButton>}
+            {data.gaodeUrl && <LinkButton href={data.gaodeUrl}>高德地图</LinkButton>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -102,7 +107,10 @@ export default function PlanPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeDay, setActiveDay] = useState(0);
   const [bookingOpen, setBookingOpen] = useState(true);
+  const [selectedPoi, setSelectedPoi] = useState<"morning" | "afternoon" | null>(null);
   const dayTabsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setSelectedPoi(null); }, [activeDay]);
 
   const addDestination = () => setDestinations(d => [...d, ""]);
   const removeDestination = (i: number) => setDestinations(d => d.filter((_, idx) => idx !== i));
@@ -324,11 +332,11 @@ export default function PlanPage() {
 
                 <div className="space-y-2">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">☀️ 上午</p>
-                  {day.morning?.place && <AttractionCard data={day.morning} index={1} color={dayColor(activeDay)} />}
+                  {day.morning?.place && <AttractionCard id="plan-morning" data={day.morning} index={1} color={dayColor(activeDay)} highlighted={selectedPoi === "morning"} />}
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">🍜 午餐</p>
                   {day.lunch?.name && <MealCard data={day.lunch} icon="🥢" />}
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">🌤 下午</p>
-                  {day.afternoon?.place && <AttractionCard data={day.afternoon} index={2} color={dayColor(activeDay)} />}
+                  {day.afternoon?.place && <AttractionCard id="plan-afternoon" data={day.afternoon} index={2} color={dayColor(activeDay)} highlighted={selectedPoi === "afternoon"} />}
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">🍽 晚餐</p>
                   {day.dinner?.name && <MealCard data={day.dinner} icon="🍽" />}
                 </div>
@@ -340,12 +348,20 @@ export default function PlanPage() {
                       <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                       <MapFit coords={dayCoords} />
                       {day.morning?.coords && (
-                        <Marker position={[day.morning.coords.lat, day.morning.coords.lng]} icon={makePinIcon("上午", dayColor(activeDay))}>
+                        <Marker
+                          position={[day.morning.coords.lat, day.morning.coords.lng]}
+                          icon={makePinIcon("上午", dayColor(activeDay))}
+                          eventHandlers={{ click: () => { setSelectedPoi("morning"); document.getElementById("plan-morning")?.scrollIntoView({ behavior: "smooth", block: "center" }); } }}
+                        >
                           <Popup><p className="font-medium text-sm">{day.morning.place}</p></Popup>
                         </Marker>
                       )}
                       {day.afternoon?.coords && (
-                        <Marker position={[day.afternoon.coords.lat, day.afternoon.coords.lng]} icon={makePinIcon("下午", "#8b5cf6")}>
+                        <Marker
+                          position={[day.afternoon.coords.lat, day.afternoon.coords.lng]}
+                          icon={makePinIcon("下午", "#8b5cf6")}
+                          eventHandlers={{ click: () => { setSelectedPoi("afternoon"); document.getElementById("plan-afternoon")?.scrollIntoView({ behavior: "smooth", block: "center" }); } }}
+                        >
                           <Popup><p className="font-medium text-sm">{day.afternoon.place}</p></Popup>
                         </Marker>
                       )}

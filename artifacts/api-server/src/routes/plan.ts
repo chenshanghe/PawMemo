@@ -12,7 +12,7 @@ const deepseek = new OpenAI({
 async function geocode(name: string, city: string): Promise<{ lat: number; lng: number } | null> {
   try {
     const q = encodeURIComponent(`${name},${city}`);
-    const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&accept-language=zh&countrycodes=cn`;
+    const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&accept-language=zh`;
     const res = await fetch(url, { headers: { "User-Agent": "HongshuTravelDiary/1.0" } });
     if (!res.ok) return null;
     const data: any[] = await res.json();
@@ -130,8 +130,14 @@ router.post("/plan/generate", requireAuth, async (req, res) => {
         day.afternoon.gaodeUrl = gaodeUrl(day.afternoon.place, day.city);
         await sleep(250);
       }
-      if (day.lunch?.name) day.lunch.dianpingUrl = dianpingUrl(day.lunch.name);
-      if (day.dinner?.name) day.dinner.dianpingUrl = dianpingUrl(day.dinner.name);
+      if (day.lunch?.name) {
+        day.lunch.dianpingUrl = dianpingUrl(day.lunch.name);
+        day.lunch.gaodeUrl = gaodeUrl(day.lunch.name, day.city);
+      }
+      if (day.dinner?.name) {
+        day.dinner.dianpingUrl = dianpingUrl(day.dinner.name);
+        day.dinner.gaodeUrl = gaodeUrl(day.dinner.name, day.city);
+      }
     }
 
     const booking = buildBooking({

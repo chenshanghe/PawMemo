@@ -55,15 +55,22 @@ export default function Landing() {
             { icon: <Images className="w-6 h-6" />, label: "多张照片" },
             { icon: <MapPin className="w-6 h-6" />, label: "目的地归档" },
             { icon: <Star className="w-6 h-6" />, label: "旅行评分" },
-            { icon: <Navigation className="w-6 h-6" />, label: "AI 行程规划" },
-          ].map((f) => (
-            <div key={f.label} className="flex flex-col items-center gap-2">
-              <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                {f.icon}
+            { icon: <Navigation className="w-6 h-6" />, label: "AI 行程规划", href: "/sign-up" },
+          ].map((f) => {
+            const inner = (
+              <div className="flex flex-col items-center gap-2 group">
+                <div className={`w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center ${"href" in f ? "group-hover:bg-primary/20 transition-colors" : ""}`}>
+                  {f.icon}
+                </div>
+                <span className={`text-sm font-medium text-foreground ${"href" in f ? "group-hover:text-primary transition-colors" : ""}`}>{f.label}</span>
               </div>
-              <span className="text-sm font-medium text-foreground">{f.label}</span>
-            </div>
-          ))}
+            );
+            return "href" in f ? (
+              <Link key={f.label} href={(f as any).href}>{inner}</Link>
+            ) : (
+              <div key={f.label}>{inner}</div>
+            );
+          })}
         </div>
       </section>
 
