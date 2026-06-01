@@ -5,7 +5,7 @@ import { Camera, Images, Loader2, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
 
-const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 // ── Compression config ──────────────────────────────────────────────────────
 // Two-tier strategy:

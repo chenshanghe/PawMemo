@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 
-const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 

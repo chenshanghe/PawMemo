@@ -22,7 +22,7 @@ import { ArrowLeft, Save, Star, X, Plus, Sparkles, Loader2, MapPin, CheckCircle2
 import { ImageUploader } from "@/components/image-uploader";
 import { Link } from "wouter";
 
-const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const MOODS = ["开心", "平静", "感动", "疲惫", "兴奋", "思念"];
 

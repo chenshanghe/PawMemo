@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { UpgradeDialog } from "@/components/upgrade-dialog";
 import { WRITING_STYLES } from "@/lib/writing-styles";
 
-const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface SourceEntry {
   id: number;

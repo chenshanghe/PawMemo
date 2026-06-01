@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
 
-const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface UserProfileData {
   userId: string;

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { EntryComment, LikesStatus } from "@workspace/api-client-react";
 
-const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface SocialPanelProps {
   entryId: number;

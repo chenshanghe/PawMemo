@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { X, Loader2, CheckCircle2, AlertCircle, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface PayDialogProps {
   tier: "pro" | "plus";

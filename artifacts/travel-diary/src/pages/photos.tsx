@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { Loader2, X, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 
-const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface PhotoItem {
   id: number;

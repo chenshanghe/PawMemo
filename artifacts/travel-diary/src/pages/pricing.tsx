@@ -6,7 +6,7 @@ import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { PayDialog } from "@/components/pay-dialog";
 
-const BASE = import.meta.env.BASE_URL.replace(//$/, "");
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface SubscriptionInfo {
   tier: string;
