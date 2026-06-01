@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { wgs84ToGcj02 } from "@/lib/coords";
 import { Layout } from "@/components/layout";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -141,7 +142,7 @@ export default function PlanPage() {
 
   const day = result?.days[activeDay];
   const dayCoords: [number, number][] = day
-    ? [day.morning?.coords, day.afternoon?.coords].filter(Boolean).map(c => [c!.lat, c!.lng])
+    ? [day.morning?.coords, day.afternoon?.coords].filter(Boolean).map(c => wgs84ToGcj02(c!.lat, c!.lng))
     : [];
 
   const COLORS = ["#f97316", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899", "#f59e0b"];
@@ -345,11 +346,11 @@ export default function PlanPage() {
                 {dayCoords.length > 0 && (
                   <div className="rounded-xl overflow-hidden border border-border/40 shadow-sm" style={{ height: 220 }}>
                     <MapContainer center={dayCoords[0]} zoom={12} style={{ width: "100%", height: "100%" }} scrollWheelZoom={false} zoomControl={false}>
-                      <TileLayer attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a>' url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}" />
+                      <TileLayer attribution='&copy; <a href="https://www.amap.com/">高德地图</a>' url="https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}" subdomains="1234" />
                       <MapFit coords={dayCoords} />
                       {day.morning?.coords && (
                         <Marker
-                          position={[day.morning.coords.lat, day.morning.coords.lng]}
+                          position={wgs84ToGcj02(day.morning.coords.lat, day.morning.coords.lng)}
                           icon={makePinIcon("上午", dayColor(activeDay))}
                           eventHandlers={{ click: () => { setSelectedPoi("morning"); document.getElementById("plan-morning")?.scrollIntoView({ behavior: "smooth", block: "center" }); } }}
                         >
@@ -358,7 +359,7 @@ export default function PlanPage() {
                       )}
                       {day.afternoon?.coords && (
                         <Marker
-                          position={[day.afternoon.coords.lat, day.afternoon.coords.lng]}
+                          position={wgs84ToGcj02(day.afternoon.coords.lat, day.afternoon.coords.lng)}
                           icon={makePinIcon("下午", "#8b5cf6")}
                           eventHandlers={{ click: () => { setSelectedPoi("afternoon"); document.getElementById("plan-afternoon")?.scrollIntoView({ behavior: "smooth", block: "center" }); } }}
                         >

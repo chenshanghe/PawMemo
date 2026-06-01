@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { wgs84ToGcj02 } from "@/lib/coords";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -120,7 +121,7 @@ export default function MapPage() {
   const trips = useMemo(() => clusterTrips(entries), [entries]);
 
   const coords: [number, number][] = useMemo(
-    () => entries.map((e: any) => [e.lat, e.lng]),
+    () => entries.map((e: any) => wgs84ToGcj02(e.lat, e.lng)),
     [entries],
   );
 
@@ -183,8 +184,9 @@ export default function MapPage() {
         <div className="rounded-2xl overflow-hidden border border-border/50 shadow-sm" style={{ height: "60vh", minHeight: 340 }}>
           <MapContainer center={defaultCenter} zoom={4} style={{ width: "100%", height: "100%" }} scrollWheelZoom>
             <TileLayer
-              attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, DeLorme, NAVTEQ'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+              attribution='&copy; <a href="https://www.amap.com/">高德地图</a>'
+              url="https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}"
+              subdomains="1234"
             />
             <FitBounds coords={coords} />
 
@@ -194,7 +196,7 @@ export default function MapPage() {
               return (
                 <Marker
                   key={key}
-                  position={[first.lat, first.lng]}
+                  position={wgs84ToGcj02(first.lat, first.lng)}
                   icon={makeIcon(group.length)}
                   eventHandlers={{ click: () => {} }}
                 >
@@ -219,7 +221,7 @@ export default function MapPage() {
             {/* Route mode: polylines + numbered stops */}
             {view === "route" && trips.map((trip, ti) => {
               const color = TRIP_COLORS[ti % TRIP_COLORS.length];
-              const positions: [number, number][] = trip.map((e: any) => [e.lat, e.lng]);
+              const positions: [number, number][] = trip.map((e: any) => wgs84ToGcj02(e.lat, e.lng));
               return (
                 <React.Fragment key={ti}>
                   {positions.length > 1 && (
@@ -231,7 +233,7 @@ export default function MapPage() {
                   {trip.map((e: any, ei: number) => (
                     <Marker
                       key={e.id}
-                      position={[e.lat, e.lng]}
+                      position={wgs84ToGcj02(e.lat, e.lng)}
                       icon={makeStopIcon(color, ei)}
                     >
                       <Popup>
