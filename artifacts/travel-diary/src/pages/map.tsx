@@ -183,9 +183,8 @@ export default function MapPage() {
         <div className="rounded-2xl overflow-hidden border border-border/50 shadow-sm" style={{ height: "60vh", minHeight: 340 }}>
           <MapContainer center={defaultCenter} zoom={4} style={{ width: "100%", height: "100%" }} scrollWheelZoom>
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              subdomains="abcd"
+              attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, DeLorme, NAVTEQ'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
             />
             <FitBounds coords={coords} />
 

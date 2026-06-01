@@ -345,7 +345,7 @@ export default function PlanPage() {
                 {dayCoords.length > 0 && (
                   <div className="rounded-xl overflow-hidden border border-border/40 shadow-sm" style={{ height: 220 }}>
                     <MapContainer center={dayCoords[0]} zoom={12} style={{ width: "100%", height: "100%" }} scrollWheelZoom={false} zoomControl={false}>
-                      <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" subdomains="abcd" />
+                      <TileLayer attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a>' url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}" />
                       <MapFit coords={dayCoords} />
                       {day.morning?.coords && (
                         <Marker
