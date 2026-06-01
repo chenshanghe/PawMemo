@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Layout } from "@/components/layout";
 import { Link, useLocation } from "wouter";
-import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight } from "lucide-react";
+import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -21,7 +21,51 @@ interface SavedPlan {
   style: string | null;
   travelMode: string | null;
   budget: string | null;
+  specialNeeds: string[] | null;
   createdAt: string;
+}
+
+const BUDGET_OPTIONS = ["经济实惠", "舒适中档", "豪华品质"];
+const SPECIAL_NEEDS_OPTIONS = ["素食友好", "宠物友好", "无障碍设施"];
+const TRAVEL_MODE_OPTIONS = ["自驾", "跟团", "背包", "高铁", "飞机"];
+
+function budgetLabel(budget: string | null) {
+  if (!budget) return null;
+  return budget.split("（")[0];
+}
+
+function ChipGroup({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: string[];
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[11px] font-semibold text-muted-foreground shrink-0">{label}</span>
+      {options.map((opt) => {
+        const active = selected.has(opt);
+        return (
+          <button
+            key={opt}
+            onClick={() => onToggle(opt)}
+            className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
+              active
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
+            }`}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function groupByMonth(plans: SavedPlan[]): { label: string; items: SavedPlan[] }[] {
@@ -37,12 +81,29 @@ function groupByMonth(plans: SavedPlan[]): { label: string; items: SavedPlan[] }
   }));
 }
 
+function useToggleSet(initial: Set<string> = new Set()) {
+  const [set, setSet] = useState<Set<string>>(initial);
+  const toggle = (v: string) =>
+    setSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return next;
+    });
+  return [set, toggle] as const;
+}
+
 export default function PlanListPage() {
   const [, setLocation] = useLocation();
   const [plans, setPlans] = useState<SavedPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [budgetFilter, toggleBudget] = useToggleSet();
+  const [needsFilter, toggleNeeds] = useToggleSet();
+  const [modeFilter, toggleMode] = useToggleSet();
 
   useEffect(() => {
     apiFetch("/api/plan/saved")
@@ -50,6 +111,26 @@ export default function PlanListPage() {
       .then(data => { setPlans(data); setLoading(false); })
       .catch(() => { setError("加载失败，请刷新重试"); setLoading(false); });
   }, []);
+
+  const activeFilterCount = budgetFilter.size + needsFilter.size + modeFilter.size;
+
+  const filteredPlans = useMemo(() => {
+    return plans.filter(p => {
+      if (budgetFilter.size > 0) {
+        const label = budgetLabel(p.budget);
+        if (!label || !budgetFilter.has(label)) return false;
+      }
+      if (needsFilter.size > 0) {
+        const needs = p.specialNeeds ?? [];
+        const hasAll = [...needsFilter].every(n => needs.includes(n));
+        if (!hasAll) return false;
+      }
+      if (modeFilter.size > 0) {
+        if (!p.travelMode || !modeFilter.has(p.travelMode)) return false;
+      }
+      return true;
+    });
+  }, [plans, budgetFilter, needsFilter, modeFilter]);
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -70,25 +151,85 @@ export default function PlanListPage() {
   const nights = (p: SavedPlan) =>
     Math.round((new Date(p.endDate).getTime() - new Date(p.startDate).getTime()) / 86400000);
 
-  const groups = groupByMonth(plans);
+  const groups = groupByMonth(filteredPlans);
 
   return (
     <Layout>
-      <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="space-y-5 animate-in fade-in duration-500">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-serif font-bold text-foreground">我的规划</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {loading ? "加载中…" : `共 ${plans.length} 份保存的行程`}
+              {loading
+                ? "加载中…"
+                : activeFilterCount > 0
+                  ? `筛选结果 ${filteredPlans.length} / ${plans.length} 份`
+                  : `共 ${plans.length} 份保存的行程`}
             </p>
           </div>
-          <Link href="/plan">
-            <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm hover:shadow-md active:scale-[0.98]">
-              <Navigation className="w-3.5 h-3.5" />新规划
-            </button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {!loading && plans.length > 0 && (
+              <button
+                onClick={() => setShowFilters(v => !v)}
+                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                  showFilters || activeFilterCount > 0
+                    ? "bg-primary/8 border-primary/30 text-primary"
+                    : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                筛选
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            )}
+            <Link href="/plan">
+              <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm hover:shadow-md active:scale-[0.98]">
+                <Navigation className="w-3.5 h-3.5" />新规划
+              </button>
+            </Link>
+          </div>
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="rounded-2xl border border-border/40 bg-card p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
+            <ChipGroup
+              label="预算"
+              options={BUDGET_OPTIONS}
+              selected={budgetFilter}
+              onToggle={toggleBudget}
+            />
+            <ChipGroup
+              label="特殊需求"
+              options={SPECIAL_NEEDS_OPTIONS}
+              selected={needsFilter}
+              onToggle={toggleNeeds}
+            />
+            <ChipGroup
+              label="出行方式"
+              options={TRAVEL_MODE_OPTIONS}
+              selected={modeFilter}
+              onToggle={toggleMode}
+            />
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => {
+                  [...budgetFilter].forEach(v => toggleBudget(v));
+                  [...needsFilter].forEach(v => toggleNeeds(v));
+                  [...modeFilter].forEach(v => toggleMode(v));
+                }}
+                className="text-[11px] text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2"
+              >
+                清除全部筛选
+              </button>
+            )}
+          </div>
+        )}
 
         {error && (
           <p className="text-xs text-destructive bg-destructive/5 rounded-lg px-3 py-2">{error}</p>
@@ -111,6 +252,24 @@ export default function PlanListPage() {
               </button>
             </Link>
           </div>
+        ) : filteredPlans.length === 0 ? (
+          <div className="rounded-2xl border border-border/40 bg-card p-10 text-center space-y-3">
+            <div className="text-3xl">🔍</div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">没有符合条件的行程</p>
+              <p className="text-xs text-muted-foreground mt-1">尝试调整筛选条件</p>
+            </div>
+            <button
+              onClick={() => {
+                [...budgetFilter].forEach(v => toggleBudget(v));
+                [...needsFilter].forEach(v => toggleNeeds(v));
+                [...modeFilter].forEach(v => toggleMode(v));
+              }}
+              className="text-xs text-primary hover:underline"
+            >
+              清除筛选
+            </button>
+          </div>
         ) : (
           <div className="space-y-8">
             {groups.map(group => (
@@ -125,7 +284,6 @@ export default function PlanListPage() {
                       onClick={() => setLocation(`/plan?load=${plan.id}`)}
                       className="group flex items-start gap-4 p-4 rounded-2xl border border-border/40 bg-card hover:border-primary/30 hover:shadow-md transition-all cursor-pointer relative"
                     >
-                      {/* Color accent */}
                       <div className="w-1.5 rounded-full bg-gradient-to-b from-primary to-orange-400 self-stretch shrink-0 min-h-[48px]" />
 
                       <div className="flex-1 min-w-0">
@@ -170,13 +328,17 @@ export default function PlanListPage() {
                           )}
                           {plan.budget && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">
-                              {plan.budget.split("（")[0]}
+                              {budgetLabel(plan.budget)}
                             </span>
                           )}
+                          {(plan.specialNeeds ?? []).map(need => (
+                            <span key={need} className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">
+                              {need}
+                            </span>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Delete button */}
                       <button
                         onClick={(e) => handleDelete(plan.id, e)}
                         disabled={deletingId === plan.id}

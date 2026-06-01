@@ -188,7 +188,7 @@ router.post("/plan/save", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "未登录" }); return; }
 
-  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget, planData } = req.body ?? {};
+  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget, specialNeeds, planData } = req.body ?? {};
   if (!from || !planData) { res.status(400).json({ error: "缺少参数" }); return; }
 
   try {
@@ -204,6 +204,7 @@ router.post("/plan/save", requireAuth, async (req, res) => {
       style: style ?? null,
       travelMode: travelMode ?? null,
       budget: budget ?? null,
+      specialNeeds: Array.isArray(specialNeeds) ? specialNeeds : [],
       planData,
     }).returning();
     res.json(saved);
@@ -232,6 +233,7 @@ router.get("/plan/saved", requireAuth, async (req, res) => {
         style: savedPlansTable.style,
         travelMode: savedPlansTable.travelMode,
         budget: savedPlansTable.budget,
+        specialNeeds: savedPlansTable.specialNeeds,
         createdAt: savedPlansTable.createdAt,
       })
       .from(savedPlansTable)
