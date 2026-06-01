@@ -198,3 +198,40 @@ export const notificationsTable = pgTable("notifications", {
 });
 
 export type Notification = typeof notificationsTable.$inferSelect;
+
+// ── Collections ───────────────────────────────────────────────────────────────
+export const collectionsTable = pgTable("collections", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  coverImage: text("cover_image"),
+  visibility: text("visibility").notNull().default("private"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const collectionEntriesTable = pgTable("collection_entries", {
+  id: serial("id").primaryKey(),
+  collectionId: integer("collection_id").notNull(),
+  entryId: integer("entry_id").notNull(),
+  addedAt: timestamp("added_at").defaultNow().notNull(),
+});
+
+export type Collection = typeof collectionsTable.$inferSelect;
+export type CollectionEntry = typeof collectionEntriesTable.$inferSelect;
+
+// ── Entry Collaborators ───────────────────────────────────────────────────────
+export const entryCollaboratorsTable = pgTable("entry_collaborators", {
+  id: serial("id").primaryKey(),
+  entryId: integer("entry_id").notNull(),
+  userId: text("user_id"),
+  inviteToken: text("invite_token").notNull().unique(),
+  role: text("role").notNull().default("editor"),
+  status: text("status").notNull().default("pending"),
+  inviteeName: text("invitee_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  acceptedAt: timestamp("accepted_at"),
+});
+
+export type EntryCollaborator = typeof entryCollaboratorsTable.$inferSelect;

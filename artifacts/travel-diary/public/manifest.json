@@ -1,0 +1,15 @@
+{
+  "name": "红薯旅行日记",
+  "short_name": "红薯旅记",
+  "description": "记录你的每一次旅行",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf9f6",
+  "theme_color": "#f97316",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "categories": ["travel", "lifestyle"],
+  "lang": "zh-CN"
+}

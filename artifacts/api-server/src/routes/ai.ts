@@ -185,4 +185,51 @@ router.post("/enhance", async (req, res) => {
   }
 });
 
+// POST /ai/recommend — AI destination recommendations based on user's travel history
+router.post("/recommend", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  try {
+    const entries = await db
+      .select({ destination: diaryEntriesTable.destination, mood: diaryEntriesTable.mood })
+      .from(diaryEntriesTable)
+      .where(eq(diaryEntriesTable.userId, userId))
+      .orderBy(diaryEntriesTable.createdAt)
+      .limit(50);
+
+    if (entries.length === 0) {
+      res.json({ recommendations: [] });
+      return;
+    }
+
+    const destCounts: Record<string, number> = {};
+    for (const e of entries) {
+      destCounts[e.destination] = (destCounts[e.destination] ?? 0) + 1;
+    }
+    const topDests = Object.entries(destCounts).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([d]) => d);
+    const moods = [...new Set(entries.map(e => e.mood).filter(Boolean))];
+
+    const resp = await deepseek.chat.completions.create({
+      model: "deepseek-chat",
+      messages: [
+        {
+          role: "system",
+          content: `你是一位专业旅行顾问，根据用户的旅行历史推荐3个新目的地。用JSON数组回答，每个元素包含：name(地名), country(国家/地区), reason(推荐理由,2句话内), emoji(代表emoji), tags(2-3个标签数组)。只返回JSON，不加markdown。`,
+        },
+        {
+          role: "user",
+          content: `我去过：${topDests.join("、")}。常见心情：${moods.join("、") || "开心"}。请推荐3个我可能喜欢的新目的地。`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 600,
+    });
+
+    const raw = JSON.parse(resp.choices[0].message.content ?? "{}");
+    const recommendations = Array.isArray(raw) ? raw : (raw.recommendations ?? raw.list ?? []);
+    res.json({ recommendations: recommendations.slice(0, 3) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message ?? "AI 服务异常" });
+  }
+});
+
 export default router;

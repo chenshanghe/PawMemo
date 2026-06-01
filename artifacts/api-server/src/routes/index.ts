@@ -13,11 +13,14 @@ import weatherRouter from "./weather";
 import digestRouter from "./digest";
 import planRouter from "./plan";
 import notificationsRouter from "./notifications";
+import collectionsRouter from "./collections";
+import collaboratorsRouter from "./collaborators";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use("/entries", entriesRouter);
+router.use("/entries", collaboratorsRouter);
 router.use("/photos", photosRouter);
 router.use("/tags", tagsRouter);
 router.use("/stats", statsRouter);
@@ -30,5 +33,6 @@ router.use(weatherRouter);
 router.use(digestRouter);
 router.use(planRouter);
 router.use(notificationsRouter);
+router.use("/collections", collectionsRouter);
 
 export default router;

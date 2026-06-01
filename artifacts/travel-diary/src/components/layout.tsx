@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, BarChart2 } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, BarChart2, Award, BookOpen, Download } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -53,6 +53,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isPlan = location === "/plan";
   const isNotifs = location === "/notifications";
   const isReport = location === "/report";
+  const isAchievements = location === "/achievements";
+  const isCollections = location.startsWith("/collections");
+  const isExport = location === "/export";
 
   const displayName = profile?.name || user?.fullName || user?.username || "旅行者";
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -102,6 +105,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
               )}
             </span>
             消息
+          </Link>
+          <Link href="/achievements" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isAchievements ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
+            <Award className="w-4.5 h-4.5" />旅行成就
+          </Link>
+          <Link href="/collections" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isCollections ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
+            <BookOpen className="w-4.5 h-4.5" />旅行合集
+          </Link>
+          <Link href="/export" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isExport ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
+            <Download className="w-4.5 h-4.5" />导出日记
           </Link>
           <Link href="/me" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isMe ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
             <UserCircle2 className="w-4.5 h-4.5" />我

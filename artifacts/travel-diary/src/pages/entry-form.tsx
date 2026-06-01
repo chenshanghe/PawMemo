@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
 import { UpgradeDialog } from "@/components/upgrade-dialog";
+import { useOfflineDraft } from "@/hooks/useOfflineDraft";
+import { CollaboratorsPanel } from "@/components/collaborators-panel";
 import {
   useCreateEntry,
   useUpdateEntry,
@@ -79,6 +81,20 @@ export default function EntryForm({ entryId }: EntryFormProps) {
 
   // Quota upgrade dialog
   const [upgradeInfo, setUpgradeInfo] = useState<{ code: "ENTRY_LIMIT" | "PHOTO_LIMIT"; tier: string; limit: number } | null>(null);
+
+  // Offline draft
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const { loadDraft, clearDraft, hasDraft } = useOfflineDraft(
+    { title: form.title, destination: form.destination, content: form.content, mood: form.mood, rating: form.rating },
+    isEditing
+  );
+
+  useEffect(() => {
+    if (!isEditing && !draftRestored && hasDraft()) {
+      setShowDraftBanner(true);
+    }
+  }, [isEditing, draftRestored, hasDraft]);
 
   const geocodeDestination = useCallback(async (dest: string) => {
     const q = dest.trim();
@@ -244,6 +260,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
         { data: payload },
         {
           onSuccess: (created) => {
+            clearDraft();
             queryClient.invalidateQueries({ queryKey: getListEntriesQueryKey() });
             setLocation(`/entries/${created.id}`);
           },
@@ -291,6 +308,36 @@ export default function EntryForm({ entryId }: EntryFormProps) {
             {isEditing ? "修改你的旅行记忆" : "记录这段珍贵的旅程"}
           </p>
         </div>
+
+        {showDraftBanner && !isEditing && (
+          <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            <span>📝 发现上次未完成的草稿，要恢复吗？</span>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  const draft = loadDraft();
+                  if (draft) {
+                    setForm(f => ({
+                      ...f,
+                      title: draft.title || f.title,
+                      destination: draft.destination || f.destination,
+                      content: draft.content || f.content,
+                      mood: draft.mood || f.mood,
+                      rating: draft.rating || f.rating,
+                    }));
+                  }
+                  setDraftRestored(true);
+                  setShowDraftBanner(false);
+                }}
+                className="font-semibold underline hover:text-amber-900"
+              >恢复草稿</button>
+              <button
+                onClick={() => { clearDraft(); setShowDraftBanner(false); }}
+                className="text-amber-600 hover:text-amber-800"
+              >忽略</button>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Card className="border-border/40 bg-card/80 shadow-sm">
@@ -588,6 +635,12 @@ export default function EntryForm({ entryId }: EntryFormProps) {
               </div>
             </CardContent>
           </Card>
+
+          {isEditing && entryId && (
+            <div className="pt-2">
+              <CollaboratorsPanel entryId={entryId} />
+            </div>
+          )}
 
           <div className="flex gap-3 justify-end pb-8">
             <Link href={isEditing ? `/entries/${entryId}` : "/entries"}>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Layout } from "@/components/layout";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
-import { MapPin, Camera, CalendarDays, Star, TrendingUp, Smile, Tag, Award, BookOpen } from "lucide-react";
+import { MapPin, Camera, CalendarDays, Star, TrendingUp, Smile, Tag, Award, BookOpen, Sparkles, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -26,6 +27,7 @@ interface Summary {
 }
 interface MonthData { month: string; count: number }
 interface TagData { name: string; count: number }
+interface Recommendation { name: string; country: string; reason: string; emoji: string; tags: string[] }
 
 function StatCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string | number; sub?: string }) {
   return (
@@ -42,6 +44,9 @@ export default function ReportPage() {
   const [monthly, setMonthly] = useState<MonthData[]>([]);
   const [tags, setTags] = useState<TagData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [recsLoading, setRecsLoading] = useState(false);
+  const [recsLoaded, setRecsLoaded] = useState(false);
   const year = new Date().getFullYear();
 
   useEffect(() => {
@@ -204,6 +209,78 @@ export default function ReportPage() {
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* AI Destination Recommendations */}
+        {summary && summary.totalEntries > 0 && (
+          <div className="bg-card border border-border/40 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-orange-500" />
+                <span className="text-sm font-semibold text-foreground">AI 目的地推荐</span>
+              </div>
+              {!recsLoaded && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    setRecsLoading(true);
+                    try {
+                      const r = await fetch(`${BASE}/api/ai/recommend`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({}),
+                      });
+                      const d = await r.json();
+                      setRecs(Array.isArray(d.recommendations) ? d.recommendations : []);
+                      setRecsLoaded(true);
+                    } catch {}
+                    setRecsLoading(false);
+                  }}
+                  disabled={recsLoading}
+                  className="gap-1.5 text-xs"
+                >
+                  {recsLoading ? <><Loader2 size={12} className="animate-spin" />生成中…</> : "基于旅行历史推荐"}
+                </Button>
+              )}
+            </div>
+            {!recsLoaded && !recsLoading && (
+              <p className="text-xs text-muted-foreground">点击按钮，AI 将根据你的旅行历史为你推荐 3 个可能喜欢的新目的地</p>
+            )}
+            {recsLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                <Loader2 size={16} className="animate-spin text-orange-500" />
+                AI 正在分析你的旅行偏好…
+              </div>
+            )}
+            {recsLoaded && recs.length === 0 && (
+              <p className="text-sm text-muted-foreground">暂时无法生成推荐，请稍后再试</p>
+            )}
+            {recsLoaded && recs.length > 0 && (
+              <div className="grid sm:grid-cols-3 gap-3">
+                {recs.map((rec, i) => (
+                  <div key={i} className="rounded-xl border border-border/40 p-4 bg-muted/20 hover:bg-muted/40 transition-colors">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-2xl">{rec.emoji}</span>
+                      <div>
+                        <div className="font-semibold text-sm">{rec.name}</div>
+                        <div className="text-xs text-muted-foreground">{rec.country}</div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{rec.reason}</p>
+                    {rec.tags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {rec.tags.map(tag => (
+                          <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded-full">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
