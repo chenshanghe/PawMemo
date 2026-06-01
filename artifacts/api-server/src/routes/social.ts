@@ -18,6 +18,7 @@ import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { getAuth } from "@clerk/express";
 import crypto from "crypto";
 import { getUserTier, getAiComposeUsage, getAiEnhanceUsage, TIER_NAMES } from "../lib/tiers";
+import { sendEmail, buildCommentEmail, buildLikeEmail } from "../lib/email";
 
 const router = Router();
 
@@ -216,6 +217,26 @@ router.post("/entries/:id/likes", requireAuth, async (req, res) => {
     .where(eq(entryLikesTable.entryId, entryId));
 
   res.json({ count: row?.count ?? 0, viewerLiked: !existing });
+
+  // Fire-and-forget: notify entry owner on new like (not on unlike, not on self-like)
+  if (!existing) {
+    try {
+      const [entry] = await db.select().from(diaryEntriesTable).where(eq(diaryEntriesTable.id, entryId));
+      if (entry && entry.userId && entry.userId !== userId) {
+        const [ownerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, entry.userId));
+        const [likerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId));
+        if (ownerProfile?.email && likerProfile) {
+          const { subject, html } = buildLikeEmail({
+            ownerName: ownerProfile.name,
+            likerName: likerProfile.name,
+            entryTitle: entry.title,
+            entryId,
+          });
+          sendEmail({ to: ownerProfile.email, subject, html });
+        }
+      }
+    } catch { /* best-effort */ }
+  }
 });
 
 // ── Comments ─────────────────────────────────────────────────────────────────
@@ -250,6 +271,24 @@ router.post("/entries/:id/comments", requireAuth, async (req, res) => {
     .returning();
 
   res.status(201).json(comment);
+
+  // Fire-and-forget: notify entry owner by email (skip if self-comment)
+  try {
+    const [entry] = await db.select().from(diaryEntriesTable).where(eq(diaryEntriesTable.id, entryId));
+    if (entry && entry.userId && entry.userId !== userId) {
+      const [ownerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, entry.userId));
+      if (ownerProfile?.email) {
+        const { subject, html } = buildCommentEmail({
+          ownerName: ownerProfile.name,
+          commenterName: userName,
+          entryTitle: entry.title,
+          entryId,
+          commentContent: content.trim(),
+        });
+        sendEmail({ to: ownerProfile.email, subject, html });
+      }
+    }
+  } catch { /* best-effort */ }
 });
 
 // DELETE /api/comments/:commentId — only comment owner can delete
@@ -359,7 +398,7 @@ router.get("/entries/:id/share-status", requireAuth, async (req, res) => {
 // so we can render author name/avatar without hitting Clerk on every read.
 router.post("/me/profile", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).userId;
-  const { name, avatar, bio } = req.body ?? {};
+  const { name, avatar, bio, email } = req.body ?? {};
   if (typeof name !== "string" || !name.trim()) {
     res.status(400).json({ error: "name required" });
     return;
@@ -371,12 +410,15 @@ router.post("/me/profile", requireAuth, async (req, res) => {
   // On update, only overwrite fields the caller explicitly sent — so the
   // sign-in sync (which only sends name+avatar from Clerk) never wipes a
   // user's edited bio.
+  const hasEmail = typeof email === "string" && email.includes("@");
+
   const updateSet: Record<string, unknown> = {
     name: name.trim(),
     updatedAt: new Date(),
   };
   if (hasAvatar) updateSet.avatar = avatar;
   if (hasBio) updateSet.bio = bio.trim() || null;
+  if (hasEmail) updateSet.email = email.trim().toLowerCase();
 
   const [row] = await db
     .insert(userProfilesTable)
@@ -385,6 +427,7 @@ router.post("/me/profile", requireAuth, async (req, res) => {
       name: name.trim(),
       avatar: hasAvatar ? avatar : null,
       bio: hasBio ? (bio.trim() || null) : null,
+      email: hasEmail ? email.trim().toLowerCase() : null,
     })
     .onConflictDoUpdate({
       target: userProfilesTable.userId,

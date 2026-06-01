@@ -22,6 +22,7 @@ import UserProfile from "@/pages/user-profile";
 import ComposeNarrative from "@/pages/compose-narrative";
 import Pricing from "@/pages/pricing";
 import MapPage from "@/pages/map";
+import { EntryPrintPage } from "@/pages/entry-print";
 
 const queryClient = new QueryClient();
 
@@ -118,7 +119,11 @@ function ClerkQueryClientCacheInvalidator() {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, avatar: user.imageUrl ?? null }),
+          body: JSON.stringify({
+            name,
+            avatar: user.imageUrl ?? null,
+            email: user.primaryEmailAddress?.emailAddress ?? null,
+          }),
         }).catch(() => {});
       }
     });
@@ -201,6 +206,9 @@ function AppRouter() {
       </Route>
       <Route path="/pricing">{() => <ProtectedRoute component={Pricing} />}</Route>
       <Route path="/map">{() => <ProtectedRoute component={MapPage} />}</Route>
+      <Route path="/entries/:id/print">
+        {(params) => <ProtectedRoute component={EntryPrintPage} params={params as { id: string }} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
