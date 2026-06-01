@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 import { useUser } from "@clerk/react";
 import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -76,7 +78,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/share/${token}`, { credentials: "include" });
+        const res = await fetch(`${BASE}/api/share/${token}`, { credentials: "include" });
         if (res.status === 403) { setIsPrivate(true); setLoading(false); return; }
         if (!res.ok) { setNotFound(true); return; }
         const d: PublicEntryView = await res.json();
@@ -95,7 +97,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
     if (!isSignedIn || likePending || !data) return;
     setLikePending(true);
     try {
-      const res = await fetch(`/api/entries/${data.entry.id}/likes?shareToken=${encodeURIComponent(token)}`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${data.entry.id}/likes?shareToken=${encodeURIComponent(token)}`, { method: "POST", credentials: "include" });
       if (res.ok) setLikes(await res.json());
     } finally {
       setLikePending(false);
@@ -106,7 +108,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
     if (!commentText.trim() || commentPending || !isSignedIn || !data) return;
     setCommentPending(true);
     try {
-      const res = await fetch(`/api/entries/${data.entry.id}/comments?shareToken=${encodeURIComponent(token)}`, {
+      const res = await fetch(`${BASE}/api/entries/${data.entry.id}/comments?shareToken=${encodeURIComponent(token)}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -128,7 +130,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
 
   const handleDeleteComment = async (commentId: number) => {
     try {
-      const res = await fetch(`/api/comments/${commentId}`, { method: "DELETE", credentials: "include" });
+      const res = await fetch(`${BASE}/api/comments/${commentId}`, { method: "DELETE", credentials: "include" });
       if (res.ok) setComments((prev) => prev.filter((c) => c.id !== commentId));
     } catch {}
   };

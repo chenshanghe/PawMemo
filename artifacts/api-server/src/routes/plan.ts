@@ -1,6 +1,10 @@
 import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../middlewares/auth";
+import { getAuth } from "@clerk/express";
+import { db } from "@workspace/db";
+import { savedPlansTable } from "@workspace/db/schema";
+import { eq, and, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -67,7 +71,7 @@ function buildBooking({ from, destinations, startDate, endDate, travelers, citie
 }
 
 router.post("/plan/generate", requireAuth, async (req, res) => {
-  const { from, destinations, startDate, endDate, travelers, style } = req.body ?? {};
+  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget } = req.body ?? {};
 
   if (!from || !Array.isArray(destinations) || !destinations.length || !startDate || !endDate) {
     res.status(400).json({ error: "缺少必要参数（出发地、目的地、日期）" });
@@ -78,6 +82,8 @@ router.post("/plan/generate", requireAuth, async (req, res) => {
   const days = Math.max(1, Math.min(14, Math.round(msRange / 86400000) + 1));
   const destStr = destinations.join("、");
   const styleStr = style ? `旅行风格：${style}。` : "";
+  const modeStr = travelMode ? `出行方式：${travelMode}。` : "";
+  const budgetStr = budget ? `预算档次：${budget}（请在推荐餐厅、酒店和交通时体现此预算范围）。` : "";
 
   const systemPrompt = `你是专业中国旅行规划师。请返回严格符合以下结构的 JSON（不含任何额外文字）：
 {
@@ -102,7 +108,7 @@ router.post("/plan/generate", requireAuth, async (req, res) => {
   "tips": ["贴士1", "贴士2", "贴士3"]
 }`;
 
-  const userPrompt = `出发地：${from}\n目的地：${destStr}\n出发日期：${startDate}\n结束日期：${endDate}\n天数：${days}天\n人数：${travelers ?? 2}人\n${styleStr}请生成完整的 ${days} 天行程。`;
+  const userPrompt = `出发地：${from}\n目的地：${destStr}\n出发日期：${startDate}\n结束日期：${endDate}\n天数：${days}天\n人数：${travelers ?? 2}人\n${styleStr}${modeStr}${budgetStr}请生成完整的 ${days} 天行程。`;
 
   try {
     const resp = await deepseek.chat.completions.create({
@@ -153,6 +159,107 @@ router.post("/plan/generate", requireAuth, async (req, res) => {
   } catch (err: any) {
     console.error("[plan] error:", err);
     res.status(500).json({ error: "AI 规划失败，请稍后重试" });
+  }
+});
+
+// ── Save a plan ──────────────────────────────────────────────────────────────
+router.post("/plan/save", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "未登录" }); return; }
+
+  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget, planData } = req.body ?? {};
+  if (!from || !planData) { res.status(400).json({ error: "缺少参数" }); return; }
+
+  try {
+    const [saved] = await db.insert(savedPlansTable).values({
+      userId,
+      title: planData.title ?? "我的行程",
+      summary: planData.summary ?? null,
+      from,
+      destinations: destinations ?? [],
+      startDate,
+      endDate,
+      travelers: travelers ?? 2,
+      style: style ?? null,
+      travelMode: travelMode ?? null,
+      budget: budget ?? null,
+      planData,
+    }).returning();
+    res.json(saved);
+  } catch (err: any) {
+    console.error("[plan/save] error:", err);
+    res.status(500).json({ error: "保存失败" });
+  }
+});
+
+// ── List saved plans ─────────────────────────────────────────────────────────
+router.get("/plan/saved", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "未登录" }); return; }
+
+  try {
+    const plans = await db
+      .select({
+        id: savedPlansTable.id,
+        title: savedPlansTable.title,
+        summary: savedPlansTable.summary,
+        from: savedPlansTable.from,
+        destinations: savedPlansTable.destinations,
+        startDate: savedPlansTable.startDate,
+        endDate: savedPlansTable.endDate,
+        travelers: savedPlansTable.travelers,
+        style: savedPlansTable.style,
+        travelMode: savedPlansTable.travelMode,
+        budget: savedPlansTable.budget,
+        createdAt: savedPlansTable.createdAt,
+      })
+      .from(savedPlansTable)
+      .where(eq(savedPlansTable.userId, userId))
+      .orderBy(desc(savedPlansTable.createdAt));
+    res.json(plans);
+  } catch (err: any) {
+    console.error("[plan/saved] error:", err);
+    res.status(500).json({ error: "获取失败" });
+  }
+});
+
+// ── Get one saved plan (with full planData) ──────────────────────────────────
+router.get("/plan/saved/:id", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "未登录" }); return; }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "无效 ID" }); return; }
+
+  try {
+    const [plan] = await db
+      .select()
+      .from(savedPlansTable)
+      .where(and(eq(savedPlansTable.id, id), eq(savedPlansTable.userId, userId)));
+    if (!plan) { res.status(404).json({ error: "未找到" }); return; }
+    res.json(plan);
+  } catch (err: any) {
+    res.status(500).json({ error: "获取失败" });
+  }
+});
+
+// ── Delete a saved plan ──────────────────────────────────────────────────────
+router.delete("/plan/saved/:id", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "未登录" }); return; }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "无效 ID" }); return; }
+
+  try {
+    const deleted = await db
+      .delete(savedPlansTable)
+      .where(and(eq(savedPlansTable.id, id), eq(savedPlansTable.userId, userId)))
+      .returning();
+    if (!deleted.length) { res.status(404).json({ error: "未找到或无权限" }); return; }
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "删除失败" });
   }
 });
 

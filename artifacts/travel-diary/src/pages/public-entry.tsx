@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 import { Link } from "wouter";
 import { useUser } from "@clerk/react";
 import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Globe, Bookmark, UserPlus, UserCheck } from "lucide-react";
@@ -83,7 +85,7 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/entries/${entryId}/public`, { credentials: "include" });
+        const res = await fetch(`${BASE}/api/entries/${entryId}/public`, { credentials: "include" });
         if (res.status === 403) { setNotPublic(true); setLoading(false); return; }
         if (!res.ok) { setNotFound(true); return; }
         const d: any = await res.json();
@@ -105,7 +107,7 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
     if (!isSignedIn || followPending || !author) return;
     setFollowPending(true);
     try {
-      const res = await fetch(`/api/users/${author.userId}/follow`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/users/${author.userId}/follow`, { method: "POST", credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setViewerFollowing(data.following);
@@ -119,7 +121,7 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
     if (!isSignedIn || favPending || !data) return;
     setFavPending(true);
     try {
-      const res = await fetch(`/api/entries/${data.entry.id}/favorite`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${data.entry.id}/favorite`, { method: "POST", credentials: "include" });
       if (res.ok) {
         const r = await res.json();
         setViewerFavorited(r.favorited);
@@ -133,7 +135,7 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
     if (!isSignedIn || likePending || !data) return;
     setLikePending(true);
     try {
-      const res = await fetch(`/api/entries/${data.entry.id}/likes`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${data.entry.id}/likes`, { method: "POST", credentials: "include" });
       if (res.ok) setLikes(await res.json());
     } finally {
       setLikePending(false);
@@ -144,7 +146,7 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
     if (!commentText.trim() || commentPending || !isSignedIn || !data) return;
     setCommentPending(true);
     try {
-      const res = await fetch(`/api/entries/${data.entry.id}/comments`, {
+      const res = await fetch(`${BASE}/api/entries/${data.entry.id}/comments`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -166,7 +168,7 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
 
   const handleDeleteComment = async (commentId: number) => {
     try {
-      const res = await fetch(`/api/comments/${commentId}`, { method: "DELETE", credentials: "include" });
+      const res = await fetch(`${BASE}/api/comments/${commentId}`, { method: "DELETE", credentials: "include" });
       if (res.ok) setComments((prev) => prev.filter((c) => c.id !== commentId));
     } catch {}
   };

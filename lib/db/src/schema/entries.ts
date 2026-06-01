@@ -143,6 +143,26 @@ export const composeStylesTable = pgTable("compose_styles", {
 
 export type ComposeStyle = typeof composeStylesTable.$inferSelect;
 
+// ── Saved AI plans ──────────────────────────────────────────────────────────
+export const savedPlansTable = pgTable("saved_plans", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary"),
+  from: text("from_city").notNull(),
+  destinations: json("destinations").$type<string[]>().notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  travelers: integer("travelers").notNull().default(2),
+  style: text("style"),
+  travelMode: text("travel_mode"),
+  budget: text("budget"),
+  planData: json("plan_data").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type SavedPlan = typeof savedPlansTable.$inferSelect;
+
 // ── Subscription orders ──────────────────────────────────────────────────────
 export const subscriptionOrdersTable = pgTable("subscription_orders", {
   id: serial("id").primaryKey(),

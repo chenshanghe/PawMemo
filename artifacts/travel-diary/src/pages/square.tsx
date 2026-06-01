@@ -6,6 +6,8 @@ import { useUser } from "@clerk/react";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 interface SquareEntry {
   id: number;
   title: string;
@@ -48,7 +50,7 @@ export default function Square() {
   const fetchSquare = useCallback(async (p: number) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/square?page=${p}&limit=${LIMIT}`, { credentials: "include" });
+      const res = await fetch(`${BASE}/api/square?page=${p}&limit=${LIMIT}`, { credentials: "include" });
       if (!res.ok) return;
       const data = await res.json();
       setEntries(data.entries);
@@ -74,7 +76,7 @@ export default function Square() {
     if (!isSignedIn || likePending) return;
     setLikePending(entryId);
     try {
-      const res = await fetch(`/api/entries/${entryId}/likes`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${entryId}/likes`, { method: "POST", credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setLikedMap((prev) => ({ ...prev, [entryId]: { count: data.count, liked: data.viewerLiked } }));
@@ -90,7 +92,7 @@ export default function Square() {
     if (!isSignedIn || favPending) return;
     setFavPending(entryId);
     try {
-      const res = await fetch(`/api/entries/${entryId}/favorite`, { method: "POST", credentials: "include" });
+      const res = await fetch(`${BASE}/api/entries/${entryId}/favorite`, { method: "POST", credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setFavMap((prev) => ({ ...prev, [entryId]: data.favorited }));

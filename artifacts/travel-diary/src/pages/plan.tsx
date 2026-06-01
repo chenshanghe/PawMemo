@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Plus, X, Loader2, MapPin, Plane, Train, Hotel, ExternalLink, RotateCcw, ChevronLeft, ChevronRight, Lightbulb } from "lucide-react";
+import { Plus, X, Loader2, MapPin, Plane, Train, Hotel, ExternalLink, RotateCcw, ChevronLeft, ChevronRight, Lightbulb, Bookmark, BookmarkCheck, Trash2, ChevronDown, ChevronUp, Car, Users, Backpack, Wallet } from "lucide-react";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -32,8 +32,27 @@ function MapFit({ coords }: { coords: [number, number][] }) {
 }
 
 const STYLES = ["文化探索", "美食之旅", "自然风光", "亲子游", "休闲放松"] as const;
+const TRAVEL_MODES = [
+  { value: "自驾", label: "🚗 自驾" },
+  { value: "跟团", label: "🚌 跟团" },
+  { value: "背包", label: "🎒 背包" },
+  { value: "高铁", label: "🚄 高铁" },
+  { value: "飞机", label: "✈️ 飞机" },
+] as const;
+const BUDGETS = [
+  { value: "经济实惠（人均 300 元/天以内）", label: "💰 经济" },
+  { value: "舒适中档（人均 300-800 元/天）", label: "💰💰 舒适" },
+  { value: "高端品质（人均 800 元以上/天）", label: "💰💰💰 高端" },
+] as const;
+
 const today = new Date().toISOString().slice(0, 10);
 const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+async function apiFetch(path: string, init?: RequestInit) {
+  return fetch(`${BASE}${path}`, { credentials: "include", ...init });
+}
 
 interface PlaceCard { place?: string; name?: string; description: string; duration?: string; tips?: string; cuisine?: string; coords?: { lat: number; lng: number } | null; dianpingUrl?: string; gaodeUrl?: string; }
 interface DayPlan { day: number; date: string; city: string; theme: string; morning: PlaceCard; afternoon: PlaceCard; lunch: PlaceCard; dinner: PlaceCard; }
@@ -43,6 +62,12 @@ interface PlanResult {
   transport: { from: string; to: string; mode: string; recommendation: string }[];
   tips: string[];
   booking: { flights: { outbound: BookingLink[]; return: BookingLink[] }; trains: { name: string; url: string }[]; hotels: { city: string; links: BookingLink[] }[] };
+}
+interface SavedPlan {
+  id: number; title: string; summary: string | null; from: string;
+  destinations: string[]; startDate: string; endDate: string;
+  travelers: number; style: string | null; travelMode: string | null; budget: string | null;
+  createdAt: string;
 }
 
 function LinkButton({ href, children }: { href: string; children: React.ReactNode }) {
@@ -96,22 +121,60 @@ function MealCard({ data, icon }: { data: PlaceCard; icon: string }) {
   );
 }
 
+function SavedPlanCard({ plan, onLoad, onDelete }: { plan: SavedPlan; onLoad: (id: number) => void; onDelete: (id: number) => void }) {
+  const nights = Math.round((new Date(plan.endDate).getTime() - new Date(plan.startDate).getTime()) / 86400000);
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-xl border border-border/40 bg-card hover:border-primary/30 hover:shadow-sm transition-all group">
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onLoad(plan.id)}>
+        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{plan.title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 truncate">{plan.from} → {plan.destinations.join("、")} · {nights} 晚</p>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className="text-[10px] text-muted-foreground/70">{plan.startDate.slice(0, 7)}</span>
+          {plan.travelMode && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600">{plan.travelMode}</span>}
+          {plan.budget && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">{plan.budget.split("（")[0]}</span>}
+          {plan.style && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{plan.style}</span>}
+        </div>
+      </div>
+      <button onClick={() => onDelete(plan.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors opacity-0 group-hover:opacity-100">
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export default function PlanPage() {
   const [state, setState] = useState<"form" | "generating" | "result">("form");
   const [from, setFrom] = useState("");
-  const [destinations, setDestinations] = useState<string[]>([""]); 
+  const [destinations, setDestinations] = useState<string[]>([""]);
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(nextWeek);
   const [travelers, setTravelers] = useState(2);
   const [style, setStyle] = useState("文化探索");
+  const [travelMode, setTravelMode] = useState<string>("");
+  const [budget, setBudget] = useState<string>("");
   const [result, setResult] = useState<PlanResult | null>(null);
+  const [currentPlanParams, setCurrentPlanParams] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeDay, setActiveDay] = useState(0);
   const [bookingOpen, setBookingOpen] = useState(true);
   const [selectedPoi, setSelectedPoi] = useState<"morning" | "afternoon" | null>(null);
   const dayTabsRef = useRef<HTMLDivElement>(null);
 
+  // Saved plans
+  const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
+  const [savedOpen, setSavedOpen] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [savedId, setSavedId] = useState<number | null>(null);
+  const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
+
   useEffect(() => { setSelectedPoi(null); }, [activeDay]);
+
+  useEffect(() => {
+    apiFetch("/api/plan/saved")
+      .then(r => r.ok ? r.json() : [])
+      .then(setSavedPlans)
+      .catch(() => {});
+  }, []);
 
   const addDestination = () => setDestinations(d => [...d, ""]);
   const removeDestination = (i: number) => setDestinations(d => d.filter((_, idx) => idx !== i));
@@ -121,13 +184,15 @@ export default function PlanPage() {
     const filledDests = destinations.filter(d => d.trim());
     if (!from.trim() || !filledDests.length) { setError("请填写出发城市和目的地"); return; }
     setError(null);
+    setSavedId(null);
     setState("generating");
+    const params = { from: from.trim(), destinations: filledDests, startDate, endDate, travelers, style, travelMode: travelMode || undefined, budget: budget || undefined };
+    setCurrentPlanParams(params);
     try {
-      const res = await fetch("/api/plan/generate", {
+      const res = await apiFetch("/api/plan/generate", {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from: from.trim(), destinations: filledDests, startDate, endDate, travelers, style }),
+        body: JSON.stringify(params),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "生成失败");
@@ -138,6 +203,62 @@ export default function PlanPage() {
       setError(e.message ?? "AI 规划失败，请重试");
       setState("form");
     }
+  };
+
+  const handleSave = async () => {
+    if (!result || !currentPlanParams) return;
+    setSaveLoading(true);
+    try {
+      const res = await apiFetch("/api/plan/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...currentPlanParams, planData: result }),
+      });
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error);
+      setSavedId(saved.id);
+      setSavedPlans(prev => [saved, ...prev]);
+    } catch (e: any) {
+      setError(e.message ?? "保存失败");
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleLoadSaved = async (id: number) => {
+    setLoadingPlanId(id);
+    try {
+      const res = await apiFetch(`/api/plan/saved/${id}`);
+      const plan = await res.json();
+      if (!res.ok) throw new Error(plan.error);
+      setResult(plan.planData);
+      setCurrentPlanParams({
+        from: plan.from,
+        destinations: plan.destinations,
+        startDate: plan.startDate,
+        endDate: plan.endDate,
+        travelers: plan.travelers,
+        style: plan.style,
+        travelMode: plan.travelMode,
+        budget: plan.budget,
+      });
+      setSavedId(id);
+      setActiveDay(0);
+      setState("result");
+      setSavedOpen(false);
+    } catch {
+      setError("加载失败，请重试");
+    } finally {
+      setLoadingPlanId(null);
+    }
+  };
+
+  const handleDeleteSaved = async (id: number) => {
+    try {
+      await apiFetch(`/api/plan/saved/${id}`, { method: "DELETE" });
+      setSavedPlans(prev => prev.filter(p => p.id !== id));
+      if (savedId === id) setSavedId(null);
+    } catch {}
   };
 
   const day = result?.days[activeDay];
@@ -160,12 +281,55 @@ export default function PlanPage() {
               {state === "result" && result && `${result.title} · ${result.days.length} 天`}
             </p>
           </div>
-          {state === "result" && (
-            <button onClick={() => setState("form")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-              <RotateCcw className="w-3.5 h-3.5" />重新规划
+          <div className="flex items-center gap-2">
+            {/* Saved plans toggle */}
+            <button
+              onClick={() => setSavedOpen(o => !o)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors relative"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              收藏
+              {savedPlans.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-[9px] text-white flex items-center justify-center font-bold">
+                  {savedPlans.length}
+                </span>
+              )}
             </button>
-          )}
+            {state === "result" && (
+              <button onClick={() => { setState("form"); setSavedId(null); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <RotateCcw className="w-3.5 h-3.5" />重新规划
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* ── Saved plans panel ── */}
+        {savedOpen && (
+          <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <BookmarkCheck className="w-4 h-4 text-primary" />我的收藏行程（{savedPlans.length}）
+              </p>
+              <button onClick={() => setSavedOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-3 space-y-2 max-h-80 overflow-y-auto">
+              {savedPlans.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6">还没有收藏的行程，生成后点击「收藏」保存</p>
+              ) : (
+                savedPlans.map(p => (
+                  <SavedPlanCard
+                    key={p.id}
+                    plan={p}
+                    onLoad={handleLoadSaved}
+                    onDelete={handleDeleteSaved}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Form ── */}
         {state === "form" && (
@@ -218,6 +382,32 @@ export default function PlanPage() {
                 <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5"><span>1</span><span>10</span></div>
               </div>
 
+              {/* Travel mode */}
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-2 block">出行方式 <span className="text-muted-foreground font-normal">（可选）</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {TRAVEL_MODES.map(m => (
+                    <button key={m.value} onClick={() => setTravelMode(v => v === m.value ? "" : m.value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${travelMode === m.value ? "bg-blue-500 text-white border-blue-500" : "border-border/60 text-muted-foreground hover:border-blue-300 hover:text-foreground"}`}>
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Budget */}
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-2 block">预算档次 <span className="text-muted-foreground font-normal">（可选）</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {BUDGETS.map(b => (
+                    <button key={b.value} onClick={() => setBudget(v => v === b.value ? "" : b.value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${budget === b.value ? "bg-amber-500 text-white border-amber-500" : "border-border/60 text-muted-foreground hover:border-amber-300 hover:text-foreground"}`}>
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-foreground mb-2 block">旅行风格</label>
                 <div className="flex flex-wrap gap-2">
@@ -259,12 +449,41 @@ export default function PlanPage() {
             {/* Summary card */}
             <div className="rounded-2xl overflow-hidden border border-border/40 shadow-sm">
               <div className="bg-gradient-to-r from-primary/85 to-orange-400 px-5 py-4 text-white">
-                <h3 className="text-lg font-serif font-bold">{result.title}</h3>
-                <p className="text-sm text-white/80 mt-1">{result.summary}</p>
-                <div className="flex flex-wrap gap-2 mt-2.5">
-                  {result.cities.map(c => (
-                    <span key={c} className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">📍 {c}</span>
-                  ))}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-serif font-bold">{result.title}</h3>
+                    <p className="text-sm text-white/80 mt-1">{result.summary}</p>
+                    <div className="flex flex-wrap gap-2 mt-2.5">
+                      {result.cities.map(c => (
+                        <span key={c} className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">📍 {c}</span>
+                      ))}
+                      {currentPlanParams?.travelMode && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">{currentPlanParams.travelMode}</span>
+                      )}
+                      {currentPlanParams?.budget && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">{currentPlanParams.budget.split("（")[0]}</span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Save button */}
+                  <button
+                    onClick={handleSave}
+                    disabled={saveLoading || savedId !== null}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+                      savedId !== null
+                        ? "bg-white/30 text-white cursor-default"
+                        : "bg-white/20 hover:bg-white/30 text-white border border-white/30"
+                    }`}
+                  >
+                    {saveLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : savedId !== null ? (
+                      <BookmarkCheck className="w-3.5 h-3.5" />
+                    ) : (
+                      <Bookmark className="w-3.5 h-3.5" />
+                    )}
+                    {savedId !== null ? "已收藏" : "收藏行程"}
+                  </button>
                 </div>
               </div>
             </div>
