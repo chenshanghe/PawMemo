@@ -12,6 +12,7 @@ import geocodeRouter from "./geocode";
 import weatherRouter from "./weather";
 import digestRouter from "./digest";
 import planRouter from "./plan";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(geocodeRouter);
 router.use(weatherRouter);
 router.use(digestRouter);
 router.use(planRouter);
+router.use(notificationsRouter);
 
 export default router;

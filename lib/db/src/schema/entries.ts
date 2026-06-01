@@ -181,3 +181,20 @@ export const subscriptionOrdersTable = pgTable("subscription_orders", {
 });
 
 export type SubscriptionOrder = typeof subscriptionOrdersTable.$inferSelect;
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+export const notificationsTable = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  type: text("type").notNull(), // 'like' | 'comment' | 'follow'
+  actorId: text("actor_id").notNull(),
+  actorName: text("actor_name").notNull(),
+  actorAvatar: text("actor_avatar"),
+  entryId: integer("entry_id"),
+  entryTitle: text("entry_title"),
+  body: text("body").notNull(),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Notification = typeof notificationsTable.$inferSelect;

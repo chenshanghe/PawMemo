@@ -12,6 +12,7 @@ import {
   userFollowsTable,
   entryFavoritesTable,
   composeStylesTable,
+  notificationsTable,
 } from "@workspace/db";
 import { eq, sql, and, desc, inArray, count } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
@@ -287,6 +288,19 @@ router.post("/entries/:id/likes", requireAuth, async (req, res) => {
       if (entry && entry.userId && entry.userId !== userId) {
         const [ownerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, entry.userId));
         const [likerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId));
+        if (likerProfile) {
+          // In-app notification
+          await db.insert(notificationsTable).values({
+            userId: entry.userId,
+            type: "like",
+            actorId: userId,
+            actorName: likerProfile.name,
+            actorAvatar: likerProfile.avatar ?? null,
+            entryId,
+            entryTitle: entry.title,
+            body: `${likerProfile.name} 赞了你的日记「${entry.title}」`,
+          });
+        }
         if (ownerProfile?.email && likerProfile) {
           const { subject, html } = buildLikeEmail({
             ownerName: ownerProfile.name,
@@ -343,10 +357,22 @@ router.post("/entries/:id/comments", requireAuth, async (req, res) => {
 
   res.status(201).json(comment);
 
-  // Fire-and-forget: notify entry owner by email (skip if self-comment)
+  // Fire-and-forget: notify entry owner by email + in-app (skip if self-comment)
   try {
     const entry = accessibleEntry;
     if (entry && entry.userId && entry.userId !== userId) {
+      const [commenterProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId));
+      // In-app notification
+      await db.insert(notificationsTable).values({
+        userId: entry.userId,
+        type: "comment",
+        actorId: userId,
+        actorName: userName,
+        actorAvatar: commenterProfile?.avatar ?? userAvatar ?? null,
+        entryId,
+        entryTitle: entry.title,
+        body: `${userName} 评论了你的日记：「${content.trim().slice(0, 30)}${content.trim().length > 30 ? "…" : ""}」`,
+      });
       const [ownerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, entry.userId));
       if (ownerProfile?.email) {
         const { subject, html } = buildCommentEmail({
@@ -669,6 +695,22 @@ router.post("/users/:userId/follow", requireAuth, async (req, res) => {
       .where(and(eq(userFollowsTable.followerId, followerId), eq(userFollowsTable.followeeId, followeeId)));
   } else {
     await db.insert(userFollowsTable).values({ followerId, followeeId });
+    // In-app notification for new follow
+    try {
+      const [followerProfile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, followerId));
+      if (followerProfile) {
+        await db.insert(notificationsTable).values({
+          userId: followeeId,
+          type: "follow",
+          actorId: followerId,
+          actorName: followerProfile.name,
+          actorAvatar: followerProfile.avatar ?? null,
+          entryId: null,
+          entryTitle: null,
+          body: `${followerProfile.name} 开始关注你了`,
+        });
+      }
+    } catch { /* best-effort */ }
   }
 
   const [{ followerCount }] = await db
