@@ -45,9 +45,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Desktop Sidebar ── */}
       <aside className="hidden md:flex w-60 flex-col border-r border-border/50 bg-card/60 px-4 py-8 sticky top-0 h-screen shrink-0">
         <div className="flex items-center gap-3 px-2 mb-10">
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-serif text-lg font-bold shadow-sm">
-            薯
-          </div>
+          <span className="text-2xl leading-none">🍠</span>
           <h1 className="font-serif font-bold text-lg text-foreground tracking-wide">红薯旅行日记</h1>
         </div>
 
@@ -145,9 +143,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Mobile Header ── */}
       <header className="md:hidden sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border/40 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-serif text-sm font-bold shadow-sm">
-            薯
-          </div>
+          <span className="text-xl leading-none">🍠</span>
           <h1 className="font-serif font-bold text-base text-foreground tracking-wide">红薯旅行日记</h1>
         </div>
         <div className="flex items-center gap-2">

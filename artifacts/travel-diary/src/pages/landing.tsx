@@ -7,9 +7,7 @@ export default function Landing() {
       {/* Header */}
       <header className="px-6 py-4 flex items-center justify-between border-b border-border/50">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-serif text-lg font-bold">
-            薯
-          </div>
+          <span className="text-2xl leading-none">🍠</span>
           <span className="font-serif font-bold text-xl text-foreground">红薯旅行日记</span>
         </div>
         <div className="flex items-center gap-3">
