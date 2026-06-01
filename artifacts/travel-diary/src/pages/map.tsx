@@ -11,8 +11,7 @@ import {
   Marker,
   Line,
 } from "react-simple-maps";
-
-const GEO_URL = `${import.meta.env.BASE_URL}world-110m.json`;
+import worldData from "@/assets/world-110m.json";
 
 const TRIP_COLORS = [
   "#f97316", "#3b82f6", "#10b981", "#8b5cf6",
@@ -143,7 +142,7 @@ export default function MapPage() {
             projectionConfig={{ scale: 175, center: [20, 10] }}
             style={{ width: "100%", height: "100%" }}
           >
-            <Geographies geography={GEO_URL}>
+            <Geographies geography={worldData}>
               {({ geographies }) =>
                 geographies.map((geo) => (
                   <Geography
