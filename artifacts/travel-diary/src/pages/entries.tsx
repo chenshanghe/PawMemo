@@ -104,7 +104,7 @@ export default function Entries() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  合成游记
+                  合成随记成游记
                 </button>
               </>
             ) : (
@@ -124,7 +124,7 @@ export default function Entries() {
                   )}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  AI 合成游记 ({selected.size})
+                  AI 合成随记成游记 ({selected.size})
                 </button>
               </>
             )}

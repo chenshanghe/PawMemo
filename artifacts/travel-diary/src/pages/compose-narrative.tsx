@@ -306,7 +306,7 @@ export default function ComposeNarrative() {
           </Link>
           <div className="flex-1">
             <h2 className="text-xl font-serif font-bold text-foreground flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />AI 合成游记
+              <Sparkles className="w-5 h-5 text-primary" />AI 合成随记成游记
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">从 {sources.length} 篇随记生成完整旅行文章</p>
           </div>
