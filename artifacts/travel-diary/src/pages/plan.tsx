@@ -57,6 +57,36 @@ const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+const PREFS_KEY = "travel-diary:prefs-v1";
+
+interface UserPrefs {
+  travelMode: string;
+  budget: string;
+  specialNeeds: string[];
+}
+
+function loadPrefs(): UserPrefs | null {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as UserPrefs;
+  } catch {
+    return null;
+  }
+}
+
+function savePrefs(prefs: UserPrefs) {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {}
+}
+
+function clearPrefs() {
+  try {
+    localStorage.removeItem(PREFS_KEY);
+  } catch {}
+}
+
 async function apiFetch(path: string, init?: RequestInit) {
   return fetch(`${BASE}${path}`, { credentials: "include", ...init });
 }
@@ -150,6 +180,7 @@ function SavedPlanCard({ plan, onLoad, onDelete }: { plan: SavedPlan; onLoad: (i
 }
 
 export default function PlanPage() {
+  const savedPrefs = loadPrefs();
   const [state, setState] = useState<"form" | "generating" | "result">("form");
   const [from, setFrom] = useState("");
   const [destinations, setDestinations] = useState<string[]>([""]);
@@ -157,9 +188,12 @@ export default function PlanPage() {
   const [endDate, setEndDate] = useState(nextWeek);
   const [travelers, setTravelers] = useState(2);
   const [style, setStyle] = useState("文化探索");
-  const [travelMode, setTravelMode] = useState<string>("");
-  const [budget, setBudget] = useState<string>("");
-  const [specialNeeds, setSpecialNeeds] = useState<string[]>([]);
+  const [travelMode, setTravelMode] = useState<string>(savedPrefs?.travelMode ?? "");
+  const [budget, setBudget] = useState<string>(savedPrefs?.budget ?? "");
+  const [specialNeeds, setSpecialNeeds] = useState<string[]>(savedPrefs?.specialNeeds ?? []);
+  const [hasPrefs, setHasPrefs] = useState<boolean>(savedPrefs !== null);
+  const prefsInitialized = useRef(false);
+  const isClearingPrefs = useRef(false);
   const [result, setResult] = useState<PlanResult | null>(null);
   const [currentPlanParams, setCurrentPlanParams] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -177,6 +211,22 @@ export default function PlanPage() {
   const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
 
   useEffect(() => { setSelectedPoi(null); }, [activeDay]);
+
+  // Persist preferences whenever they change (skip initial mount to avoid
+  // overwriting a "no prefs" state with the default empty values; also skip
+  // when the user explicitly cleared prefs so we don't re-save empty values)
+  useEffect(() => {
+    if (!prefsInitialized.current) {
+      prefsInitialized.current = true;
+      return;
+    }
+    if (isClearingPrefs.current) {
+      isClearingPrefs.current = false;
+      return;
+    }
+    savePrefs({ travelMode, budget, specialNeeds });
+    setHasPrefs(true);
+  }, [travelMode, budget, specialNeeds]);
 
   useEffect(() => {
     apiFetch("/api/plan/saved")
@@ -196,6 +246,15 @@ export default function PlanPage() {
     window.history.replaceState({}, "", window.location.pathname);
     handleLoadSaved(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleClearPrefs = () => {
+    isClearingPrefs.current = true;
+    clearPrefs();
+    setTravelMode("");
+    setBudget("");
+    setSpecialNeeds([]);
+    setHasPrefs(false);
+  };
 
   const addDestination = () => setDestinations(d => [...d, ""]);
   const removeDestination = (i: number) => setDestinations(d => d.filter((_, idx) => idx !== i));
@@ -397,6 +456,14 @@ export default function PlanPage() {
               <p className="text-xs text-white/70 mt-0.5">支持国内及出境路线，AI 推荐中国特色平台预订</p>
             </div>
             <div className="p-5 space-y-4">
+              {hasPrefs && (
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-primary/5 border border-primary/15 text-xs text-muted-foreground">
+                  <span>✅ 已自动填入上次的偏好设置</span>
+                  <button onClick={handleClearPrefs} className="flex items-center gap-1 text-primary hover:text-primary/70 transition-colors font-medium shrink-0 ml-3">
+                    <RotateCcw className="w-3 h-3" />清除偏好
+                  </button>
+                </div>
+              )}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">出发城市</label>
                 <input value={from} onChange={e => setFrom(e.target.value)} placeholder="如：北京" className="w-full px-3 py-2 rounded-xl border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40" />
