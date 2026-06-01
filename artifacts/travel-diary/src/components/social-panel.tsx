@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useUser } from "@clerk/react";
-import { Heart, MessageCircle, Share2, Trash2, Copy, Check, Link2, X, Mail, MessageSquare, ExternalLink } from "lucide-react";
+import { Heart, MessageCircle, Share2, Trash2, Copy, Check, Link2, X, Lock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -113,7 +113,8 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
 
   useEffect(() => { fetchShareStatus(); }, [fetchShareStatus]);
 
-  const handleCreateShare = async () => {
+  const ensureShareToken = async (): Promise<string | null> => {
+    if (shareToken) return shareToken;
     setShareLoading(true);
     try {
       const res = await fetch(`/api/entries/${entryId}/share`, {
@@ -123,10 +124,12 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
       if (res.ok) {
         const data = await res.json();
         setShareToken(data.token);
+        return data.token;
       }
     } finally {
       setShareLoading(false);
     }
+    return null;
   };
 
   const handleRevokeShare = async () => {
@@ -142,29 +145,43 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
     }
   };
 
-  const shareUrl = shareToken
-    ? `${window.location.origin}${import.meta.env.BASE_URL}share/${shareToken}`
-    : null;
+  const makeShareUrl = (token: string) =>
+    `${window.location.origin}${import.meta.env.BASE_URL}share/${token}`;
 
-  const handleCopy = async () => {
-    if (!shareUrl) return;
-    await navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const handleShareAction = async (action: "copy" | "native" | "weibo" | "qq") => {
+    const token = await ensureShareToken();
+    if (!token) return;
+    const url = makeShareUrl(token);
+    const title = document.title.replace(" - 红薯旅行日记", "").trim() || "旅行日记";
 
-  // Try native share (invokes system share sheet: WeChat, SMS, etc.)
-  const [nativeShareSupported] = useState(() => typeof navigator !== "undefined" && !!navigator.share);
-
-  const handleNativeShare = async (title: string) => {
-    if (!shareUrl) return;
-    try {
-      await navigator.share({ title, text: `分享我的旅行日记：${title}`, url: shareUrl });
-    } catch (e: any) {
-      // User cancelled or not supported — fall back silently
-      if (e?.name !== "AbortError") handleCopy();
+    if (action === "copy") {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } else if (action === "native") {
+      try {
+        await navigator.share({ title, text: `分享我的旅行日记：${title}`, url });
+      } catch (e: any) {
+        if (e?.name !== "AbortError") {
+          await navigator.clipboard.writeText(url);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
+      }
+    } else if (action === "weibo") {
+      window.open(
+        `https://service.weibo.com/share/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(`分享我的旅行日记：${title}`)}`,
+        "_blank"
+      );
+    } else if (action === "qq") {
+      window.open(
+        `https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent("红薯旅行日记")}`,
+        "_blank"
+      );
     }
   };
+
+  const nativeShareSupported = typeof navigator !== "undefined" && !!navigator.share;
 
   return (
     <div className="border-t border-border/40 pt-6 space-y-4">
@@ -221,102 +238,83 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
         )}
       </div>
 
-      {/* Share panel */}
+      {/* Share sheet */}
       {isOwner && showSharePanel && (
-        <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
-          <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <Link2 className="w-4 h-4 text-primary" />
-            分享链接
+        <div className="rounded-xl border border-border/50 bg-card shadow-sm overflow-hidden">
+          {/* Private notice */}
+          {visibility === "private" && (
+            <div className="flex items-center gap-1.5 px-4 py-2 bg-amber-50 border-b border-amber-100 text-[11px] text-amber-700">
+              <Lock className="w-3 h-3 shrink-0" />
+              私密随记将通过专属链接分享，对方无需登录即可查看
+            </div>
+          )}
+
+          {/* Share options */}
+          <div className="divide-y divide-border/40">
+            {/* Copy link */}
+            <button
+              onClick={() => handleShareAction("copy")}
+              disabled={shareLoading}
+              className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left disabled:opacity-60"
+            >
+              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                {shareLoading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : copied ? <Check className="w-5 h-5 text-white" /> : <Link2 className="w-5 h-5 text-white" />}
+              </div>
+              <span className="text-sm font-medium text-foreground">
+                {shareLoading ? "生成链接中…" : copied ? "已复制！" : "复制链接"}
+              </span>
+            </button>
+
+            {/* WeChat / native share */}
+            {nativeShareSupported && (
+              <button
+                onClick={() => handleShareAction("native")}
+                disabled={shareLoading}
+                className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left disabled:opacity-60"
+              >
+                <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M9.5 4C5.36 4 2 6.69 2 10c0 1.89 1.08 3.57 2.78 4.71l-.55 2.08 2.36-1.18c.87.24 1.88.39 2.91.39.28 0 .56-.01.83-.04a5.6 5.6 0 0 1-.33-1.87c0-3.12 2.88-5.59 6.5-5.59.28 0 .56.02.83.04C16.73 6.38 13.4 4 9.5 4zM7 8.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm5 0a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm2.5 1.5c-2.9 0-5.5 1.86-5.5 4.25 0 2.39 2.6 4.25 5.5 4.25.82 0 1.63-.14 2.35-.38l1.9.95-.44-1.68A4.38 4.38 0 0 0 20 14.25C20 11.86 17.4 10 14.5 10zm-2 3a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zm4 0a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5z"/></svg>
+                </div>
+                <span className="text-sm font-medium text-foreground">微信</span>
+              </button>
+            )}
+
+            {/* Weibo */}
+            <button
+              onClick={() => handleShareAction("weibo")}
+              disabled={shareLoading}
+              className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left disabled:opacity-60"
+            >
+              <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M10.098 20.323c-3.977.391-7.414-1.406-7.672-4.02-.259-2.609 2.759-5.047 6.74-5.441 3.979-.394 7.413 1.404 7.671 4.018.259 2.6-2.759 5.049-6.739 5.443zM8.5 17.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM19 8.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm-4.5-4c1.93 0 3.5 1.57 3.5 3.5s-1.57 3.5-3.5 3.5S11 9.93 11 8s1.57-3.5 3.5-3.5z"/></svg>
+              </div>
+              <span className="text-sm font-medium text-foreground">新浪微博</span>
+            </button>
+
+            {/* QQ Space */}
+            <button
+              onClick={() => handleShareAction("qq")}
+              disabled={shareLoading}
+              className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-muted/40 transition-colors text-left disabled:opacity-60"
+            >
+              <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center shrink-0">
+                <span className="text-white font-bold text-sm">Q</span>
+              </div>
+              <span className="text-sm font-medium text-foreground">QQ空间</span>
+            </button>
           </div>
 
-          {visibility === "private" ? (
-            <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                此随记当前为<strong>私密</strong>，无法生成分享链接。
-              </p>
-              <p className="text-xs text-muted-foreground">
-                请先在编辑页面将可见范围改为「分享可见」或「公开」。
-              </p>
-              <a
-                href={`/entries/${entryId}/edit`}
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-              >
-                前往编辑 →
-              </a>
-            </div>
-          ) : shareToken ? (
-            <div className="space-y-3">
-              {/* URL row */}
-              <div className="flex gap-2">
-                <input
-                  readOnly
-                  value={shareUrl ?? ""}
-                  className="flex-1 text-xs bg-background border border-border/60 rounded-lg px-3 py-2 text-muted-foreground select-all"
-                  onClick={(e) => (e.target as HTMLInputElement).select()}
-                />
-                <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0 gap-1.5">
-                  {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? "已复制" : "复制"}
-                </Button>
-              </div>
-
-              {/* Share buttons */}
-              <div className="flex flex-wrap gap-2">
-                {/* System share sheet — triggers WeChat / SMS / etc. on mobile */}
-                {nativeShareSupported && (
-                  <button
-                    onClick={() => handleNativeShare(document.title)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/50 text-xs font-medium text-foreground transition-colors"
-                  >
-                    <Share2 className="w-3.5 h-3.5 text-primary" />
-                    分享到…
-                  </button>
-                )}
-                {/* Email */}
-                <a
-                  href={shareUrl ? `mailto:?subject=${encodeURIComponent("分享一篇旅行日记")}&body=${encodeURIComponent(`我的旅行日记，点击查看：\n${shareUrl}`)}` : "#"}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/50 text-xs font-medium text-foreground transition-colors"
-                >
-                  <Mail className="w-3.5 h-3.5 text-blue-500" />
-                  邮件
-                </a>
-                {/* SMS */}
-                <a
-                  href={shareUrl ? `sms:?body=${encodeURIComponent(`我的旅行日记，点击查看：${shareUrl}`)}` : "#"}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/50 text-xs font-medium text-foreground transition-colors"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-green-500" />
-                  短信
-                </a>
-                {/* Open in new tab */}
-                <a
-                  href={shareUrl ?? "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-card hover:bg-muted/50 text-xs font-medium text-foreground transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-                  预览
-                </a>
-              </div>
-
-              <p className="text-xs text-muted-foreground">任何人打开此链接均可查看，无需登录。</p>
+          {/* Revoke link footer */}
+          {shareToken && (
+            <div className="border-t border-border/40 px-4 py-2.5 flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">任何人通过链接可查看，无需登录</span>
               <button
                 onClick={handleRevokeShare}
                 disabled={shareLoading}
-                className="text-xs text-destructive hover:underline flex items-center gap-1"
+                className="text-[11px] text-destructive hover:underline flex items-center gap-0.5"
               >
-                <X className="w-3 h-3" />
-                撤销链接
+                <X className="w-3 h-3" />撤销链接
               </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">生成链接后，任何人均可通过链接查看此随记。</p>
-              <Button size="sm" onClick={handleCreateShare} disabled={shareLoading} className="gap-1.5">
-                <Share2 className="w-3.5 h-3.5" />
-                {shareLoading ? "生成中..." : "生成分享链接"}
-              </Button>
             </div>
           )}
         </div>
