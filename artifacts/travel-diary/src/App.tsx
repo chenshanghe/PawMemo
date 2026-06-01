@@ -31,6 +31,7 @@ import AchievementsPage from "@/pages/achievements";
 import CollectionsPage from "@/pages/collections";
 import CollectionDetailPage from "@/pages/collection-detail";
 import ExportPage from "@/pages/export";
+import PlanListPage from "@/pages/plan-list";
 
 const queryClient = new QueryClient();
 
@@ -216,6 +217,7 @@ function AppRouter() {
       <Route path="/map">{() => <ProtectedRoute component={MapPage} />}</Route>
       <Route path="/photos">{() => <ProtectedRoute component={Photos} />}</Route>
       <Route path="/plan">{() => <ProtectedRoute component={PlanPage} />}</Route>
+      <Route path="/plan/list">{() => <ProtectedRoute component={PlanListPage} />}</Route>
       <Route path="/report">{() => <ProtectedRoute component={ReportPage} />}</Route>
       <Route path="/notifications">{() => <ProtectedRoute component={NotificationsPage} />}</Route>
       <Route path="/achievements">{() => <ProtectedRoute component={AchievementsPage} />}</Route>

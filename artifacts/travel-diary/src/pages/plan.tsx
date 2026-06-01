@@ -4,7 +4,8 @@ import { Layout } from "@/components/layout";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Plus, X, Loader2, MapPin, Plane, Train, Hotel, ExternalLink, RotateCcw, ChevronLeft, ChevronRight, Lightbulb, Bookmark, BookmarkCheck, Trash2, ChevronDown, ChevronUp, Car, Users, Backpack, Wallet } from "lucide-react";
+import { useLocation } from "wouter";
+import { Plus, X, Loader2, MapPin, Plane, Train, Hotel, ExternalLink, RotateCcw, ChevronLeft, ChevronRight, Lightbulb, Bookmark, BookmarkCheck, Trash2, RefreshCw, List } from "lucide-react";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -159,6 +160,7 @@ export default function PlanPage() {
   const [bookingOpen, setBookingOpen] = useState(true);
   const [selectedPoi, setSelectedPoi] = useState<"morning" | "afternoon" | null>(null);
   const dayTabsRef = useRef<HTMLDivElement>(null);
+  const [regenLoading, setRegenLoading] = useState(false);
 
   // Saved plans
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
@@ -175,6 +177,18 @@ export default function PlanPage() {
       .then(setSavedPlans)
       .catch(() => {});
   }, []);
+
+  // Load a plan from ?load= query param (e.g. navigated from /plan/list)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const loadId = params.get("load");
+    if (!loadId) return;
+    const id = parseInt(loadId);
+    if (isNaN(id)) return;
+    // Remove query param from URL without triggering re-render
+    window.history.replaceState({}, "", window.location.pathname);
+    handleLoadSaved(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addDestination = () => setDestinations(d => [...d, ""]);
   const removeDestination = (i: number) => setDestinations(d => d.filter((_, idx) => idx !== i));
@@ -261,6 +275,31 @@ export default function PlanPage() {
     } catch {}
   };
 
+  const handleRegenerate = async () => {
+    if (!currentPlanParams) return;
+    setRegenLoading(true);
+    setError(null);
+    setSavedId(null);
+    setState("generating");
+    try {
+      const res = await apiFetch("/api/plan/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(currentPlanParams),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "生成失败");
+      setResult(data);
+      setActiveDay(0);
+      setState("result");
+    } catch (e: any) {
+      setError(e.message ?? "AI 规划失败，请重试");
+      setState("result");
+    } finally {
+      setRegenLoading(false);
+    }
+  };
+
   const day = result?.days[activeDay];
   const dayCoords: [number, number][] = day
     ? [day.morning?.coords, day.afternoon?.coords].filter(Boolean).map(c => wgs84ToGcj02(c!.lat, c!.lng))
@@ -282,19 +321,28 @@ export default function PlanPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Saved plans toggle */}
-            <button
-              onClick={() => setSavedOpen(o => !o)}
+            {/* My plans list link */}
+            <a href={`${BASE}/plan/list`}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors relative"
             >
-              <Bookmark className="w-3.5 h-3.5" />
-              收藏
+              <List className="w-3.5 h-3.5" />
+              我的规划
               {savedPlans.length > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-[9px] text-white flex items-center justify-center font-bold">
                   {savedPlans.length}
                 </span>
               )}
-            </button>
+            </a>
+            {state === "result" && savedId !== null && (
+              <button
+                onClick={handleRegenerate}
+                disabled={regenLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {regenLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                重新生成
+              </button>
+            )}
             {state === "result" && (
               <button onClick={() => { setState("form"); setSavedId(null); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
                 <RotateCcw className="w-3.5 h-3.5" />重新规划

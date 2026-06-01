@@ -50,7 +50,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isMe = location === "/me" || location === "/favorites" || location.startsWith("/users/");
   const isMap = location === "/map";
   const isPhotos = location === "/photos";
-  const isPlan = location === "/plan";
+  const isPlan = location === "/plan" || location === "/plan/list";
   const isNotifs = location === "/notifications";
   const isReport = location === "/report";
   const isAchievements = location === "/achievements";
