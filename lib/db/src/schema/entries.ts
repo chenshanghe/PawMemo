@@ -24,6 +24,7 @@ export const diaryEntriesTable = pgTable("diary_entries", {
   sourceEntryIds: json("source_entry_ids").$type<number[]>(),
   lat: real("lat"),
   lng: real("lng"),
+  weather: json("weather"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

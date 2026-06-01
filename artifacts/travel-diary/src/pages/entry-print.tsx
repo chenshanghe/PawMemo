@@ -313,6 +313,10 @@ export function EntryPrintPage() {
             <span>🗓 {travelDays} 天</span>
             {entry.mood && <span>{MOODS[entry.mood] ?? "😊"} {entry.mood}</span>}
             {entry.companions && <span>👥 {entry.companions}</span>}
+            {(entry as any).weather && (() => {
+              const w = (entry as any).weather as { icon: string; desc: string; tempMax: number; tempMin: number };
+              return <span>{w.icon} {w.desc} {w.tempMax}°/{w.tempMin}°C</span>;
+            })()}
             {entry.rating && (
               <span>{"⭐".repeat(entry.rating)}{"☆".repeat(5 - entry.rating)}</span>
             )}

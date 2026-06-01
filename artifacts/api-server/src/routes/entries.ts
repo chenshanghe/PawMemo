@@ -178,6 +178,7 @@ router.post("/", async (req, res) => {
       sourceEntryIds: Array.isArray(sourceEntryIds) ? sourceEntryIds : null,
       lat: typeof data.lat === "number" ? data.lat : null,
       lng: typeof data.lng === "number" ? data.lng : null,
+      weather: data.weather ?? null,
     })
     .returning();
 
@@ -242,6 +243,7 @@ router.patch("/:id", async (req, res) => {
   if (data.endDate !== undefined) updateData.endDate = data.endDate;
   if (data.lat !== undefined) updateData.lat = data.lat;
   if (data.lng !== undefined) updateData.lng = data.lng;
+  if (data.weather !== undefined) updateData.weather = data.weather;
 
   const [entry] = await db
     .update(diaryEntriesTable)

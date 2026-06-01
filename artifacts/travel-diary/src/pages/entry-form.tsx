@@ -24,6 +24,10 @@ import { Link } from "wouter";
 
 const MOODS = ["开心", "平静", "感动", "疲惫", "兴奋", "思念"];
 
+interface WeatherInfo {
+  code: number; icon: string; desc: string; tempMax: number; tempMin: number;
+}
+
 interface EntryFormProps {
   entryId?: number;
 }
@@ -58,6 +62,8 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   });
   const [geocoding, setGeocoding] = useState(false);
   const [geocoded, setGeocoded] = useState(false);
+  const [weather, setWeather] = useState<WeatherInfo | null>(null);
+  const [fetchingWeather, setFetchingWeather] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [newTagName, setNewTagName] = useState("");
   const [newTagNames, setNewTagNames] = useState<string[]>([]);
@@ -91,7 +97,23 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   }, []);
 
   useEffect(() => {
+    if (!form.lat || !form.lng || !form.startDate) { setWeather(null); return; }
+    const d = new Date(form.startDate);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (d >= today) { setWeather(null); return; }
+    let cancelled = false;
+    setFetchingWeather(true);
+    fetch(`/api/weather?lat=${form.lat}&lng=${form.lng}&date=${form.startDate}`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => { if (!cancelled) setWeather(data); })
+      .catch(() => { if (!cancelled) setWeather(null); })
+      .finally(() => { if (!cancelled) setFetchingWeather(false); });
+    return () => { cancelled = true; };
+  }, [form.lat, form.lng, form.startDate]);
+
+  useEffect(() => {
     if (existingEntry) {
+      setWeather((existingEntry as any).weather ?? null);
       setForm({
         title: existingEntry.title,
         destination: existingEntry.destination,
@@ -201,6 +223,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
       tagNames: newTagNames,
       lat: form.lat,
       lng: form.lng,
+      weather: weather ?? undefined,
     };
 
     if (isEditing) {
@@ -383,6 +406,22 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                   />
                 </div>
               </div>
+
+              {/* Weather badge */}
+              {(weather || fetchingWeather) && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">出发日天气：</span>
+                  {fetchingWeather ? (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Loader2 className="w-3 h-3 animate-spin" />获取中...
+                    </span>
+                  ) : weather ? (
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-medium">
+                      {weather.icon} {weather.desc} {weather.tempMax}°/{weather.tempMin}°C
+                    </span>
+                  ) : null}
+                </div>
+              )}
 
               {/* Cover Image */}
               <div className="space-y-2">

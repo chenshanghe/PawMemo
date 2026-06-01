@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import {
   MapPin, CalendarDays, Image as ImageIcon, Search, Plus, Star, X,
   MoreHorizontal, Lock, Globe, Link2, CheckSquare, Square, Sparkles, BookOpen,
+  LayoutList, CalendarRange,
 } from "lucide-react";
+import { CalendarView } from "./entries-calendar";
 import { format } from "date-fns";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -38,6 +40,7 @@ export default function Entries() {
   const [dateTo, setDateTo] = useState("");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [view, setView] = useState<"list" | "calendar">("list");
   const queryClient = useQueryClient();
 
   const deferredSearch = useDeferredValue(search);
@@ -100,6 +103,23 @@ export default function Entries() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* View toggle */}
+            <div className="flex items-center rounded-xl border border-border/60 overflow-hidden">
+              <button
+                onClick={() => setView("list")}
+                className={`px-2.5 py-1.5 transition-colors ${view === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                title="列表视图"
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setView("calendar")}
+                className={`px-2.5 py-1.5 border-l border-border/60 transition-colors ${view === "calendar" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                title="日历视图"
+              >
+                <CalendarRange className="w-3.5 h-3.5" />
+              </button>
+            </div>
             {!selectMode ? (
               <>
                 <button
@@ -238,10 +258,15 @@ export default function Entries() {
           </div>
         )}
 
+        {/* ── Calendar View ── */}
+        {view === "calendar" && !isLoading && (
+          <CalendarView entries={entries ?? []} />
+        )}
+
         {/* ── Entries List ── */}
-        {isLoading ? (
+        {view === "list" && isLoading ? (
           <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 rounded-2xl bg-muted/50" />)}</div>
-        ) : noteEntries?.length === 0 ? (
+        ) : view === "list" && noteEntries?.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border/50 rounded-2xl bg-card/40">
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
               <ImageIcon className="w-7 h-7 text-primary/60" />
@@ -250,7 +275,7 @@ export default function Entries() {
             <p className="text-sm text-muted-foreground mb-5 max-w-xs">{hasFilters ? "试试调整搜索条件" : "每一段旅程都值得被记录"}</p>
             {!hasFilters && <Link href="/entries/new"><Button className="rounded-xl shadow-sm">写下第一篇日记</Button></Link>}
           </div>
-        ) : (
+        ) : view === "list" ? (
           <div className="space-y-4">
             {noteEntries?.map((entry: any) => {
               const isSelected = selected.has(entry.id);
@@ -321,7 +346,7 @@ export default function Entries() {
               );
             })}
           </div>
-        )}
+        ) : null}
       </div>
     </Layout>
   );

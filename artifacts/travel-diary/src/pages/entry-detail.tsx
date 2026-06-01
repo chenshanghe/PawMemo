@@ -407,6 +407,14 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                 <span>{entry.companions}</span>
               </div>
             )}
+            {(entry as any).weather && (() => {
+              const w = (entry as any).weather as { icon: string; desc: string; tempMax: number; tempMin: number };
+              return (
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-medium">
+                  {w.icon} {w.desc} {w.tempMax}°/{w.tempMin}°C
+                </span>
+              );
+            })()}
             {(() => {
               const v: "private" | "public" | "shared" = (entry as any).visibility ?? "private";
               const isOwner = !!user && entry.userId === user.id;

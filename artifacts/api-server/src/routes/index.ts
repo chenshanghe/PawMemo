@@ -9,6 +9,7 @@ import aiRouter from "./ai";
 import socialRouter from "./social";
 import payRouter from "./pay";
 import geocodeRouter from "./geocode";
+import weatherRouter from "./weather";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use("/ai", aiRouter);
 router.use(socialRouter);
 router.use("/pay", payRouter);
 router.use(geocodeRouter);
+router.use(weatherRouter);
 
 export default router;

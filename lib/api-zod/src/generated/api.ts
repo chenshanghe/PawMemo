@@ -74,7 +74,8 @@ export const CreateEntryBody = zod.object({
   "tagIds": zod.array(zod.number()).optional(),
   "tagNames": zod.array(zod.string()).optional(),
   "lat": zod.number().optional(),
-  "lng": zod.number().optional()
+  "lng": zod.number().optional(),
+  "weather": zod.any().optional()
 })
 
 
@@ -108,7 +109,8 @@ export const GetEntryResponse = zod.object({
   "url": zod.string(),
   "caption": zod.string().nullish(),
   "createdAt": zod.coerce.date()
-})).optional()
+})).optional(),
+  "weather": zod.any().optional()
 })
 
 
@@ -138,7 +140,8 @@ export const UpdateEntryBody = zod.object({
   "tagIds": zod.array(zod.number()).optional(),
   "tagNames": zod.array(zod.string()).optional(),
   "lat": zod.number().optional(),
-  "lng": zod.number().optional()
+  "lng": zod.number().optional(),
+  "weather": zod.any().optional()
 })
 
 export const UpdateEntryResponse = zod.object({
@@ -158,7 +161,8 @@ export const UpdateEntryResponse = zod.object({
   "id": zod.number(),
   "name": zod.string()
 })).optional(),
-  "photoCount": zod.number().optional()
+  "photoCount": zod.number().optional(),
+  "weather": zod.any().optional()
 })
 
 
