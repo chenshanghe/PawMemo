@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useDeferredValue } from "react";
 import { Link, useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { useListEntries, useListTags, useDeleteEntry, getListEntriesQueryKey } from "@workspace/api-client-react";
@@ -40,10 +40,13 @@ export default function Entries() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
 
+  const deferredSearch = useDeferredValue(search);
+  const deferredDestination = useDeferredValue(destination);
+
   const params = {
-    search: search || undefined,
+    search: deferredSearch || undefined,
     tag: selectedTag,
-    destination: destination || undefined,
+    destination: deferredDestination || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
   };

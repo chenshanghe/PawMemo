@@ -8,6 +8,7 @@ import storageRouter from "./storage";
 import aiRouter from "./ai";
 import socialRouter from "./social";
 import payRouter from "./pay";
+import geocodeRouter from "./geocode";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(storageRouter);
 router.use("/ai", aiRouter);
 router.use(socialRouter);
 router.use("/pay", payRouter);
+router.use(geocodeRouter);
 
 export default router;

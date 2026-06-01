@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Save, Star, X, Plus, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Star, X, Plus, Sparkles, Loader2, MapPin, CheckCircle2 } from "lucide-react";
 import { ImageUploader } from "@/components/image-uploader";
 import { Link } from "wouter";
 
@@ -53,7 +53,11 @@ export default function EntryForm({ entryId }: EntryFormProps) {
     startDate: "",
     endDate: "",
     visibility: "private" as "private" | "public" | "shared",
+    lat: undefined as number | undefined,
+    lng: undefined as number | undefined,
   });
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocoded, setGeocoded] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [newTagName, setNewTagName] = useState("");
   const [newTagNames, setNewTagNames] = useState<string[]>([]);
@@ -68,6 +72,24 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   // Quota upgrade dialog
   const [upgradeInfo, setUpgradeInfo] = useState<{ code: "ENTRY_LIMIT" | "PHOTO_LIMIT"; tier: string; limit: number } | null>(null);
 
+  const geocodeDestination = useCallback(async (dest: string) => {
+    const q = dest.trim();
+    if (!q) return;
+    setGeocoding(true);
+    setGeocoded(false);
+    try {
+      const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, { credentials: "include" });
+      if (r.ok) {
+        const results = await r.json();
+        if (results.length > 0) {
+          setForm((f) => ({ ...f, lat: results[0].lat, lng: results[0].lng }));
+          setGeocoded(true);
+        }
+      }
+    } catch {}
+    finally { setGeocoding(false); }
+  }, []);
+
   useEffect(() => {
     if (existingEntry) {
       setForm({
@@ -81,7 +103,10 @@ export default function EntryForm({ entryId }: EntryFormProps) {
         rating: existingEntry.rating ?? 0,
         startDate: existingEntry.startDate,
         endDate: existingEntry.endDate ?? "",
+        lat: (existingEntry as any).lat ?? undefined,
+        lng: (existingEntry as any).lng ?? undefined,
       });
+      if ((existingEntry as any).lat != null) setGeocoded(true);
       setSelectedTagIds(existingEntry.tags?.map((t) => t.id) ?? []);
     }
   }, [existingEntry]);
@@ -174,6 +199,8 @@ export default function EntryForm({ entryId }: EntryFormProps) {
       endDate: form.endDate || undefined,
       tagIds: selectedTagIds,
       tagNames: newTagNames,
+      lat: form.lat,
+      lng: form.lng,
     };
 
     if (isEditing) {
@@ -259,14 +286,37 @@ export default function EntryForm({ entryId }: EntryFormProps) {
               {/* Destination */}
               <div className="space-y-2">
                 <Label htmlFor="destination" className="text-sm font-medium">目的地 *</Label>
-                <Input
-                  id="destination"
-                  placeholder="你去了哪里？"
-                  value={form.destination}
-                  onChange={(e) => setForm({ ...form, destination: e.target.value })}
-                  required
-                  className="bg-background border-border/60"
-                />
+                <div className="relative">
+                  <Input
+                    id="destination"
+                    placeholder="你去了哪里？（离开输入框后自动定位）"
+                    value={form.destination}
+                    onChange={(e) => {
+                      setForm({ ...form, destination: e.target.value, lat: undefined, lng: undefined });
+                      setGeocoded(false);
+                    }}
+                    onBlur={(e) => { if (e.target.value.trim()) geocodeDestination(e.target.value); }}
+                    required
+                    className="bg-background border-border/60 pr-24"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    {geocoding && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                    {!geocoding && geocoded && (
+                      <span className="flex items-center gap-1 text-[11px] text-green-600 font-medium">
+                        <CheckCircle2 className="w-3.5 h-3.5" />已定位
+                      </span>
+                    )}
+                    {!geocoding && !geocoded && form.destination && (
+                      <button
+                        type="button"
+                        onClick={() => geocodeDestination(form.destination)}
+                        className="flex items-center gap-1 text-[11px] text-primary hover:underline font-medium"
+                      >
+                        <MapPin className="w-3 h-3" />定位
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Companions */}

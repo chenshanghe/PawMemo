@@ -176,6 +176,8 @@ router.post("/", async (req, res) => {
       endDate: data.endDate ?? null,
       entryType: typeof entryType === "string" ? entryType : "note",
       sourceEntryIds: Array.isArray(sourceEntryIds) ? sourceEntryIds : null,
+      lat: typeof data.lat === "number" ? data.lat : null,
+      lng: typeof data.lng === "number" ? data.lng : null,
     })
     .returning();
 
@@ -238,6 +240,8 @@ router.patch("/:id", async (req, res) => {
   if (data.visibility !== undefined) updateData.visibility = data.visibility;
   if (data.startDate !== undefined) updateData.startDate = data.startDate;
   if (data.endDate !== undefined) updateData.endDate = data.endDate;
+  if (data.lat !== undefined) updateData.lat = data.lat;
+  if (data.lng !== undefined) updateData.lng = data.lng;
 
   const [entry] = await db
     .update(diaryEntriesTable)

@@ -40,6 +40,8 @@ export const ListEntriesResponseItem = zod.object({
   "endDate": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date().optional(),
+  "lat": zod.number().nullish(),
+  "lng": zod.number().nullish(),
   "tags": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string()
@@ -70,7 +72,9 @@ export const CreateEntryBody = zod.object({
   "startDate": zod.coerce.date(),
   "endDate": zod.coerce.date().optional(),
   "tagIds": zod.array(zod.number()).optional(),
-  "tagNames": zod.array(zod.string()).optional()
+  "tagNames": zod.array(zod.string()).optional(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional()
 })
 
 
@@ -132,7 +136,9 @@ export const UpdateEntryBody = zod.object({
   "startDate": zod.coerce.date().optional(),
   "endDate": zod.coerce.date().optional(),
   "tagIds": zod.array(zod.number()).optional(),
-  "tagNames": zod.array(zod.string()).optional()
+  "tagNames": zod.array(zod.string()).optional(),
+  "lat": zod.number().optional(),
+  "lng": zod.number().optional()
 })
 
 export const UpdateEntryResponse = zod.object({

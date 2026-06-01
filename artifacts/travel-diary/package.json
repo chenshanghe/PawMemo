@@ -78,10 +78,13 @@
   "dependencies": {
     "@clerk/react": "^6.6.6",
     "@clerk/themes": "^2.4.57",
+    "@types/leaflet": "^1.9.21",
     "@uppy/aws-s3": "^5.1.0",
     "@uppy/core": "^5.2.0",
     "@uppy/dashboard": "^5.1.1",
     "@uppy/react": "^5.2.0",
-    "browser-image-compression": "^2.0.2"
+    "browser-image-compression": "^2.0.2",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^5.0.0"
   }
 }
