@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -35,6 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isMe = location === "/me" || location === "/favorites" || location.startsWith("/users/");
   const isMap = location === "/map";
   const isPhotos = location === "/photos";
+  const isPlan = location === "/plan";
 
   const displayName = profile?.name || user?.fullName || user?.username || "旅行者";
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -99,6 +100,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             }`}
           >
             <Images className="w-4.5 h-4.5" />相册
+          </Link>
+          <Link
+            href="/plan"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+              isPlan ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            }`}
+          >
+            <Navigation className="w-4.5 h-4.5" />规划
           </Link>
           <Link
             href="/me"
@@ -224,6 +233,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         >
           <Images className="w-5 h-5" />
           <span className="text-[10px] font-medium">相册</span>
+        </Link>
+        <Link
+          href="/plan"
+          className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isPlan ? "text-primary" : "text-muted-foreground"}`}
+        >
+          <Navigation className="w-5 h-5" />
+          <span className="text-[10px] font-medium">规划</span>
         </Link>
         <Link
           href="/me"

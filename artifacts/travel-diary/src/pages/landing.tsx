@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { MapPin, BookOpen, Images, Star } from "lucide-react";
+import { MapPin, BookOpen, Images, Star, Navigation } from "lucide-react";
 
 export default function Landing() {
   return (
@@ -55,6 +55,7 @@ export default function Landing() {
             { icon: <Images className="w-6 h-6" />, label: "多张照片" },
             { icon: <MapPin className="w-6 h-6" />, label: "目的地归档" },
             { icon: <Star className="w-6 h-6" />, label: "旅行评分" },
+            { icon: <Navigation className="w-6 h-6" />, label: "AI 行程规划" },
           ].map((f) => (
             <div key={f.label} className="flex flex-col items-center gap-2">
               <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">

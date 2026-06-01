@@ -24,6 +24,7 @@ import Pricing from "@/pages/pricing";
 import MapPage from "@/pages/map";
 import { EntryPrintPage } from "@/pages/entry-print";
 import Photos from "@/pages/photos";
+import PlanPage from "@/pages/plan";
 
 const queryClient = new QueryClient();
 
@@ -208,6 +209,7 @@ function AppRouter() {
       <Route path="/pricing">{() => <ProtectedRoute component={Pricing} />}</Route>
       <Route path="/map">{() => <ProtectedRoute component={MapPage} />}</Route>
       <Route path="/photos">{() => <ProtectedRoute component={Photos} />}</Route>
+      <Route path="/plan">{() => <ProtectedRoute component={PlanPage} />}</Route>
       <Route path="/entries/:id/print">
         {(params) => <ProtectedRoute component={EntryPrintPage} params={params as { id: string }} />}
       </Route>

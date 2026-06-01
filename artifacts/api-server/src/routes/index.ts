@@ -11,6 +11,7 @@ import payRouter from "./pay";
 import geocodeRouter from "./geocode";
 import weatherRouter from "./weather";
 import digestRouter from "./digest";
+import planRouter from "./plan";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use("/pay", payRouter);
 router.use(geocodeRouter);
 router.use(weatherRouter);
 router.use(digestRouter);
+router.use(planRouter);
 
 export default router;
