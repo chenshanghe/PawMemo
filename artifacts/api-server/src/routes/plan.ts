@@ -36,13 +36,21 @@ function gaodeUrl(name: string, city: string) {
   return `https://amap.com/search?query=${encodeURIComponent(name)}&city=${encodeURIComponent(city)}`;
 }
 
-function buildBooking({ from, destinations, startDate, endDate, travelers, cities }: {
+function budgetToHotelStar(budget?: string): string {
+  if (!budget) return "";
+  if (budget.startsWith("豪华")) return "&star=5";
+  if (budget.startsWith("舒适")) return "&star=4";
+  return "";
+}
+
+function buildBooking({ from, destinations, startDate, endDate, travelers, cities, budget }: {
   from: string; destinations: string[]; startDate: string; endDate: string;
-  travelers: number; cities: string[];
+  travelers: number; cities: string[]; budget?: string;
 }) {
   const firstDest = destinations[0] ?? cities[0] ?? "";
   const lastDest = destinations[destinations.length - 1] ?? cities[cities.length - 1] ?? "";
   const n = travelers;
+  const starFilter = budgetToHotelStar(budget);
 
   return {
     flights: {
@@ -63,15 +71,25 @@ function buildBooking({ from, destinations, startDate, endDate, travelers, citie
     hotels: cities.map(city => ({
       city,
       links: [
-        { name: "携程酒店", url: `https://hotels.ctrip.com/hotel/?cityname=${encodeURIComponent(city)}&checkin=${startDate}&checkout=${endDate}&adult=${n}` },
+        { name: "携程酒店", url: `https://hotels.ctrip.com/hotel/?cityname=${encodeURIComponent(city)}&checkin=${startDate}&checkout=${endDate}&adult=${n}${starFilter}` },
         { name: "美团酒店", url: `https://www.meituan.com/hotel/?keyword=${encodeURIComponent(city)}&checkIn=${startDate}&checkOut=${endDate}` },
       ],
     })),
   };
 }
 
+function buildSpecialNeedsPrompt(needs: string[]): string {
+  const map: Record<string, string> = {
+    "素食友好": "用户为素食者，请在午餐和晚餐中优先推荐素食/蔬食餐厅，并在 tips 中注明素食选择",
+    "宠物友好": "用户携带宠物出行，请优先推荐允许携带宠物的景点、餐厅和住宿，并注意提示",
+    "无障碍设施": "用户有无障碍需求，请优先推荐有完善无障碍设施的景点和餐厅，避免需要爬楼梯的场所",
+  };
+  const lines = needs.map(n => map[n] ?? n).filter(Boolean);
+  return lines.length ? `特殊需求：${lines.join("；")}。` : "";
+}
+
 router.post("/plan/generate", requireAuth, async (req, res) => {
-  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget } = req.body ?? {};
+  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget, specialNeeds } = req.body ?? {};
 
   if (!from || !Array.isArray(destinations) || !destinations.length || !startDate || !endDate) {
     res.status(400).json({ error: "缺少必要参数（出发地、目的地、日期）" });
@@ -84,6 +102,8 @@ router.post("/plan/generate", requireAuth, async (req, res) => {
   const styleStr = style ? `旅行风格：${style}。` : "";
   const modeStr = travelMode ? `出行方式：${travelMode}。` : "";
   const budgetStr = budget ? `预算档次：${budget}（请在推荐餐厅、酒店和交通时体现此预算范围）。` : "";
+  const needsArr: string[] = Array.isArray(specialNeeds) ? specialNeeds : [];
+  const needsStr = needsArr.length ? buildSpecialNeedsPrompt(needsArr) : "";
 
   const systemPrompt = `你是专业中国旅行规划师。请返回严格符合以下结构的 JSON（不含任何额外文字）：
 {
@@ -108,7 +128,7 @@ router.post("/plan/generate", requireAuth, async (req, res) => {
   "tips": ["贴士1", "贴士2", "贴士3"]
 }`;
 
-  const userPrompt = `出发地：${from}\n目的地：${destStr}\n出发日期：${startDate}\n结束日期：${endDate}\n天数：${days}天\n人数：${travelers ?? 2}人\n${styleStr}${modeStr}${budgetStr}请生成完整的 ${days} 天行程。`;
+  const userPrompt = `出发地：${from}\n目的地：${destStr}\n出发日期：${startDate}\n结束日期：${endDate}\n天数：${days}天\n人数：${travelers ?? 2}人\n${styleStr}${modeStr}${budgetStr}${needsStr}请生成完整的 ${days} 天行程。`;
 
   try {
     const resp = await deepseek.chat.completions.create({
@@ -153,6 +173,7 @@ router.post("/plan/generate", requireAuth, async (req, res) => {
       endDate,
       travelers: travelers ?? 2,
       cities: plan.cities?.length ? plan.cities : destinations,
+      budget,
     });
 
     res.json({ ...plan, booking });

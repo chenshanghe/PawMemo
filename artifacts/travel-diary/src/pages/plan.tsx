@@ -43,7 +43,13 @@ const TRAVEL_MODES = [
 const BUDGETS = [
   { value: "经济实惠（人均 300 元/天以内）", label: "💰 经济" },
   { value: "舒适中档（人均 300-800 元/天）", label: "💰💰 舒适" },
-  { value: "高端品质（人均 800 元以上/天）", label: "💰💰💰 高端" },
+  { value: "豪华品质（人均 800 元以上/天）", label: "💰💰💰 豪华" },
+] as const;
+
+const SPECIAL_NEEDS = [
+  { value: "素食友好", label: "🥦 素食友好", desc: "推荐素食/蔬食餐厅" },
+  { value: "宠物友好", label: "🐾 宠物友好", desc: "推荐允许携带宠物的场所" },
+  { value: "无障碍设施", label: "♿ 无障碍", desc: "推荐无障碍设施完善的景点" },
 ] as const;
 
 const today = new Date().toISOString().slice(0, 10);
@@ -153,6 +159,7 @@ export default function PlanPage() {
   const [style, setStyle] = useState("文化探索");
   const [travelMode, setTravelMode] = useState<string>("");
   const [budget, setBudget] = useState<string>("");
+  const [specialNeeds, setSpecialNeeds] = useState<string[]>([]);
   const [result, setResult] = useState<PlanResult | null>(null);
   const [currentPlanParams, setCurrentPlanParams] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,7 +207,7 @@ export default function PlanPage() {
     setError(null);
     setSavedId(null);
     setState("generating");
-    const params = { from: from.trim(), destinations: filledDests, startDate, endDate, travelers, style, travelMode: travelMode || undefined, budget: budget || undefined };
+    const params = { from: from.trim(), destinations: filledDests, startDate, endDate, travelers, style, travelMode: travelMode || undefined, budget: budget || undefined, specialNeeds: specialNeeds.length ? specialNeeds : undefined };
     setCurrentPlanParams(params);
     try {
       const res = await apiFetch("/api/plan/generate", {
@@ -255,7 +262,10 @@ export default function PlanPage() {
         style: plan.style,
         travelMode: plan.travelMode,
         budget: plan.budget,
+        specialNeeds: plan.specialNeeds,
       });
+      if (Array.isArray(plan.specialNeeds)) setSpecialNeeds(plan.specialNeeds);
+      else setSpecialNeeds([]);
       setSavedId(id);
       setActiveDay(0);
       setState("result");
@@ -456,6 +466,23 @@ export default function PlanPage() {
                 </div>
               </div>
 
+              {/* Special needs */}
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-2 block">特殊需求 <span className="text-muted-foreground font-normal">（可多选）</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {SPECIAL_NEEDS.map(n => {
+                    const selected = specialNeeds.includes(n.value);
+                    return (
+                      <button key={n.value}
+                        onClick={() => setSpecialNeeds(prev => selected ? prev.filter(x => x !== n.value) : [...prev, n.value])}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${selected ? "bg-emerald-500 text-white border-emerald-500" : "border-border/60 text-muted-foreground hover:border-emerald-300 hover:text-foreground"}`}>
+                        {n.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-foreground mb-2 block">旅行风格</label>
                 <div className="flex flex-wrap gap-2">
@@ -511,6 +538,9 @@ export default function PlanPage() {
                       {currentPlanParams?.budget && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">{currentPlanParams.budget.split("（")[0]}</span>
                       )}
+                      {Array.isArray(currentPlanParams?.specialNeeds) && currentPlanParams.specialNeeds.map((sn: string) => (
+                        <span key={sn} className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">{sn}</span>
+                      ))}
                     </div>
                   </div>
                   {/* Save button */}
