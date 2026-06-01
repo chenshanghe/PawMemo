@@ -4,6 +4,7 @@ import { useUser, useClerk } from "@clerk/react";
 import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
+  Camera, Upload, Wand2, Check, Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,21 @@ const VIS_ICON = {
   unlisted: <EyeOff className="w-3 h-3" />,
 };
 
+const PRESET_AVATARS = [
+  { url: "https://api.dicebear.com/9.x/adventurer/svg?seed=lychee",      bg: "bg-pink-50" },
+  { url: "https://api.dicebear.com/9.x/adventurer/svg?seed=bamboo",      bg: "bg-green-50" },
+  { url: "https://api.dicebear.com/9.x/big-smile/svg?seed=journey",      bg: "bg-yellow-50" },
+  { url: "https://api.dicebear.com/9.x/big-smile/svg?seed=wanderer",     bg: "bg-orange-50" },
+  { url: "https://api.dicebear.com/9.x/fun-emoji/svg?seed=traveler",     bg: "bg-blue-50" },
+  { url: "https://api.dicebear.com/9.x/fun-emoji/svg?seed=explorer",     bg: "bg-purple-50" },
+  { url: "https://api.dicebear.com/9.x/micah/svg?seed=nomad",            bg: "bg-teal-50" },
+  { url: "https://api.dicebear.com/9.x/micah/svg?seed=pilgrim",          bg: "bg-indigo-50" },
+  { url: "https://api.dicebear.com/9.x/pixel-art/svg?seed=globe",        bg: "bg-red-50" },
+  { url: "https://api.dicebear.com/9.x/pixel-art/svg?seed=atlas",        bg: "bg-amber-50" },
+  { url: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=rover",   bg: "bg-cyan-50" },
+  { url: "https://api.dicebear.com/9.x/lorelei/svg?seed=sunset",         bg: "bg-rose-50" },
+];
+
 interface SubInfo {
   tier: string;
   tierName: string;
@@ -101,6 +117,45 @@ export default function Me() {
   const [sub, setSub] = useState<SubInfo | null>(null);
   const [tab, setTab] = useState<Tab>("notes");
   const [editing, setEditing] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+
+  const handleSelectAvatar = async (url: string) => {
+    setAvatarSaving(true);
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar: url }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setProfile((prev) => prev ? { ...prev, avatar: d.avatar } : prev);
+        setShowAvatarPicker(false);
+      }
+    } finally {
+      setAvatarSaving(false);
+    }
+  };
+
+  const handleUploadAvatar = async (file: File) => {
+    setAvatarSaving(true);
+    try {
+      const urlRes = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!urlRes.ok) return;
+      const { uploadURL, objectPath } = await urlRes.json();
+      await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      await handleSelectAvatar(`/api/storage/objects/${objectPath}`);
+    } finally {
+      setAvatarSaving(false);
+    }
+  };
 
   const [notes, setNotes] = useState<MyEntry[]>([]);
   const [notesLoaded, setNotesLoaded] = useState(false);
@@ -189,12 +244,26 @@ export default function Me() {
         {/* ── Identity ──────────────────────────────────────────────────── */}
         <div className="px-4 md:px-8 -mt-12 relative">
           <div className="flex items-end gap-4">
-            <div className="w-24 h-24 rounded-full ring-4 ring-background bg-primary/20 overflow-hidden shrink-0 flex items-center justify-center text-3xl font-serif font-bold text-primary shadow-md">
-              {profile.avatar ? (
-                <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
-              ) : (
-                profile.name[0]
-              )}
+            <div className="relative shrink-0 group">
+              <div className="w-24 h-24 rounded-full ring-4 ring-background bg-primary/20 overflow-hidden flex items-center justify-center text-3xl font-serif font-bold text-primary shadow-md">
+                {profile.avatar ? (
+                  <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  profile.name[0]
+                )}
+              </div>
+              <button
+                onClick={() => setShowAvatarPicker(true)}
+                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                <Camera className="w-6 h-6 text-white" />
+              </button>
+              <button
+                onClick={() => setShowAvatarPicker(true)}
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
+              >
+                <Camera className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
@@ -355,6 +424,15 @@ export default function Me() {
           onSaved={(p) => { setProfile((prev) => prev ? { ...prev, name: p.name, bio: p.bio } : prev); setEditing(false); }}
         />
       )}
+      {showAvatarPicker && (
+        <AvatarPickerModal
+          currentAvatar={profile.avatar}
+          saving={avatarSaving}
+          onSelect={handleSelectAvatar}
+          onUpload={handleUploadAvatar}
+          onClose={() => setShowAvatarPicker(false)}
+        />
+      )}
     </Layout>
   );
 }
@@ -511,8 +589,8 @@ function EditProfileDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="bg-background rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+    <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="bg-background rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-serif font-bold text-foreground">编辑主页</h3>
           <button onClick={onClose} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
@@ -537,9 +615,6 @@ function EditProfileDialog({
             />
             <p className="text-[10px] text-muted-foreground/70 text-right mt-1">{bio.length}/120</p>
           </div>
-          <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
-            头像跟随登录账号，如需更换请到账户设置。
-          </p>
         </div>
 
         <div className="flex gap-2 pt-2">
@@ -548,6 +623,174 @@ function EditProfileDialog({
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "保存"}
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AvatarPickerModal({
+  currentAvatar,
+  saving,
+  onSelect,
+  onUpload,
+  onClose,
+}: {
+  currentAvatar: string | null;
+  saving: boolean;
+  onSelect: (url: string) => void;
+  onUpload: (file: File) => void;
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<"preset" | "upload" | "ai">("preset");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim() || aiLoading) return;
+    setAiLoading(true);
+    setAiError("");
+    try {
+      const res = await fetch("/api/ai/avatar/ai-suggest", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: aiPrompt.trim() }),
+      });
+      if (res.ok) {
+        const { url } = await res.json();
+        onSelect(url);
+      } else {
+        setAiError("生成失败，请重试");
+      }
+    } catch {
+      setAiError("网络错误，请重试");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const TABS = [
+    { id: "preset" as const, label: "卡通形象", icon: <Sparkles className="w-3.5 h-3.5" /> },
+    { id: "upload" as const, label: "上传图片", icon: <Upload className="w-3.5 h-3.5" /> },
+    { id: "ai"     as const, label: "AI 生成",  icon: <Wand2 className="w-3.5 h-3.5" /> },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-background rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md overflow-hidden"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
+          <h3 className="text-base font-serif font-bold text-foreground">更换头像</h3>
+          <button onClick={onClose} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Tab bar */}
+        <div className="flex border-b border-border/40">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors border-b-2",
+                tab === t.id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t.icon}{t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Preset tab */}
+        {tab === "preset" && (
+          <div className="p-4">
+            <div className="grid grid-cols-4 gap-3">
+              {PRESET_AVATARS.map((p) => (
+                <button
+                  key={p.url}
+                  onClick={() => onSelect(p.url)}
+                  disabled={saving}
+                  className={cn(
+                    "relative aspect-square rounded-2xl overflow-hidden border-2 transition-all hover:scale-105 active:scale-95",
+                    p.bg,
+                    currentAvatar === p.url ? "border-primary shadow-md" : "border-transparent hover:border-primary/40"
+                  )}
+                >
+                  <img src={p.url} alt="" className="w-full h-full object-contain p-1" />
+                  {currentAvatar === p.url && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-primary/20">
+                      <Check className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+            {saving && (
+              <div className="mt-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />保存中…
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Upload tab */}
+        {tab === "upload" && (
+          <div className="p-5 space-y-4">
+            <label className={cn(
+              "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border/60 py-10 cursor-pointer transition-colors hover:border-primary/50 hover:bg-muted/30",
+              saving && "pointer-events-none opacity-60"
+            )}>
+              {saving
+                ? <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                : <Upload className="w-8 h-8 text-muted-foreground" />
+              }
+              <span className="text-sm text-muted-foreground">
+                {saving ? "上传中…" : "点击选择图片"}
+              </span>
+              <span className="text-xs text-muted-foreground/60">支持 JPG、PNG、WebP，建议正方形</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onUpload(f);
+                }}
+              />
+            </label>
+          </div>
+        )}
+
+        {/* AI generate tab */}
+        {tab === "ai" && (
+          <div className="p-5 space-y-3">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              描述你的风格或喜好，AI 将为你生成一个专属卡通头像。
+            </p>
+            <textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="例如：喜欢旅行的女生、戴眼镜的程序员、可爱的机器人探险家…"
+              rows={3}
+              className="w-full rounded-xl border border-border/60 bg-background text-sm px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
+            />
+            {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+            <Button
+              onClick={handleAiGenerate}
+              disabled={!aiPrompt.trim() || aiLoading || saving}
+              className="w-full gap-2"
+            >
+              {aiLoading ? <><Loader2 className="w-4 h-4 animate-spin" />生成中…</> : <><Wand2 className="w-4 h-4" />AI 生成头像</>}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
