@@ -488,7 +488,6 @@ export default function Me() {
               { href: "/report",        Icon: BarChart2, label: "旅行报告", desc: "查看旅行数据与趋势总览" },
               { href: "/notifications", Icon: Bell,      label: "消息",     desc: "互动通知与系统消息" },
               { href: "/achievements",  Icon: Award,     label: "旅行成就", desc: "解锁你的专属旅行勋章" },
-              { href: "/collections",   Icon: BookOpen,  label: "旅行合集", desc: "整理与分类你的日记" },
               { href: "/export",        Icon: Download,  label: "导出日记", desc: "下载全部旅行记录备份" },
             ] as const).map(({ href, Icon, label, desc }) => (
               <Link key={href} href={href}>

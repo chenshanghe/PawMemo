@@ -28,8 +28,6 @@ import PlanPage from "@/pages/plan";
 import ReportPage from "@/pages/report";
 import NotificationsPage from "@/pages/notifications";
 import AchievementsPage from "@/pages/achievements";
-import CollectionsPage from "@/pages/collections";
-import CollectionDetailPage from "@/pages/collection-detail";
 import ExportPage from "@/pages/export";
 import PlanListPage from "@/pages/plan-list";
 
@@ -221,10 +219,6 @@ function AppRouter() {
       <Route path="/report">{() => <ProtectedRoute component={ReportPage} />}</Route>
       <Route path="/notifications">{() => <ProtectedRoute component={NotificationsPage} />}</Route>
       <Route path="/achievements">{() => <ProtectedRoute component={AchievementsPage} />}</Route>
-      <Route path="/collections">{() => <ProtectedRoute component={CollectionsPage} />}</Route>
-      <Route path="/collections/:id">
-        {(params) => <ProtectedRoute component={CollectionDetailPage} params={params as { id: string }} />}
-      </Route>
       <Route path="/export">{() => <ProtectedRoute component={ExportPage} />}</Route>
       <Route path="/entries/:id/print">
         {(params) => <ProtectedRoute component={EntryPrintPage} params={params as { id: string }} />}
