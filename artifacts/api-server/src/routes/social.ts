@@ -494,11 +494,12 @@ router.get("/me/profile", requireAuth, async (req, res) => {
 // PATCH /api/me/profile — edit name, bio, and custom avatar
 router.patch("/me/profile", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).userId;
-  const { name, bio, avatar } = req.body ?? {};
+  const { name, bio, avatar, weeklyDigest } = req.body ?? {};
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (typeof name === "string" && name.trim()) updates.name = name.trim();
   if (typeof bio === "string") updates.bio = bio.trim() || null;
   if (typeof avatar === "string") updates.avatar = avatar || null;
+  if (typeof weeklyDigest === "boolean") updates.weeklyDigest = weeklyDigest;
   if (Object.keys(updates).length === 1) {
     res.status(400).json({ error: "Nothing to update" });
     return;

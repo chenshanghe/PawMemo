@@ -21,6 +21,8 @@ interface MyProfile {
   name: string;
   avatar: string | null;
   bio: string | null;
+  email: string | null;
+  weeklyDigest: boolean;
   entryCount: number;
   publicEntryCount: number;
   followingCount: number;
@@ -131,6 +133,8 @@ export default function Me() {
   const [editing, setEditing] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
+  const [digestSending, setDigestSending] = useState(false);
+  const [digestToast, setDigestToast] = useState<string | null>(null);
 
   const handleSelectAvatar = async (url: string) => {
     setAvatarSaving(true);
@@ -231,6 +235,37 @@ export default function Me() {
   }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded, statsLoaded]);
 
   const handleSignOut = () => signOut();
+
+  const handleToggleDigest = async () => {
+    if (!profile) return;
+    const next = !profile.weeklyDigest;
+    setProfile((p) => p ? { ...p, weeklyDigest: next } : p);
+    await fetch("/api/me/profile", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ weeklyDigest: next }),
+    });
+  };
+
+  const handleSendDigest = async () => {
+    setDigestSending(true);
+    setDigestToast(null);
+    try {
+      const res = await fetch("/api/digest/send", { method: "POST", credentials: "include" });
+      const d = await res.json();
+      if (res.ok) {
+        setDigestToast(`✅ 本周回顾已发送至 ${d.to}（共 ${d.entryCount} 篇）`);
+      } else {
+        setDigestToast(`❌ ${d.error ?? "发送失败"}`);
+      }
+    } catch {
+      setDigestToast("❌ 发送失败，请重试");
+    } finally {
+      setDigestSending(false);
+      setTimeout(() => setDigestToast(null), 5000);
+    }
+  };
 
   if (!profile) {
     return (
@@ -394,6 +429,54 @@ export default function Me() {
               </button>
             </div>
           )}
+
+          {/* ── Weekly Digest ──────────────────────────────────────────── */}
+          <div className="mt-4 p-3 rounded-xl border border-border/40 bg-muted/20">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground">📧 每周旅行回顾</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                  {profile.weeklyDigest
+                    ? "每周日晚 9 点收到本周日记摘要邮件"
+                    : "订阅后每周日收到上周旅行精华摘要"}
+                </p>
+              </div>
+              <button
+                onClick={handleToggleDigest}
+                className={`relative w-10 h-5.5 rounded-full flex-shrink-0 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                  profile.weeklyDigest ? "bg-primary" : "bg-muted-foreground/30"
+                }`}
+                style={{ height: "22px", width: "40px" }}
+                aria-label="切换每周邮件"
+              >
+                <span
+                  className="absolute top-0.5 left-0.5 w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200"
+                  style={{ transform: profile.weeklyDigest ? "translateX(18px)" : "translateX(0)" }}
+                />
+              </button>
+            </div>
+            {profile.weeklyDigest && (
+              <div className="mt-2.5 flex items-center gap-2">
+                <button
+                  onClick={handleSendDigest}
+                  disabled={digestSending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {digestSending ? (
+                    <><span className="inline-block w-3 h-3 border-2 border-primary/40 border-t-primary rounded-full animate-spin" /> 发送中…</>
+                  ) : (
+                    <>✉️ 立即发送本周回顾</>
+                  )}
+                </button>
+                {!profile.email && (
+                  <span className="text-[11px] text-amber-600">⚠️ 未绑定邮箱</span>
+                )}
+              </div>
+            )}
+            {digestToast && (
+              <p className="mt-2 text-[11px] text-muted-foreground leading-tight">{digestToast}</p>
+            )}
+          </div>
 
           {/* ── Tabs ───────────────────────────────────────────────────── */}
           <div className="mt-6 border-b border-border/40 flex gap-1 -mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto">

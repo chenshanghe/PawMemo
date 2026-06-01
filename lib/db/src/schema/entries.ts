@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, date, unique, primaryKey, json, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, date, unique, primaryKey, json, real, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -98,6 +98,7 @@ export const userProfilesTable = pgTable("user_profiles", {
   aiComposeResetAt: timestamp("ai_compose_reset_at"),
   aiEnhanceUsed: integer("ai_enhance_used").notNull().default(0),
   aiEnhanceResetAt: timestamp("ai_enhance_reset_at"),
+  weeklyDigest: boolean("weekly_digest").notNull().default(false),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

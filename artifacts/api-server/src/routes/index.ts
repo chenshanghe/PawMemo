@@ -10,6 +10,7 @@ import socialRouter from "./social";
 import payRouter from "./pay";
 import geocodeRouter from "./geocode";
 import weatherRouter from "./weather";
+import digestRouter from "./digest";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(socialRouter);
 router.use("/pay", payRouter);
 router.use(geocodeRouter);
 router.use(weatherRouter);
+router.use(digestRouter);
 
 export default router;
