@@ -11,6 +11,13 @@ const router = Router();
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
+// Mock/sandbox payment helpers are strictly disabled in production.
+// PAYMENT_MOCK_MODE=true may be set in non-production environments to opt in
+// explicitly; in all cases production (NODE_ENV=production) is always blocked.
+const MOCK_MODE_ALLOWED =
+  process.env.NODE_ENV !== "production" &&
+  process.env.PAYMENT_MOCK_MODE !== "false";
+
 const SANDBOX = process.env.ALIPAY_SANDBOX !== "false";
 
 const ALIPAY_APP_ID = process.env.ALIPAY_APP_ID ?? "";
@@ -83,8 +90,15 @@ router.post("/alipay/create", requireAuth, async (req: Request, res: Response): 
 
   const sdk = makeSdk();
 
-  // ── If SDK not configured → sandbox mock mode ────────────────────────────
+  // ── If SDK not configured → sandbox mock mode (non-production only) ────────
   if (!sdk) {
+    if (!MOCK_MODE_ALLOWED) {
+      // Clean up the pending order and refuse — no real payment can be made
+      await db.delete(subscriptionOrdersTable)
+        .where(eq(subscriptionOrdersTable.outTradeNo, outTradeNo));
+      res.status(503).json({ error: "支付服务未配置，请联系管理员" });
+      return;
+    }
     res.json({
       outTradeNo,
       qrCodeUrl: null,
@@ -143,8 +157,8 @@ router.get("/alipay/query/:outTradeNo", requireAuth, async (req: Request, res: R
 
   const sdk = makeSdk();
   if (!sdk) {
-    // Mock mode: auto-complete after 5s
-    res.json({ status: "pending", mockMode: true });
+    // Mock mode only available outside production
+    res.json({ status: "pending", mockMode: MOCK_MODE_ALLOWED });
     return;
   }
 
@@ -167,8 +181,16 @@ router.get("/alipay/query/:outTradeNo", requireAuth, async (req: Request, res: R
 });
 
 // ── POST /api/pay/alipay/mock-complete ──────────────────────────────────────
-// Sandbox/mock: manually complete an order (no real Alipay needed)
+// Sandbox/mock: manually complete an order.
+// Disabled in production (NODE_ENV=production) and whenever real Alipay
+// credentials are present. Both conditions must be clear to proceed.
 router.post("/alipay/mock-complete", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  // Reject if production environment OR real SDK credentials are configured.
+  if (!MOCK_MODE_ALLOWED || makeSdk() !== null) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
   const userId = (req as AuthedRequest).userId;
   const { outTradeNo } = req.body as { outTradeNo: string };
 
