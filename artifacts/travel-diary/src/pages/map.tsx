@@ -1,60 +1,23 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Layout } from "@/components/layout";
 import { useListEntries } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { MapPin, LayoutGrid, Route } from "lucide-react";
 import { format } from "date-fns";
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import { wgs84ToGcj02 } from "@/lib/coords";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  Line,
+} from "react-simple-maps";
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-});
+const GEO_URL = `${import.meta.env.BASE_URL}world-110m.json`;
 
 const TRIP_COLORS = [
   "#f97316", "#3b82f6", "#10b981", "#8b5cf6",
   "#ec4899", "#f59e0b", "#14b8a6", "#ef4444",
 ];
-
-function makeIcon(count: number, color = "#c2410c") {
-  const size = count > 1 ? 36 : 30;
-  return L.divIcon({
-    className: "",
-    html: `<div style="
-      width:${size}px;height:${size}px;border-radius:50%;
-      background:${color};border:3px solid white;
-      box-shadow:0 2px 8px rgba(0,0,0,.35);
-      display:flex;align-items:center;justify-content:center;
-      color:white;font-weight:700;font-size:${count > 1 ? 13 : 0}px;
-      font-family:sans-serif;cursor:pointer;
-    ">${count > 1 ? count : ""}</div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -(size / 2 + 4)],
-  });
-}
-
-function makeStopIcon(color: string, index: number) {
-  return L.divIcon({
-    className: "",
-    html: `<div style="
-      width:28px;height:28px;border-radius:50%;
-      background:${color};border:3px solid white;
-      box-shadow:0 2px 8px rgba(0,0,0,.30);
-      display:flex;align-items:center;justify-content:center;
-      color:white;font-weight:700;font-size:11px;
-      font-family:sans-serif;cursor:pointer;
-    ">${index + 1}</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -18],
-  });
-}
 
 function clusterTrips(entries: any[]): any[][] {
   if (entries.length === 0) return [];
@@ -80,22 +43,12 @@ function clusterTrips(entries: any[]): any[][] {
   return trips;
 }
 
-function FitBounds({ coords }: { coords: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (coords.length === 0) return;
-    if (coords.length === 1) {
-      map.setView(coords[0], 7, { animate: true });
-    } else {
-      map.fitBounds(L.latLngBounds(coords), { padding: [48, 48], animate: true });
-    }
-  }, [coords.length]);
-  return null;
-}
-
 export default function MapPage() {
   const { data: allEntries, isLoading } = useListEntries({});
   const [view, setView] = useState<"scatter" | "route">("scatter");
+  const [selected, setSelected] = useState<any[] | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   const entries = useMemo(
     () => (allEntries ?? []).filter((e: any) => e.lat != null && e.lng != null),
@@ -106,9 +59,8 @@ export default function MapPage() {
     [allEntries],
   );
 
-  // Scatter: group by location
   const grouped = useMemo(() => {
-    const map = new Map<string, typeof entries>();
+    const map = new Map<string, any[]>();
     for (const e of entries) {
       const key = `${(e as any).lat?.toFixed(4)},${(e as any).lng?.toFixed(4)}`;
       if (!map.has(key)) map.set(key, []);
@@ -117,20 +69,25 @@ export default function MapPage() {
     return map;
   }, [entries]);
 
-  // Route: trip clusters
   const trips = useMemo(() => clusterTrips(entries), [entries]);
 
-  const coords: [number, number][] = useMemo(
-    () => entries.map((e: any) => wgs84ToGcj02(e.lat, e.lng)),
-    [entries],
-  );
+  function handleMarkerEnter(e: React.MouseEvent, group: any[]) {
+    const rect = mapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setSelected(group);
+    setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }
 
-  const defaultCenter: [number, number] = [35, 105];
+  function handleMouseMove(e: React.MouseEvent) {
+    if (!selected) return;
+    const rect = mapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }
 
   return (
     <Layout>
       <div className="space-y-4 animate-in fade-in duration-500">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-serif font-bold text-foreground">足迹地图</h2>
@@ -140,35 +97,28 @@ export default function MapPage() {
                 : `${entries.length} 个地点已标记${noCoords.length > 0 ? `，${noCoords.length} 篇随记未设定坐标` : ""}`}
             </p>
           </div>
-
-          {/* View toggle */}
           {entries.length > 1 && (
             <div className="flex items-center rounded-xl border border-border/60 overflow-hidden">
               <button
                 onClick={() => setView("scatter")}
-                title="散点模式"
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
                   view === "scatter" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                散点
+                <LayoutGrid className="w-3.5 h-3.5" />散点
               </button>
               <button
                 onClick={() => setView("route")}
-                title="路线模式"
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-l border-border/60 transition-colors ${
                   view === "route" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Route className="w-3.5 h-3.5" />
-                路线
+                <Route className="w-3.5 h-3.5" />路线
               </button>
             </div>
           )}
         </div>
 
-        {/* Route legend */}
         {view === "route" && trips.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {trips.map((trip, ti) => (
@@ -181,80 +131,125 @@ export default function MapPage() {
         )}
 
         {/* Map */}
-        <div className="rounded-2xl overflow-hidden border border-border/50 shadow-sm" style={{ height: "60vh", minHeight: 340 }}>
-          <MapContainer center={defaultCenter} zoom={4} style={{ width: "100%", height: "100%" }} scrollWheelZoom>
-            <TileLayer
-              attribution='&copy; <a href="https://www.amap.com/">高德地图</a>'
-              url="https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}"
-              subdomains="1234"
-            />
-            <FitBounds coords={coords} />
+        <div
+          ref={mapRef}
+          className="relative rounded-2xl overflow-hidden border border-border/50 shadow-sm"
+          style={{ height: "60vh", minHeight: 340, background: "#c8dff0" }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => { setSelected(null); setTooltipPos(null); }}
+        >
+          <ComposableMap
+            projection="geoNaturalEarth1"
+            projectionConfig={{ scale: 175, center: [20, 10] }}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <Geographies geography={GEO_URL}>
+              {({ geographies }) =>
+                geographies.map((geo) => (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    fill="#e8e0d5"
+                    stroke="#c4b49f"
+                    strokeWidth={0.5}
+                    style={{
+                      default: { outline: "none" },
+                      hover: { outline: "none", fill: "#ddd4c7" },
+                      pressed: { outline: "none" },
+                    }}
+                  />
+                ))
+              }
+            </Geographies>
 
-            {/* Scatter mode */}
             {view === "scatter" && [...grouped.entries()].map(([key, group]) => {
               const first = group[0] as any;
+              const count = group.length;
               return (
                 <Marker
                   key={key}
-                  position={wgs84ToGcj02(first.lat, first.lng)}
-                  icon={makeIcon(group.length)}
-                  eventHandlers={{ click: () => {} }}
+                  coordinates={[first.lng, first.lat]}
+                  onMouseEnter={(e: any) => handleMarkerEnter(e, group)}
                 >
-                  <Popup>
-                    <div className="space-y-2 min-w-[180px]">
-                      {group.map((e: any) => (
-                        <div key={e.id} className="border-b border-gray-100 last:border-0 pb-2 last:pb-0">
-                          <p className="font-semibold text-sm leading-tight">{e.title}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">📍 {e.destination}</p>
-                          <p className="text-xs text-gray-400">{format(new Date(e.startDate), "yyyy.MM.dd")}</p>
-                          <a href={`/entries/${e.id}`} className="text-xs text-orange-600 hover:underline font-medium mt-1 inline-block">
-                            查看随记 →
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  </Popup>
+                  <circle
+                    r={count > 1 ? 10 : 7}
+                    fill="#c2410c"
+                    stroke="white"
+                    strokeWidth={2.5}
+                    style={{ cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.3))" }}
+                  />
+                  {count > 1 && (
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fill="white"
+                      fontSize={9}
+                      fontWeight="bold"
+                      style={{ pointerEvents: "none" }}
+                    >
+                      {count}
+                    </text>
+                  )}
                 </Marker>
               );
             })}
 
-            {/* Route mode: polylines + numbered stops */}
             {view === "route" && trips.map((trip, ti) => {
               const color = TRIP_COLORS[ti % TRIP_COLORS.length];
-              const positions: [number, number][] = trip.map((e: any) => wgs84ToGcj02(e.lat, e.lng));
+              const sorted = [...trip].sort(
+                (a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+              );
               return (
                 <React.Fragment key={ti}>
-                  {positions.length > 1 && (
-                    <Polyline
-                      positions={positions}
-                      pathOptions={{ color, weight: 3, opacity: 0.85, dashArray: "10 6" }}
+                  {sorted.slice(0, -1).map((_: any, ei: number) => (
+                    <Line
+                      key={ei}
+                      from={[sorted[ei].lng, sorted[ei].lat]}
+                      to={[sorted[ei + 1].lng, sorted[ei + 1].lat]}
+                      stroke={color}
+                      strokeWidth={2}
+                      strokeOpacity={0.75}
+                      strokeDasharray="6 4"
                     />
-                  )}
-                  {trip.map((e: any, ei: number) => (
+                  ))}
+                  {sorted.map((e: any, ei: number) => (
                     <Marker
                       key={e.id}
-                      position={wgs84ToGcj02(e.lat, e.lng)}
-                      icon={makeStopIcon(color, ei)}
+                      coordinates={[e.lng, e.lat]}
+                      onMouseEnter={(evt: any) => handleMarkerEnter(evt, [e])}
                     >
-                      <Popup>
-                        <div className="min-w-[160px]">
-                          <p className="font-semibold text-sm">{e.title}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">📍 {e.destination}</p>
-                          <p className="text-xs text-gray-400">{format(new Date(e.startDate), "yyyy.MM.dd")}</p>
-                          <a href={`/entries/${e.id}`} className="text-xs text-orange-600 hover:underline font-medium mt-1 inline-block">
-                            查看随记 →
-                          </a>
-                        </div>
-                      </Popup>
+                      <circle r={10} fill={color} stroke="white" strokeWidth={2.5} style={{ cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.25))" }} />
+                      <text textAnchor="middle" dominantBaseline="central" fill="white" fontSize={9} fontWeight="bold" style={{ pointerEvents: "none" }}>
+                        {ei + 1}
+                      </text>
                     </Marker>
                   ))}
                 </React.Fragment>
               );
             })}
-          </MapContainer>
+          </ComposableMap>
+
+          {selected && tooltipPos && (
+            <div
+              className="absolute z-20 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-border/60 p-3 space-y-2 max-w-[220px] pointer-events-none"
+              style={{
+                left: Math.min(tooltipPos.x + 14, (mapRef.current?.offsetWidth ?? 400) - 240),
+                top: Math.max(8, tooltipPos.y - 12),
+              }}
+            >
+              {selected.map((e: any) => (
+                <div key={e.id} className="border-b border-gray-100 last:border-0 pb-2 last:pb-0">
+                  <p className="font-semibold text-sm leading-tight text-foreground">{e.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">📍 {e.destination}</p>
+                  <p className="text-xs text-muted-foreground">{format(new Date(e.startDate), "yyyy.MM.dd")}</p>
+                  <span className="text-xs text-primary font-medium mt-0.5 block">悬停查看 · 点击随记</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Route timeline list */}
+        {/* Route timeline */}
         {view === "route" && trips.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-foreground">旅行时间线</h3>
@@ -265,7 +260,6 @@ export default function MapPage() {
               );
               return (
                 <div key={ti} className="relative pl-5">
-                  {/* Vertical line */}
                   <div className="absolute left-1.5 top-5 bottom-0 w-0.5 rounded-full" style={{ backgroundColor: color + "44" }} />
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-3 h-3 rounded-full border-2 border-white shadow-sm shrink-0 -ml-0.5" style={{ backgroundColor: color }} />
@@ -277,16 +271,11 @@ export default function MapPage() {
                     {sorted.map((e: any, ei: number) => (
                       <Link key={e.id} href={`/entries/${e.id}`}>
                         <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group ml-3">
-                          <div
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                            style={{ backgroundColor: color }}
-                          >
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ backgroundColor: color }}>
                             {ei + 1}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                              {e.title}
-                            </p>
+                            <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">{e.title}</p>
                             <p className="text-xs text-muted-foreground">
                               {e.destination} · {format(new Date(e.startDate), "MM.dd")}
                               {e.endDate ? ` — ${format(new Date(e.endDate), "MM.dd")}` : ""}
@@ -302,7 +291,6 @@ export default function MapPage() {
           </div>
         )}
 
-        {/* Empty state */}
         {entries.length === 0 && !isLoading && (
           <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-8 text-center space-y-2">
             <div className="text-4xl">🗺️</div>
@@ -316,7 +304,6 @@ export default function MapPage() {
           </div>
         )}
 
-        {/* No-coords list */}
         {noCoords.length > 0 && entries.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-muted-foreground">未解析坐标的随记</p>

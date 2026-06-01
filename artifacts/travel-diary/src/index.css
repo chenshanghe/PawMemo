@@ -1,14 +1,6 @@
 @layer theme, base, clerk, components, utilities;
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700;900&family=Zhi+Mang+Xing&display=swap');
 @import "tailwindcss";
-
-.leaflet-container img.leaflet-tile {
-  max-width: none !important;
-  max-height: none !important;
-  width: 256px !important;
-  height: 256px !important;
-  display: inline !important;
-}
 @import "@clerk/themes/shadcn.css";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
