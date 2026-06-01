@@ -21,6 +21,8 @@ router.get("/prefs", requireAuth, async (req, res) => {
       travelMode: row.travelMode,
       budget: row.budget,
       specialNeeds: row.specialNeeds,
+      fromCity: row.fromCity,
+      travelStyle: row.travelStyle,
     });
   } catch (err: any) {
     console.error("[prefs/get] error:", err);
@@ -32,7 +34,7 @@ router.put("/prefs", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "未登录" }); return; }
 
-  const { travelMode, budget, specialNeeds } = req.body ?? {};
+  const { travelMode, budget, specialNeeds, fromCity, travelStyle } = req.body ?? {};
 
   try {
     await db
@@ -42,6 +44,8 @@ router.put("/prefs", requireAuth, async (req, res) => {
         travelMode: travelMode ?? "",
         budget: budget ?? "",
         specialNeeds: Array.isArray(specialNeeds) ? specialNeeds : [],
+        fromCity: fromCity ?? "",
+        travelStyle: travelStyle ?? "",
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -50,6 +54,8 @@ router.put("/prefs", requireAuth, async (req, res) => {
           travelMode: travelMode ?? "",
           budget: budget ?? "",
           specialNeeds: Array.isArray(specialNeeds) ? specialNeeds : [],
+          fromCity: fromCity ?? "",
+          travelStyle: travelStyle ?? "",
           updatedAt: new Date(),
         },
       });
