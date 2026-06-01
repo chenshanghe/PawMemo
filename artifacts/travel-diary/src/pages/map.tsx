@@ -16,7 +16,7 @@ import worldData from "@/assets/world-110m.json";
 const TRIP_COLORS = [
   "#f97316", "#3b82f6", "#10b981", "#8b5cf6",
   "#ec4899", "#f59e0b", "#14b8a6", "#ef4444",
-];
+]; // react-simple-maps v2
 
 function clusterTrips(entries: any[]): any[][] {
   if (entries.length === 0) return [];
