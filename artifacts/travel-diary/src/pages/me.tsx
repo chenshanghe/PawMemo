@@ -5,6 +5,7 @@ import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
+  Bell, Award, BookOpen, Download,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -479,6 +480,30 @@ export default function Me() {
             {digestToast && (
               <p className="mt-2 text-[11px] text-muted-foreground leading-tight">{digestToast}</p>
             )}
+          </div>
+
+          {/* ── Quick Links ────────────────────────────────────────────── */}
+          <div className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden divide-y divide-border/30">
+            {([
+              { href: "/report",        Icon: BarChart2, label: "旅行报告", desc: "查看旅行数据与趋势总览" },
+              { href: "/notifications", Icon: Bell,      label: "消息",     desc: "互动通知与系统消息" },
+              { href: "/achievements",  Icon: Award,     label: "旅行成就", desc: "解锁你的专属旅行勋章" },
+              { href: "/collections",   Icon: BookOpen,  label: "旅行合集", desc: "整理与分类你的日记" },
+              { href: "/export",        Icon: Download,  label: "导出日记", desc: "下载全部旅行记录备份" },
+            ] as const).map(({ href, Icon, label, desc }) => (
+              <Link key={href} href={href}>
+                <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer group">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-[11px] text-muted-foreground">{desc}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                </div>
+              </Link>
+            ))}
           </div>
 
           {/* ── Tabs ───────────────────────────────────────────────────── */}
