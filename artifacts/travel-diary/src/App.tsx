@@ -25,10 +25,8 @@ import MapPage from "@/pages/map";
 import { EntryPrintPage } from "@/pages/entry-print";
 import Photos from "@/pages/photos";
 import PlanPage from "@/pages/plan";
-import ReportPage from "@/pages/report";
 import NotificationsPage from "@/pages/notifications";
 import AchievementsPage from "@/pages/achievements";
-import ExportPage from "@/pages/export";
 import PlanListPage from "@/pages/plan-list";
 
 const queryClient = new QueryClient();
@@ -216,10 +214,8 @@ function AppRouter() {
       <Route path="/photos">{() => <ProtectedRoute component={Photos} />}</Route>
       <Route path="/plan">{() => <ProtectedRoute component={PlanPage} />}</Route>
       <Route path="/plan/list">{() => <ProtectedRoute component={PlanListPage} />}</Route>
-      <Route path="/report">{() => <ProtectedRoute component={ReportPage} />}</Route>
       <Route path="/notifications">{() => <ProtectedRoute component={NotificationsPage} />}</Route>
       <Route path="/achievements">{() => <ProtectedRoute component={AchievementsPage} />}</Route>
-      <Route path="/export">{() => <ProtectedRoute component={ExportPage} />}</Route>
       <Route path="/entries/:id/print">
         {(params) => <ProtectedRoute component={EntryPrintPage} params={params as { id: string }} />}
       </Route>

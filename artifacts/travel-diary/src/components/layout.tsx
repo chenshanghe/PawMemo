@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, BarChart2, Award, Download } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, Award } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -52,9 +52,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isPhotos = location === "/photos";
   const isPlan = location === "/plan" || location === "/plan/list";
   const isNotifs = location === "/notifications";
-  const isReport = location === "/report";
   const isAchievements = location === "/achievements";
-  const isExport = location === "/export";
 
   const displayName = profile?.name || user?.fullName || user?.username || "旅行者";
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -93,9 +91,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/plan" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isPlan ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
             <Navigation className="w-4.5 h-4.5" />规划
           </Link>
-          <Link href="/report" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isReport ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
-            <BarChart2 className="w-4.5 h-4.5" />旅行报告
-          </Link>
           <Link href="/notifications" className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isNotifs ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
             <span className="relative">
               <Bell className="w-4.5 h-4.5" />
@@ -107,9 +102,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </Link>
           <Link href="/achievements" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isAchievements ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
             <Award className="w-4.5 h-4.5" />旅行成就
-          </Link>
-          <Link href="/export" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isExport ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
-            <Download className="w-4.5 h-4.5" />导出日记
           </Link>
           <Link href="/me" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isMe ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
             <UserCircle2 className="w-4.5 h-4.5" />我

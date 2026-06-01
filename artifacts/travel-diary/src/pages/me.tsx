@@ -5,12 +5,13 @@ import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
-  Bell, Award, Download,
+  Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import { format } from "date-fns";
+import { zhCN } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,7 @@ interface FollowItem {
   avatar: string | null;
 }
 
-type Tab = "notes" | "favorites" | "following" | "followers" | "stats";
+type Tab = "notes" | "favorites" | "following" | "followers" | "report" | "export";
 
 const MOODS: Record<string, string> = {
   开心: "bg-yellow-100 text-yellow-700",
@@ -187,6 +188,13 @@ export default function Me() {
   const [followersLoaded, setFollowersLoaded] = useState(false);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [statsLoaded, setStatsLoaded] = useState(false);
+  const [tags, setTags] = useState<{ name: string; count: number }[]>([]);
+  const [recs, setRecs] = useState<{ name: string; country: string; reason: string; emoji: string; tags: string[] }[]>([]);
+  const [recsLoading, setRecsLoading] = useState(false);
+  const [recsLoaded, setRecsLoaded] = useState(false);
+  const [exportEntries, setExportEntries] = useState<any[]>([]);
+  const [exportLoaded, setExportLoaded] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     const [pRes, sRes, subRes] = await Promise.all([
@@ -230,13 +238,26 @@ export default function Me() {
         setFollowersLoaded(true);
       });
     }
-    if (tab === "stats" && !statsLoaded) {
-      fetch(`${BASE}/api/stats/monthly`, { credentials: "include" })
-        .then((r) => r.ok ? r.json() : [])
-        .then((data) => { setMonthlyData(data); setStatsLoaded(true); })
-        .catch(() => setStatsLoaded(true));
+    if (tab === "report" && !statsLoaded) {
+      Promise.all([
+        fetch(`${BASE}/api/stats/monthly`, { credentials: "include" }).then(r => r.ok ? r.json() : []),
+        fetch(`${BASE}/api/tags`, { credentials: "include" }).then(r => r.ok ? r.json() : []),
+      ]).then(([mData, tData]) => {
+        setMonthlyData(mData);
+        setTags(Array.isArray(tData) ? tData.slice(0, 30) : []);
+        setStatsLoaded(true);
+      }).catch(() => setStatsLoaded(true));
     }
-  }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded, statsLoaded]);
+    if (tab === "export" && !exportLoaded) {
+      fetch(`${BASE}/api/entries?limit=500`, { credentials: "include" })
+        .then(r => r.ok ? r.json() : [])
+        .then(d => {
+          setExportEntries(Array.isArray(d.entries) ? d.entries : Array.isArray(d) ? d : []);
+          setExportLoaded(true);
+        })
+        .catch(() => setExportLoaded(true));
+    }
+  }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded, statsLoaded, exportLoaded]);
 
   const handleSignOut = () => signOut();
 
@@ -269,6 +290,27 @@ export default function Me() {
       setDigestSending(false);
       setTimeout(() => setDigestToast(null), 5000);
     }
+  };
+
+  const handleGetRecs = async () => {
+    setRecsLoading(true);
+    try {
+      const r = await fetch(`${BASE}/api/ai/recommend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      const d = await r.json();
+      setRecs(Array.isArray(d.recommendations) ? d.recommendations : []);
+      setRecsLoaded(true);
+    } catch {}
+    setRecsLoading(false);
+  };
+
+  const handlePrint = () => {
+    setPrinting(true);
+    setTimeout(() => { window.print(); setPrinting(false); }, 300);
   };
 
   if (!profile) {
@@ -485,10 +527,8 @@ export default function Me() {
           {/* ── Quick Links ────────────────────────────────────────────── */}
           <div className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden divide-y divide-border/30">
             {([
-              { href: "/report",        Icon: BarChart2, label: "旅行报告", desc: "查看旅行数据与趋势总览" },
               { href: "/notifications", Icon: Bell,      label: "消息",     desc: "互动通知与系统消息" },
               { href: "/achievements",  Icon: Award,     label: "旅行成就", desc: "解锁你的专属旅行勋章" },
-              { href: "/export",        Icon: Download,  label: "导出日记", desc: "下载全部旅行记录备份" },
             ] as const).map(({ href, Icon, label, desc }) => (
               <Link key={href} href={href}>
                 <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer group">
@@ -512,7 +552,8 @@ export default function Me() {
               ["favorites", "收藏", Bookmark, null],
               ["following", "关注", Users, profile.followingCount],
               ["followers", "粉丝", Users, profile.followerCount],
-              ["stats", "统计", BarChart2, null],
+              ["report", "报告", BarChart2, null],
+              ["export", "导出", Download, null],
             ] as const).map(([k, label, Icon, count]) => (
               <button
                 key={k}
@@ -544,8 +585,20 @@ export default function Me() {
             {tab === "followers" && (
               <UsersList users={followers} loaded={followersLoaded} emptyHint="还没有粉丝 — 多发几篇公开日记吧" />
             )}
-            {tab === "stats" && stats && (
-              <StatsTab stats={stats} monthlyData={monthlyData} loaded={statsLoaded} />
+            {tab === "report" && stats && (
+              <ReportTab
+                stats={stats}
+                monthlyData={monthlyData}
+                tags={tags}
+                recs={recs}
+                recsLoading={recsLoading}
+                recsLoaded={recsLoaded}
+                loaded={statsLoaded}
+                onGetRecs={handleGetRecs}
+              />
+            )}
+            {tab === "export" && (
+              <ExportTab entries={exportEntries} loaded={exportLoaded} printing={printing} onPrint={handlePrint} />
             )}
           </div>
         </div>
@@ -575,6 +628,10 @@ const MOOD_COLORS: Record<string, string> = {
   开心: "#fbbf24", 平静: "#60a5fa", 感动: "#f472b6",
   疲惫: "#9ca3af", 兴奋: "#fb923c", 思念: "#a78bfa",
 };
+const MOOD_EMOJI: Record<string, string> = {
+  开心: "😄", 平静: "😌", 感动: "🥹", 疲惫: "😴", 兴奋: "🤩", 思念: "💭", 伤感: "😢", 惊喜: "😲",
+};
+const BAR_COLORS = ["#f97316","#3b82f6","#10b981","#8b5cf6","#ec4899","#f59e0b","#14b8a6","#ef4444","#84cc16","#6366f1","#fb923c","#a78bfa"];
 
 function StatsTab({
   stats, monthlyData, loaded,
@@ -1065,5 +1122,327 @@ function AvatarPickerModal({
         )}
       </div>
     </div>
+  );
+}
+
+/* ── ReportTab ────────────────────────────────────────────────────────────── */
+function ReportTab({
+  stats, monthlyData, tags, recs, recsLoading, recsLoaded, loaded, onGetRecs,
+}: {
+  stats: SummaryStats;
+  monthlyData: MonthlyData[];
+  tags: { name: string; count: number }[];
+  recs: { name: string; country: string; reason: string; emoji: string; tags: string[] }[];
+  recsLoading: boolean;
+  recsLoaded: boolean;
+  loaded: boolean;
+  onGetRecs: () => void;
+}) {
+  const year = new Date().getFullYear();
+  const thisYearMonths = monthlyData.filter(m => m.month.startsWith(String(year)));
+  const thisYearTotal = thisYearMonths.reduce((s, m) => s + m.count, 0);
+  const peakMonth = [...monthlyData].sort((a, b) => b.count - a.count)[0];
+
+  if (!loaded) {
+    return (
+      <div className="flex items-center justify-center h-40 text-muted-foreground text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" />加载中…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5 pb-6">
+      <div className="text-center pt-4 space-y-0.5">
+        <div className="text-3xl mb-1">🍠</div>
+        <h2 className="text-lg font-bold">{year} 旅行报告</h2>
+        <p className="text-xs text-muted-foreground">你的全部旅行足迹一览</p>
+      </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 gap-3 px-1">
+        {[
+          { icon: <BookText className="w-4 h-4" />, label: "旅行日记", value: stats.totalEntries, sub: "篇" },
+          { icon: <MapPin className="w-4 h-4" />, label: "到访目的地", value: stats.totalDestinations, sub: "个" },
+          { icon: <CalendarDays className="w-4 h-4" />, label: "累计旅行天数", value: stats.totalTravelDays, sub: "天" },
+          { icon: <Camera className="w-4 h-4" />, label: "上传照片", value: stats.totalPhotos, sub: "张" },
+          ...(stats.longestTripDays ? [{ icon: <Award className="w-4 h-4" />, label: "最长单次旅行", value: stats.longestTripDays, sub: "天" }] : []),
+          ...(stats.avgRating ? [{ icon: <Star className="w-4 h-4" />, label: "平均评分", value: `${stats.avgRating} ★`, sub: "满分 5 分" }] : []),
+          ...(thisYearTotal > 0 ? [{ icon: <TrendingUp className="w-4 h-4" />, label: `${year} 年写了`, value: thisYearTotal, sub: "篇日记" }] : []),
+        ].map(({ icon, label, value, sub }) => (
+          <div key={label} className="bg-card border border-border/40 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm">
+            <div className="flex items-center gap-1.5 text-muted-foreground text-xs">{icon}{label}</div>
+            <div className="text-2xl font-bold tracking-tight">{value}</div>
+            {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      {/* Monthly bar chart */}
+      {monthlyData.length > 0 && (
+        <div className="bg-card border border-border/40 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">近 12 个月发布趋势</span>
+          </div>
+          {peakMonth && peakMonth.count > 0 && (
+            <p className="text-xs text-muted-foreground mb-3">
+              最活跃月份：{peakMonth.month.replace("-", " 年 ")} 月，共 {peakMonth.count} 篇
+            </p>
+          )}
+          <ResponsiveContainer width="100%" height={140}>
+            <BarChart data={monthlyData} barSize={14}>
+              <XAxis dataKey="month" tickFormatter={v => v.slice(5)} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis hide allowDecimals={false} />
+              <Tooltip
+                formatter={(v: number) => [`${v} 篇`, "日记"]}
+                labelFormatter={l => `${l.replace("-", " 年 ")} 月`}
+                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                {monthlyData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Top destinations */}
+      {stats.topDestinations && stats.topDestinations.length > 0 && (
+        <div className="bg-card border border-border/40 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <MapPin className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">最常去的地方 Top 5</span>
+          </div>
+          <div className="space-y-2">
+            {stats.topDestinations.map((d, i) => {
+              const max = stats.topDestinations[0].count;
+              return (
+                <div key={d.destination} className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-4 text-right font-mono">{i + 1}</span>
+                  <span className="text-sm flex-1 truncate">{d.destination}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${(d.count / max) * 100}%` }} />
+                    </div>
+                    <span className="text-xs text-muted-foreground w-8 text-right">{d.count} 篇</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Mood breakdown */}
+      {stats.moodCounts && stats.moodCounts.length > 0 && (
+        <div className="bg-card border border-border/40 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Smile className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">旅行心情</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {stats.moodCounts.map(({ mood, count }) => (
+              <div
+                key={mood}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border"
+                style={{
+                  backgroundColor: `${MOOD_COLORS[mood] ?? "#6b7280"}18`,
+                  borderColor: `${MOOD_COLORS[mood] ?? "#6b7280"}40`,
+                  color: MOOD_COLORS[mood] ?? "#6b7280",
+                }}
+              >
+                <span>{MOOD_EMOJI[mood] ?? "🙂"}</span>
+                <span>{mood}</span>
+                <span className="opacity-60">×{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tags cloud */}
+      {tags.length > 0 && (
+        <div className="bg-card border border-border/40 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">我的旅行标签</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag, i) => (
+              <span
+                key={tag.name}
+                className="px-3 py-1 rounded-full text-xs font-medium border"
+                style={{
+                  backgroundColor: `${BAR_COLORS[i % BAR_COLORS.length]}18`,
+                  borderColor: `${BAR_COLORS[i % BAR_COLORS.length]}40`,
+                  color: BAR_COLORS[i % BAR_COLORS.length],
+                }}
+              >
+                #{tag.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* AI recommendations */}
+      {stats.totalEntries > 0 && (
+        <div className="bg-card border border-border/40 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-orange-500" />
+              <span className="text-sm font-semibold">AI 目的地推荐</span>
+            </div>
+            {!recsLoaded && (
+              <Button size="sm" variant="outline" onClick={onGetRecs} disabled={recsLoading} className="gap-1.5 text-xs">
+                {recsLoading ? <><Loader2 size={12} className="animate-spin" />生成中…</> : "基于旅行历史推荐"}
+              </Button>
+            )}
+          </div>
+          {!recsLoaded && !recsLoading && (
+            <p className="text-xs text-muted-foreground">点击按钮，AI 将根据你的旅行历史为你推荐 3 个可能喜欢的新目的地</p>
+          )}
+          {recsLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
+              <Loader2 size={16} className="animate-spin text-orange-500" />AI 正在分析你的旅行偏好…
+            </div>
+          )}
+          {recsLoaded && recs.length === 0 && (
+            <p className="text-sm text-muted-foreground">暂时无法生成推荐，请稍后再试</p>
+          )}
+          {recsLoaded && recs.length > 0 && (
+            <div className="grid sm:grid-cols-3 gap-3">
+              {recs.map((rec, i) => (
+                <div key={i} className="rounded-xl border border-border/40 p-3 bg-muted/20 hover:bg-muted/40 transition-colors">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">{rec.emoji}</span>
+                    <div>
+                      <div className="font-semibold text-sm">{rec.name}</div>
+                      <div className="text-xs text-muted-foreground">{rec.country}</div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{rec.reason}</p>
+                  {rec.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {rec.tags.map(tag => (
+                        <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded-full">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {stats.totalEntries === 0 && (
+        <div className="text-center py-12 text-muted-foreground text-sm">还没有旅行日记，快去写第一篇吧～</div>
+      )}
+    </div>
+  );
+}
+
+/* ── ExportTab ────────────────────────────────────────────────────────────── */
+function ExportTab({
+  entries, loaded, printing, onPrint,
+}: {
+  entries: any[];
+  loaded: boolean;
+  printing: boolean;
+  onPrint: () => void;
+}) {
+  const totalWords = entries.reduce((acc, e) => acc + (e.content?.length ?? 0), 0);
+
+  return (
+    <>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white; }
+          .print-page { page-break-after: always; }
+          .print-cover { page-break-after: always; background: linear-gradient(135deg, #f97316, #fb923c); color: white; }
+        }
+      `}</style>
+
+      <div className="space-y-4 pb-6 no-print">
+        <div className="flex items-center justify-between pt-2">
+          <div>
+            <h2 className="text-base font-bold">导出全部日记</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {!loaded ? "加载中…" : `${entries.length} 篇日记 · 约 ${totalWords.toLocaleString()} 字`}
+            </p>
+          </div>
+          <Button variant="outline" onClick={onPrint} disabled={!loaded || printing} className="gap-2 text-sm">
+            <Printer size={15} />
+            {printing ? "准备中…" : "打印 / 存为 PDF"}
+          </Button>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-800 leading-relaxed">
+          <strong>使用提示：</strong>点击「打印 / 存为 PDF」，在打印对话框中选择「另存为 PDF」，即可将旅行日记保存为精美 PDF 书册。
+        </div>
+
+        {!loaded ? (
+          <div className="flex items-center gap-3 justify-center py-14 text-muted-foreground">
+            <Loader2 size={22} className="animate-spin" /><span className="text-sm">加载日记中…</span>
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="text-center py-14 text-muted-foreground text-sm">还没有旅行日记，快去写第一篇吧～</div>
+        ) : (
+          <div className="space-y-3">
+            {entries.slice(0, 5).map(e => (
+              <div key={e.id} className="bg-card border border-border/40 rounded-2xl p-3.5 flex gap-3.5 shadow-sm">
+                {e.coverPhoto && (
+                  <img src={e.coverPhoto} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <div className="font-medium text-sm truncate">{e.title}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">📍 {e.destination}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {format(new Date(e.date), "yyyy年M月d日", { locale: zhCN })}
+                    {e.mood && <span className="ml-2">{MOOD_EMOJI[e.mood] ?? ""} {e.mood}</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {entries.length > 5 && (
+              <p className="text-center text-xs text-muted-foreground">… 还有 {entries.length - 5} 篇（打印时包含全部）</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden print:block">
+        <div className="print-cover min-h-screen flex flex-col items-center justify-center text-center p-12">
+          <div className="text-8xl mb-6">🍠</div>
+          <h1 className="text-5xl font-bold mb-4">我的旅行日记</h1>
+          <p className="text-xl opacity-80">{entries.length} 篇旅行故事</p>
+          <p className="text-lg opacity-60 mt-2">共 {totalWords.toLocaleString()} 字</p>
+          <p className="text-base opacity-50 mt-8">{new Date().getFullYear()} 年导出</p>
+        </div>
+        {entries.map((e, idx) => (
+          <div key={e.id} className="print-page p-10 min-h-screen">
+            <div className="border-b border-gray-200 pb-4 mb-6">
+              <div className="text-gray-400 text-sm mb-1">第 {idx + 1} 篇</div>
+              <h2 className="text-3xl font-bold">{e.title}</h2>
+              <div className="flex items-center gap-4 mt-2 text-gray-500 text-sm">
+                <span>📍 {e.destination}</span>
+                <span>{format(new Date(e.date), "yyyy年M月d日", { locale: zhCN })}</span>
+                {e.mood && <span>{MOOD_EMOJI[e.mood] ?? ""} {e.mood}</span>}
+                {e.rating && <span>{"⭐".repeat(e.rating)}</span>}
+              </div>
+            </div>
+            {e.coverPhoto && (
+              <img src={e.coverPhoto} alt="" className="w-full max-h-64 object-cover rounded-xl mb-6" />
+            )}
+            <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-base">
+              {e.content ?? "（无正文）"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
