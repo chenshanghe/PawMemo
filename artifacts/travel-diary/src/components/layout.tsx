@@ -90,15 +90,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/plan" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isPlan ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
             <Navigation className="w-4.5 h-4.5" />规划
           </Link>
-          <Link href="/notifications" className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isNotifs ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
-            <span className="relative">
-              <Bell className="w-4.5 h-4.5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">{unreadCount > 99 ? "99+" : unreadCount}</span>
-              )}
-            </span>
-            消息
-          </Link>
           <Link href="/me" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isMe ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
             <UserCircle2 className="w-4.5 h-4.5" />我
           </Link>
@@ -166,7 +157,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Main Content ── */}
       <main className="flex-1 flex flex-col relative">
-        <div className="flex-1 p-4 pb-24 md:p-8 md:pb-8 max-w-5xl mx-auto w-full">
+        {/* Desktop top-right notification button */}
+        <div className="hidden md:flex items-center justify-end px-8 pt-5 pb-0">
+          <Link
+            href="/notifications"
+            className={`relative p-2 rounded-full transition-colors ${isNotifs ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+          >
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </Link>
+        </div>
+        <div className="flex-1 p-4 pb-24 md:px-8 md:pb-8 md:pt-4 max-w-5xl mx-auto w-full">
           {children}
         </div>
       </main>
