@@ -66,6 +66,7 @@ interface UserPrefs {
   specialNeeds: string[];
   fromCity: string;
   travelStyle: string;
+  travelers: number;
 }
 
 function loadPrefs(): UserPrefs | null {
@@ -190,7 +191,7 @@ export default function PlanPage() {
   const [destinations, setDestinations] = useState<string[]>([""]);
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(nextWeek);
-  const [travelers, setTravelers] = useState(2);
+  const [travelers, setTravelers] = useState(savedPrefs?.travelers ?? 2);
   const [style, setStyle] = useState(savedPrefs?.travelStyle || "文化探索");
   const [travelMode, setTravelMode] = useState<string>(savedPrefs?.travelMode ?? "");
   const [budget, setBudget] = useState<string>(savedPrefs?.budget ?? "");
@@ -234,9 +235,10 @@ export default function PlanPage() {
         setSpecialNeeds(prefs.specialNeeds ?? []);
         if (prefs.fromCity) setFrom(prefs.fromCity);
         if (prefs.travelStyle) setStyle(prefs.travelStyle);
+        if (typeof prefs.travelers === "number" && prefs.travelers >= 1) setTravelers(prefs.travelers);
         const anySet = !!(prefs.travelMode || prefs.budget || (prefs.specialNeeds?.length ?? 0) > 0 || prefs.fromCity || prefs.travelStyle);
         setHasPrefs(anySet);
-        if (anySet) savePrefs({ travelMode: prefs.travelMode ?? "", budget: prefs.budget ?? "", specialNeeds: prefs.specialNeeds ?? [], fromCity: prefs.fromCity ?? "", travelStyle: prefs.travelStyle ?? "" });
+        if (anySet) savePrefs({ travelMode: prefs.travelMode ?? "", budget: prefs.budget ?? "", specialNeeds: prefs.specialNeeds ?? [], fromCity: prefs.fromCity ?? "", travelStyle: prefs.travelStyle ?? "", travelers: prefs.travelers ?? 2 });
       })
       .catch(() => {});
   }, [isSignedIn]);
@@ -253,13 +255,13 @@ export default function PlanPage() {
       isClearingPrefs.current = false;
       return;
     }
-    savePrefs({ travelMode, budget, specialNeeds, fromCity: from, travelStyle: style });
+    savePrefs({ travelMode, budget, specialNeeds, fromCity: from, travelStyle: style, travelers });
     setHasPrefs(true);
     if (isSignedIn) {
       apiFetch("/api/prefs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ travelMode, budget, specialNeeds, fromCity: from, travelStyle: style }),
+        body: JSON.stringify({ travelMode, budget, specialNeeds, fromCity: from, travelStyle: style, travelers }),
       }).then(r => {
         if (r.ok) {
           setSyncedToAccount(true);
@@ -268,7 +270,7 @@ export default function PlanPage() {
         }
       }).catch(() => {});
     }
-  }, [travelMode, budget, specialNeeds, from, style]);
+  }, [travelMode, budget, specialNeeds, from, style, travelers]);
 
   useEffect(() => {
     apiFetch("/api/plan/saved")
@@ -297,12 +299,13 @@ export default function PlanPage() {
     setSpecialNeeds([]);
     setFrom("");
     setStyle("文化探索");
+    setTravelers(2);
     setHasPrefs(false);
     if (isSignedIn) {
       apiFetch("/api/prefs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "" }),
+        body: JSON.stringify({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 }),
       }).catch(() => {});
     }
   };

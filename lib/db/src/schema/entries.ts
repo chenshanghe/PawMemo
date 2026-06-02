@@ -231,6 +231,7 @@ export const userPrefsTable = pgTable("user_prefs", {
   specialNeeds: json("special_needs").$type<string[]>().notNull().default([]),
   fromCity: text("from_city").notNull().default(""),
   travelStyle: text("travel_style").notNull().default(""),
+  travelersCount: integer("travelers_count").notNull().default(2),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
