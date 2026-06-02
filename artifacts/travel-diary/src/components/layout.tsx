@@ -185,9 +185,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Link href="/square" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isSquare ? "text-primary" : "text-muted-foreground"}`}>
           <Globe className="w-5 h-5" /><span className="text-[10px] font-medium">广场</span>
         </Link>
-        <Link href="/report" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isReport ? "text-primary" : "text-muted-foreground"}`}>
-          <BarChart2 className="w-5 h-5" /><span className="text-[10px] font-medium">报告</span>
-        </Link>
         <Link href="/plan" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isPlan ? "text-primary" : "text-muted-foreground"}`}>
           <Navigation className="w-5 h-5" /><span className="text-[10px] font-medium">规划</span>
         </Link>
