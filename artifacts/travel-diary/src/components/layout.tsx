@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, Award } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -52,7 +52,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isPhotos = location === "/photos";
   const isPlan = location === "/plan" || location === "/plan/list";
   const isNotifs = location === "/notifications";
-  const isAchievements = location === "/achievements";
 
   const displayName = profile?.name || user?.fullName || user?.username || "旅行者";
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -99,9 +98,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               )}
             </span>
             消息
-          </Link>
-          <Link href="/achievements" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isAchievements ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
-            <Award className="w-4.5 h-4.5" />旅行成就
           </Link>
           <Link href="/me" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isMe ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
             <UserCircle2 className="w-4.5 h-4.5" />我
