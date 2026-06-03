@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Sentry, sentryEnabled } from "@/lib/sentry";
 import { ThemeProvider } from "next-themes";
 import { HelmetProvider } from "react-helmet-async";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
@@ -275,7 +276,7 @@ function ClerkProviderWithRoutes() {
   );
 }
 
-function App() {
+function AppInner() {
   return (
     <HelmetProvider>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
@@ -285,6 +286,27 @@ function App() {
       </ThemeProvider>
     </HelmetProvider>
   );
+}
+
+function App() {
+  if (sentryEnabled) {
+    return (
+      <Sentry.ErrorBoundary fallback={
+        <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 p-8 text-center">
+          <div className="text-4xl">😵</div>
+          <p className="text-base font-semibold text-foreground">页面遇到了问题</p>
+          <p className="text-sm text-muted-foreground">错误已自动上报，请刷新页面重试</p>
+          <button onClick={() => window.location.reload()}
+            className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+            刷新页面
+          </button>
+        </div>
+      }>
+        <AppInner />
+      </Sentry.ErrorBoundary>
+    );
+  }
+  return <AppInner />;
 }
 
 export default App;
