@@ -198,6 +198,7 @@ export default function PlanPage() {
   const [budget, setBudget] = useState<string>(savedPrefs?.budget ?? "");
   const [specialNeeds, setSpecialNeeds] = useState<string[]>(savedPrefs?.specialNeeds ?? []);
   const [hasPrefs, setHasPrefs] = useState<boolean>(savedPrefs !== null);
+  const [savedPrefsSnapshot, setSavedPrefsSnapshot] = useState<UserPrefs | null>(savedPrefs);
   const prefsInitialized = useRef(false);
   const isClearingPrefs = useRef(false);
   const serverPrefsFetched = useRef(false);
@@ -241,7 +242,8 @@ export default function PlanPage() {
         if (typeof prefs.travelers === "number" && prefs.travelers >= 1) setTravelers(prefs.travelers);
         const anySet = !!(prefs.travelMode || prefs.budget || (prefs.specialNeeds?.length ?? 0) > 0 || prefs.fromCity || prefs.travelStyle);
         setHasPrefs(anySet);
-        if (anySet) savePrefs({ travelMode: prefs.travelMode ?? "", budget: prefs.budget ?? "", specialNeeds: prefs.specialNeeds ?? [], fromCity: prefs.fromCity ?? "", travelStyle: prefs.travelStyle ?? "", travelers: prefs.travelers ?? 2 });
+        const snap: UserPrefs = { travelMode: prefs.travelMode ?? "", budget: prefs.budget ?? "", specialNeeds: prefs.specialNeeds ?? [], fromCity: prefs.fromCity ?? "", travelStyle: prefs.travelStyle ?? "", travelers: prefs.travelers ?? 2 };
+        if (anySet) { savePrefs(snap); setSavedPrefsSnapshot(snap); }
       })
       .catch(() => {});
   }, [isSignedIn]);
@@ -304,6 +306,7 @@ export default function PlanPage() {
     setStyle("文化探索");
     setTravelers(2);
     setHasPrefs(false);
+    setSavedPrefsSnapshot(null);
     if (isSignedIn) {
       apiFetch("/api/prefs", {
         method: "PUT",
@@ -529,8 +532,15 @@ export default function PlanPage() {
                   </div>
                   {[from, style, travelMode, budget ? budget.split("（")[0] : ""].filter(Boolean).length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                      {[from, style, travelMode, budget ? budget.split("（")[0] : ""].filter(Boolean).map((chip, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{chip}</span>
+                      {[
+                        { label: from, changed: savedPrefsSnapshot ? from !== savedPrefsSnapshot.fromCity : false },
+                        { label: style, changed: savedPrefsSnapshot ? style !== savedPrefsSnapshot.travelStyle : false },
+                        { label: travelMode, changed: savedPrefsSnapshot ? travelMode !== savedPrefsSnapshot.travelMode : false },
+                        { label: budget ? budget.split("（")[0] : "", changed: savedPrefsSnapshot ? budget !== savedPrefsSnapshot.budget : false },
+                      ].filter(c => c.label).map((chip, i) => (
+                        <span key={i} className={`px-2 py-0.5 rounded-full font-medium transition-all ${chip.changed ? "bg-muted text-muted-foreground line-through opacity-60" : "bg-primary/10 text-primary"}`}>
+                          {chip.label}
+                        </span>
                       ))}
                     </div>
                   )}
