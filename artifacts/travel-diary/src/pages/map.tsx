@@ -50,6 +50,8 @@ export default function MapPage() {
   const [view, setView] = useState<"scatter" | "route">("scatter");
   const [selected, setSelected] = useState<any[] | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState<[number, number]>([20, 10]);
   const mapRef = useRef<HTMLDivElement>(null);
 
   const entries = useMemo(
@@ -142,96 +144,130 @@ export default function MapPage() {
         >
           <ComposableMap
             projection="geoNaturalEarth1"
-            projectionConfig={{ scale: 175, center: [20, 10] }}
+            projectionConfig={{ scale: 175 }}
             style={{ width: "100%", height: "100%" }}
           >
-            <Geographies geography={worldData}>
-              {({ geographies }) =>
-                geographies.map((geo) => (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill="#e8e0d5"
-                    stroke="#c4b49f"
-                    strokeWidth={0.5}
-                    style={{
-                      default: { outline: "none" },
-                      hover: { outline: "none", fill: "#ddd4c7" },
-                      pressed: { outline: "none" },
-                    }}
-                  />
-                ))
-              }
-            </Geographies>
-
-            {view === "scatter" && [...grouped.entries()].map(([key, group]) => {
-              const first = group[0] as any;
-              const count = group.length;
-              return (
-                <Marker
-                  key={key}
-                  coordinates={[first.lng, first.lat]}
-                  onMouseEnter={(e: any) => handleMarkerEnter(e, group)}
-                  onClick={() => { if (count === 1) navigate(`/entries/${first.id}`); }}
-                >
-                  <circle
-                    r={count > 1 ? 10 : 7}
-                    fill="#c2410c"
-                    stroke="white"
-                    strokeWidth={2.5}
-                    style={{ cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.3))" }}
-                  />
-                  {count > 1 && (
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fill="white"
-                      fontSize={9}
-                      fontWeight="bold"
-                      style={{ pointerEvents: "none" }}
-                    >
-                      {count}
-                    </text>
-                  )}
-                </Marker>
-              );
-            })}
-
-            {view === "route" && trips.map((trip, ti) => {
-              const color = TRIP_COLORS[ti % TRIP_COLORS.length];
-              const sorted = [...trip].sort(
-                (a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
-              );
-              return (
-                <React.Fragment key={ti}>
-                  {sorted.slice(0, -1).map((_: any, ei: number) => (
-                    <Line
-                      key={ei}
-                      from={[sorted[ei].lng, sorted[ei].lat]}
-                      to={[sorted[ei + 1].lng, sorted[ei + 1].lat]}
-                      stroke={color}
-                      strokeWidth={2}
-                      strokeOpacity={0.75}
-                      strokeDasharray="6 4"
+            <ZoomableGroup
+              zoom={zoom}
+              center={center}
+              onMoveEnd={({ zoom: z, coordinates }: { zoom: number; coordinates: [number, number] }) => {
+                setZoom(z);
+                setCenter(coordinates);
+              }}
+            >
+              <Geographies geography={worldData}>
+                {({ geographies }) =>
+                  geographies.map((geo) => (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill="#e8e0d5"
+                      stroke="#c4b49f"
+                      strokeWidth={0.5}
+                      style={{
+                        default: { outline: "none" },
+                        hover: { outline: "none", fill: "#ddd4c7" },
+                        pressed: { outline: "none" },
+                      }}
                     />
-                  ))}
-                  {sorted.map((e: any, ei: number) => (
-                    <Marker
-                      key={e.id}
-                      coordinates={[e.lng, e.lat]}
-                      onMouseEnter={(evt: any) => handleMarkerEnter(evt, [e])}
-                      onClick={() => navigate(`/entries/${e.id}`)}
-                    >
-                      <circle r={10} fill={color} stroke="white" strokeWidth={2.5} style={{ cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.25))" }} />
-                      <text textAnchor="middle" dominantBaseline="central" fill="white" fontSize={9} fontWeight="bold" style={{ pointerEvents: "none" }}>
-                        {ei + 1}
+                  ))
+                }
+              </Geographies>
+
+              {view === "scatter" && [...grouped.entries()].map(([key, group]) => {
+                const first = group[0] as any;
+                const count = group.length;
+                return (
+                  <Marker
+                    key={key}
+                    coordinates={[first.lng, first.lat]}
+                    onMouseEnter={(e: any) => handleMarkerEnter(e, group)}
+                    onClick={() => { if (count === 1) navigate(`/entries/${first.id}`); }}
+                  >
+                    <circle
+                      r={(count > 1 ? 10 : 7) / zoom}
+                      fill="#c2410c"
+                      stroke="white"
+                      strokeWidth={2.5 / zoom}
+                      style={{ cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.3))" }}
+                    />
+                    {count > 1 && (
+                      <text
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fill="white"
+                        fontSize={9 / zoom}
+                        fontWeight="bold"
+                        style={{ pointerEvents: "none" }}
+                      >
+                        {count}
                       </text>
-                    </Marker>
-                  ))}
-                </React.Fragment>
-              );
-            })}
+                    )}
+                  </Marker>
+                );
+              })}
+
+              {view === "route" && trips.map((trip, ti) => {
+                const color = TRIP_COLORS[ti % TRIP_COLORS.length];
+                const sorted = [...trip].sort(
+                  (a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+                );
+                return (
+                  <React.Fragment key={ti}>
+                    {sorted.slice(0, -1).map((_: any, ei: number) => (
+                      <Line
+                        key={ei}
+                        from={[sorted[ei].lng, sorted[ei].lat]}
+                        to={[sorted[ei + 1].lng, sorted[ei + 1].lat]}
+                        stroke={color}
+                        strokeWidth={2 / zoom}
+                        strokeOpacity={0.75}
+                        strokeDasharray={`${6 / zoom} ${4 / zoom}`}
+                      />
+                    ))}
+                    {sorted.map((e: any, ei: number) => (
+                      <Marker
+                        key={e.id}
+                        coordinates={[e.lng, e.lat]}
+                        onMouseEnter={(evt: any) => handleMarkerEnter(evt, [e])}
+                        onClick={() => navigate(`/entries/${e.id}`)}
+                      >
+                        <circle r={10 / zoom} fill={color} stroke="white" strokeWidth={2.5 / zoom} style={{ cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.25))" }} />
+                        <text textAnchor="middle" dominantBaseline="central" fill="white" fontSize={9 / zoom} fontWeight="bold" style={{ pointerEvents: "none" }}>
+                          {ei + 1}
+                        </text>
+                      </Marker>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
+            </ZoomableGroup>
           </ComposableMap>
+
+          {/* Zoom controls */}
+          <div className="absolute bottom-3 right-3 flex flex-col gap-1 z-10">
+            <button
+              onClick={() => setZoom(z => Math.min(z * 1.5, 16))}
+              className="w-8 h-8 rounded-lg bg-white/90 backdrop-blur-sm border border-border/60 shadow-sm flex items-center justify-center hover:bg-white transition-colors"
+              title="放大"
+            >
+              <ZoomIn className="w-4 h-4 text-foreground" />
+            </button>
+            <button
+              onClick={() => setZoom(z => Math.max(z / 1.5, 1))}
+              className="w-8 h-8 rounded-lg bg-white/90 backdrop-blur-sm border border-border/60 shadow-sm flex items-center justify-center hover:bg-white transition-colors"
+              title="缩小"
+            >
+              <ZoomOut className="w-4 h-4 text-foreground" />
+            </button>
+            <button
+              onClick={() => { setZoom(1); setCenter([20, 10]); }}
+              className="w-8 h-8 rounded-lg bg-white/90 backdrop-blur-sm border border-border/60 shadow-sm flex items-center justify-center hover:bg-white transition-colors"
+              title="重置视图"
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-foreground" />
+            </button>
+          </div>
 
           {selected && tooltipPos && (
             <div
