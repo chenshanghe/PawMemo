@@ -409,15 +409,30 @@ router.delete("/comments/:commentId", requireAuth, async (req, res) => {
 // ── Public Square ─────────────────────────────────────────────────────────────
 
 // GET /api/square — list all public entries with stats (no auth required)
+// Supports ?tag=<name> to filter by tag
 router.get("/square", optionalAuth, async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(40, Number(req.query.limit) || 20);
   const offset = (page - 1) * limit;
+  const tagName = typeof req.query.tag === "string" && req.query.tag.trim() ? req.query.tag.trim() : null;
+
+  // Build WHERE condition — optionally scoped to a tag
+  const publicOnly = eq(diaryEntriesTable.visibility, "public");
+  let whereCondition: any = publicOnly;
+
+  if (tagName) {
+    const taggedIds = db
+      .select({ entryId: entryTagsTable.entryId })
+      .from(entryTagsTable)
+      .innerJoin(tagsTable, eq(entryTagsTable.tagId, tagsTable.id))
+      .where(eq(tagsTable.name, tagName));
+    whereCondition = and(publicOnly, inArray(diaryEntriesTable.id, taggedIds));
+  }
 
   const baseEntries = await db
     .select()
     .from(diaryEntriesTable)
-    .where(eq(diaryEntriesTable.visibility, "public"))
+    .where(whereCondition)
     .orderBy(sql`${diaryEntriesTable.createdAt} desc`)
     .limit(limit)
     .offset(offset);
@@ -428,7 +443,7 @@ router.get("/square", optionalAuth, async (req, res) => {
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
     .from(diaryEntriesTable)
-    .where(eq(diaryEntriesTable.visibility, "public"));
+    .where(whereCondition);
 
   res.json({ entries: result, total, page, limit });
 });

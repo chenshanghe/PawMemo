@@ -1,12 +1,14 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "wouter";
-import { MapPin, Heart, MessageCircle, Image as ImageIcon, CalendarDays, ChevronRight, Loader2, RefreshCw, Bookmark } from "lucide-react";
+import { MapPin, Heart, MessageCircle, Image as ImageIcon, CalendarDays, ChevronRight, Loader2, RefreshCw, Bookmark, Tag } from "lucide-react";
 import { format } from "date-fns";
 import { useUser } from "@clerk/react";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const LIMIT = 20;
 
 interface SquareEntry {
   id: number;
@@ -26,6 +28,12 @@ interface SquareEntry {
   createdAt: string;
 }
 
+interface PopularTag {
+  id: number;
+  name: string;
+  count: number;
+}
+
 const MOODS: Record<string, string> = {
   开心: "bg-yellow-100 text-yellow-700",
   平静: "bg-blue-100 text-blue-700",
@@ -37,39 +45,84 @@ const MOODS: Record<string, string> = {
 
 export default function Square() {
   const { isSignedIn } = useUser();
+
+  // ── Entries state ──────────────────────────────────────────────────────────
   const [entries, setEntries] = useState<SquareEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // ── Tag filter ─────────────────────────────────────────────────────────────
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [popularTags, setPopularTags] = useState<PopularTag[]>([]);
+
+  // ── Like / fav maps ────────────────────────────────────────────────────────
   const [likedMap, setLikedMap] = useState<Record<number, { count: number; liked: boolean }>>({});
   const [favMap, setFavMap] = useState<Record<number, boolean>>({});
   const [likePending, setLikePending] = useState<number | null>(null);
   const [favPending, setFavPending] = useState<number | null>(null);
-  const LIMIT = 20;
 
-  const fetchSquare = useCallback(async (p: number) => {
-    setLoading(true);
+  // ── Fetch popular tags once ────────────────────────────────────────────────
+  useEffect(() => {
+    fetch(`${BASE}/api/tags/popular`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : [])
+      .then(setPopularTags)
+      .catch(() => {});
+  }, []);
+
+  // ── Core fetch ────────────────────────────────────────────────────────────
+  const fetchPage = useCallback(async (p: number, tag: string | null) => {
+    if (p === 1) setLoading(true);
+    else setLoadingMore(true);
     try {
-      const res = await fetch(`${BASE}/api/square?page=${p}&limit=${LIMIT}`, { credentials: "include" });
+      const tagParam = tag ? `&tag=${encodeURIComponent(tag)}` : "";
+      const res = await fetch(`${BASE}/api/square?page=${p}&limit=${LIMIT}${tagParam}`, { credentials: "include" });
       if (!res.ok) return;
       const data = await res.json();
-      setEntries(data.entries);
+
+      setEntries((prev) => p === 1 ? data.entries : [...prev, ...data.entries]);
       setTotal(data.total);
-      const map: Record<number, { count: number; liked: boolean }> = {};
-      const fav: Record<number, boolean> = {};
+      setHasMore(data.entries.length >= LIMIT && p * LIMIT < data.total);
+
+      const newLiked: Record<number, { count: number; liked: boolean }> = {};
+      const newFav: Record<number, boolean> = {};
       for (const e of data.entries) {
-        map[e.id] = { count: e.likeCount, liked: e.viewerLiked };
-        if (e.viewerFavorited) fav[e.id] = true;
+        newLiked[e.id] = { count: e.likeCount, liked: e.viewerLiked };
+        if (e.viewerFavorited) newFav[e.id] = true;
       }
-      setLikedMap(map);
-      setFavMap(fav);
+      setLikedMap((prev) => ({ ...prev, ...newLiked }));
+      setFavMap((prev) => ({ ...prev, ...newFav }));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
-  useEffect(() => { fetchSquare(page); }, [page, fetchSquare]);
+  // ── Trigger fetch when page or tag changes ─────────────────────────────────
+  useEffect(() => {
+    fetchPage(page, activeTag);
+  }, [page, activeTag, fetchPage]);
 
+  // ── Tag selection resets list ──────────────────────────────────────────────
+  const handleTagSelect = useCallback((tag: string | null) => {
+    setActiveTag(tag);
+    setEntries([]);
+    setPage(1);
+    setHasMore(true);
+    setTotal(0);
+  }, []);
+
+  // ── Infinite scroll ────────────────────────────────────────────────────────
+  const loadMore = useCallback(() => {
+    if (!hasMore || loadingMore || loading) return;
+    setPage((p) => p + 1);
+  }, [hasMore, loadingMore, loading]);
+
+  const sentinelRef = useInfiniteScroll(loadMore, hasMore, loadingMore || loading);
+
+  // ── Interactions ───────────────────────────────────────────────────────────
   const handleLike = async (entryId: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -102,40 +155,80 @@ export default function Square() {
     }
   };
 
-  const totalPages = Math.ceil(total / LIMIT);
-
   return (
     <Layout>
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-serif font-bold text-foreground">旅行广场</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {total > 0 ? `共 ${total} 篇公开日记` : "还没有公开的日记"}
-          </p>
+      <div className="space-y-5 animate-in fade-in duration-300">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-serif font-bold text-foreground">旅行广场</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {activeTag
+                ? `#${activeTag} · ${total} 篇`
+                : total > 0 ? `共 ${total} 篇公开日记` : "还没有公开的日记"}
+            </p>
+          </div>
+          <button
+            onClick={() => { setEntries([]); setPage(1); setHasMore(true); fetchPage(1, activeTag); }}
+            className="p-2 rounded-xl text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+            title="刷新"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
         </div>
-        <button
-          onClick={() => fetchSquare(page)}
-          className="p-2 rounded-xl text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
-          title="刷新"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
-      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-primary/60" />
-        </div>
-      ) : entries.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
-          <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center text-3xl">🌍</div>
-          <p className="text-muted-foreground text-sm">暂无公开的旅行日记</p>
-          <p className="text-xs text-muted-foreground/70">将你的日记设置为「公开」，让它出现在这里</p>
-        </div>
-      ) : (
-        <>
+        {/* Tag chips */}
+        {popularTags.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+            <button
+              onClick={() => handleTagSelect(null)}
+              className={cn(
+                "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                activeTag === null
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border/60 text-muted-foreground hover:border-primary/50 hover:text-foreground bg-background",
+              )}
+            >
+              全部
+            </button>
+            {popularTags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => handleTagSelect(tag.name)}
+                className={cn(
+                  "shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                  activeTag === tag.name
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border/60 text-muted-foreground hover:border-primary/50 hover:text-foreground bg-background",
+                )}
+              >
+                <span className="opacity-60">#</span>{tag.name}
+                <span className="opacity-50 text-[10px]">{tag.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Content */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-primary/60" />
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center text-3xl">
+              {activeTag ? <Tag className="w-7 h-7 text-muted-foreground/40" /> : "🌍"}
+            </div>
+            <p className="text-muted-foreground text-sm">
+              {activeTag ? `没有 #${activeTag} 相关的旅行日记` : "暂无公开的旅行日记"}
+            </p>
+            {activeTag && (
+              <button onClick={() => handleTagSelect(null)} className="text-primary text-sm hover:underline">
+                查看全部 →
+              </button>
+            )}
+          </div>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {entries.map((entry) => {
               const liked = likedMap[entry.id];
@@ -152,6 +245,7 @@ export default function Square() {
                         <img
                           src={entry.coverPhotoUrl}
                           alt={entry.destination}
+                          loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
@@ -160,21 +254,15 @@ export default function Square() {
                         </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-
-                      {/* Destination badge */}
                       <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-semibold shadow-sm">
                         <MapPin className="w-3 h-3 text-primary" />
                         {entry.destination}
                       </div>
-
-                      {/* Mood */}
                       {entry.mood && (
                         <div className={cn("absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full text-xs font-medium", MOODS[entry.mood] ?? "bg-muted text-muted-foreground")}>
                           {entry.mood}
                         </div>
                       )}
-
-                      {/* Favorite */}
                       {isSignedIn && (
                         <button
                           onClick={(e) => handleFavorite(entry.id, e)}
@@ -195,7 +283,6 @@ export default function Square() {
                       <h3 className="font-serif font-semibold text-foreground text-sm leading-snug line-clamp-2">
                         {entry.title}
                       </h3>
-
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <CalendarDays className="w-3 h-3 shrink-0" />
                         <span>
@@ -203,24 +290,27 @@ export default function Square() {
                           {entry.endDate && ` · ${travelDays}天`}
                         </span>
                       </div>
-
                       {entry.content && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                          {entry.content}
-                        </p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{entry.content}</p>
                       )}
-
                       {entry.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {entry.tags.slice(0, 3).map((tag) => (
-                            <span key={tag.id} className="px-1.5 py-0.5 rounded-md bg-muted/60 text-[10px] text-muted-foreground">
+                            <button
+                              key={tag.id}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTagSelect(tag.name); }}
+                              className={cn(
+                                "px-1.5 py-0.5 rounded-md text-[10px] transition-colors",
+                                activeTag === tag.name
+                                  ? "bg-primary/15 text-primary"
+                                  : "bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary",
+                              )}
+                            >
                               #{tag.name}
-                            </span>
+                            </button>
                           ))}
                         </div>
                       )}
-
-                      {/* Footer: likes & comments */}
                       <div className="mt-auto pt-2 border-t border-border/30 flex items-center justify-between">
                         <button
                           onClick={(e) => handleLike(entry.id, e)}
@@ -228,7 +318,7 @@ export default function Square() {
                           className={cn(
                             "flex items-center gap-1 text-xs transition-colors",
                             liked?.liked ? "text-red-500" : "text-muted-foreground hover:text-red-400",
-                            !isSignedIn && "cursor-default"
+                            !isSignedIn && "cursor-default",
                           )}
                         >
                           <Heart className={cn("w-3.5 h-3.5", liked?.liked && "fill-red-500")} />
@@ -249,30 +339,23 @@ export default function Square() {
               );
             })}
           </div>
+        )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="px-4 py-1.5 rounded-lg border border-border/60 text-sm text-muted-foreground hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                上一页
-              </button>
-              <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="px-4 py-1.5 rounded-lg border border-border/60 text-sm text-muted-foreground hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                下一页
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+        {/* Infinite scroll sentinel */}
+        <div ref={sentinelRef} className="h-4" />
+
+        {/* Loading more spinner */}
+        {loadingMore && (
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="w-5 h-5 animate-spin text-primary/50" />
+          </div>
+        )}
+
+        {/* End of list */}
+        {!hasMore && entries.length > 0 && !loading && (
+          <p className="text-center text-xs text-muted-foreground/50 py-4">— 已加载全部 {entries.length} 篇 —</p>
+        )}
+      </div>
     </Layout>
   );
 }
