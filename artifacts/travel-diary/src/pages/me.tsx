@@ -887,10 +887,10 @@ export default function Me() {
               <FavoritesGrid favs={favorites} loaded={favoritesLoaded} />
             )}
             {tab === "following" && (
-              <UsersList users={following} loaded={followingLoaded} emptyHint="去广场关注感兴趣的旅行者" />
+              <UsersList users={following} loaded={followingLoaded} emptyHint="还没有关注任何旅行者" ctaHref="/square" ctaLabel="去广场发现旅行者" />
             )}
             {tab === "followers" && (
-              <UsersList users={followers} loaded={followersLoaded} emptyHint="还没有粉丝 — 多发几篇公开日记吧" />
+              <UsersList users={followers} loaded={followersLoaded} emptyHint="还没有粉丝 — 多发几篇公开日记吧" ctaHref="/entries/new" ctaLabel="写一篇公开日记" />
             )}
             {tab === "report" && stats && (
               <ReportTab
@@ -1228,12 +1228,25 @@ function FavoritesGrid({ favs, loaded }: { favs: FavEntry[]; loaded: boolean }) 
   );
 }
 
-function UsersList({ users, loaded, emptyHint }: { users: FollowItem[]; loaded: boolean; emptyHint: string }) {
+function UsersList({ users, loaded, emptyHint, ctaHref, ctaLabel }: {
+  users: FollowItem[];
+  loaded: boolean;
+  emptyHint: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+}) {
   if (!loaded) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary/60" /></div>;
   if (users.length === 0) return (
-    <div className="flex flex-col items-center py-16 text-center gap-3">
+    <div className="flex flex-col items-center py-16 text-center gap-4">
       <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-2xl">👥</div>
-      <p className="text-sm text-muted-foreground">{emptyHint}</p>
+      <div className="space-y-1">
+        <p className="text-sm text-muted-foreground">{emptyHint}</p>
+      </div>
+      {ctaHref && ctaLabel && (
+        <Link href={ctaHref} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+          {ctaLabel}
+        </Link>
+      )}
     </div>
   );
   return (

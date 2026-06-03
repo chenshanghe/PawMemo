@@ -79,6 +79,7 @@
   "dependencies": {
     "@clerk/react": "^6.6.6",
     "@clerk/themes": "^2.4.57",
+    "@sentry/react": "^10.56.0",
     "@types/leaflet": "^1.9.21",
     "@uppy/aws-s3": "^5.1.0",
     "@uppy/core": "^5.2.0",

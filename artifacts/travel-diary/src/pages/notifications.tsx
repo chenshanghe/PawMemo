@@ -75,10 +75,17 @@ export default function NotificationsPage() {
         {loading ? (
           <div className="text-center py-16 text-muted-foreground text-sm">加载中…</div>
         ) : notifs.length === 0 ? (
-          <div className="text-center py-20 space-y-3">
-            <Bell className="w-10 h-10 text-muted-foreground/30 mx-auto" />
-            <p className="text-muted-foreground text-sm">暂无消息</p>
-            <p className="text-muted-foreground/60 text-xs">有人点赞、评论或关注你时，会在这里提醒</p>
+          <div className="flex flex-col items-center py-20 gap-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center">
+              <Bell className="w-7 h-7 text-muted-foreground/40" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">还没有消息</p>
+              <p className="text-xs text-muted-foreground">有人点赞、评论或关注你时，会在这里提醒</p>
+            </div>
+            <Link href="/square" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+              去广场逛逛
+            </Link>
           </div>
         ) : (
           <div className="space-y-1">
