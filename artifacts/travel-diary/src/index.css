@@ -209,3 +209,15 @@
   .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 }
+
+/* Hide Replit platform-injected feedback / agent-inbox widget */
+replit-agent-inbox,
+[data-replit-agent-inbox],
+#replit-agent-inbox,
+.replit-agent-inbox,
+[class*="AgentInbox"],
+[id*="agent-inbox"],
+[class*="agent-inbox"],
+[data-replit-feedback],
+#replit-feedback-widget,
+.replit-feedback-widget { display: none !important; }
