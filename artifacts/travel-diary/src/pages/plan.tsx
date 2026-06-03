@@ -221,6 +221,7 @@ export default function PlanPage() {
   const syncedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [clearedPrefs, setClearedPrefs] = useState(false);
   const clearedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [confirmClearPrefs, setConfirmClearPrefs] = useState(false);
 
   useEffect(() => { setSelectedPoi(null); }, [activeDay]);
 
@@ -530,9 +531,23 @@ export default function PlanPage() {
                 <div className="px-3 py-2 rounded-xl bg-primary/5 border border-primary/15 text-xs text-muted-foreground space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span>{isSignedIn ? "☁️ 已从账号同步偏好设置" : "✅ 已自动填入上次的偏好设置"}</span>
-                    <button onClick={handleClearPrefs} className="flex items-center gap-1 text-primary hover:text-primary/70 transition-colors font-medium shrink-0 ml-3">
-                      <RotateCcw className="w-3 h-3" />清除偏好
-                    </button>
+                    {confirmClearPrefs ? (
+                      <span className="flex items-center gap-1.5 shrink-0 ml-3">
+                        <span className="text-muted-foreground">确认清除？</span>
+                        <button
+                          onClick={() => { setConfirmClearPrefs(false); handleClearPrefs(); }}
+                          className="px-2 py-0.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors font-medium"
+                        >确认</button>
+                        <button
+                          onClick={() => setConfirmClearPrefs(false)}
+                          className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground hover:bg-muted/70 transition-colors font-medium"
+                        >取消</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setConfirmClearPrefs(true)} className="flex items-center gap-1 text-primary hover:text-primary/70 transition-colors font-medium shrink-0 ml-3">
+                        <RotateCcw className="w-3 h-3" />清除偏好
+                      </button>
+                    )}
                   </div>
                   {[from, style, travelMode, budget ? budget.split("（")[0] : ""].filter(Boolean).length > 0 && (
                     <div className="flex flex-wrap gap-1">
