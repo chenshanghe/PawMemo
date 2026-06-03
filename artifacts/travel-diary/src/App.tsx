@@ -30,6 +30,8 @@ import PlanPage from "@/pages/plan";
 import NotificationsPage from "@/pages/notifications";
 import AchievementsPage from "@/pages/achievements";
 import PlanListPage from "@/pages/plan-list";
+import PrivacyPage from "@/pages/privacy";
+import TermsPage from "@/pages/terms";
 
 const queryClient = new QueryClient();
 
@@ -221,6 +223,8 @@ function AppRouter() {
       <Route path="/entries/:id/print">
         {(params) => <ProtectedRoute component={EntryPrintPage} params={params as { id: string }} />}
       </Route>
+      <Route path="/privacy">{() => <PrivacyPage />}</Route>
+      <Route path="/terms">{() => <TermsPage />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

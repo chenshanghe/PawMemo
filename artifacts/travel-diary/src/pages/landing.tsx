@@ -95,8 +95,12 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="text-center text-xs text-muted-foreground py-4 border-t border-border/40">
-        © 2025 红薯旅行日记
+      <footer className="text-center text-xs text-muted-foreground py-5 border-t border-border/40 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 px-4">
+        <span>© 2025 红薯旅行日记</span>
+        <span className="hidden sm:inline text-border">·</span>
+        <Link href="/privacy" className="hover:text-primary transition-colors">隐私政策</Link>
+        <span className="hidden sm:inline text-border">·</span>
+        <Link href="/terms" className="hover:text-primary transition-colors">用户服务协议</Link>
       </footer>
     </div>
   );
