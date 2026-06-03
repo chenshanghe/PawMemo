@@ -6,6 +6,7 @@ import {
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
   Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, SlidersHorizontal, RotateCcw, MessageSquare,
+  AlertTriangle, Trash2,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -174,6 +175,12 @@ export default function Me() {
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [prefsSaving, setPrefsSaving] = useState(false);
   const [prefsSaved, setPrefsSaved] = useState(false);
+
+  // Account deletion
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleSelectAvatar = async (url: string) => {
     setAvatarSaving(true);
@@ -646,6 +653,27 @@ export default function Me() {
             </button>
           </div>
 
+          {/* ── Account & Privacy ──────────────────────────────────────── */}
+          <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/5 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-destructive/15">
+              <AlertTriangle className="w-4 h-4 text-destructive/70" />
+              <span className="text-sm font-semibold text-foreground">账号与隐私</span>
+            </div>
+            <button
+              onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-destructive/5 transition-colors group text-left"
+            >
+              <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4 text-destructive/70" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-destructive/80">注销账号</p>
+                <p className="text-[11px] text-muted-foreground">删除所有旅行日记和账号数据，此操作不可撤销</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            </button>
+          </div>
+
           {/* ── Travel Preferences ─────────────────────────────────────── */}
           <div className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
@@ -849,6 +877,67 @@ export default function Me() {
       )}
       {showFeedback && (
         <FeedbackModal onClose={() => setShowFeedback(false)} />
+      )}
+
+      {/* ── Account deletion modal ──────────────────────────────────────── */}
+      {showDeleteAccount && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl bg-background border border-destructive/30 shadow-xl p-5 space-y-4 animate-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">注销账号</h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  此操作将永久删除你的所有旅行日记、照片记录和账号数据，且<strong>无法恢复</strong>。
+                </p>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">请输入 <strong className="text-foreground">注销账号</strong> 以确认</p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => { setDeleteConfirmText(e.target.value); setDeleteError(null); }}
+                placeholder="注销账号"
+                className="w-full text-sm px-3 py-2.5 rounded-xl border border-border/60 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-destructive/50"
+              />
+              {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowDeleteAccount(false); setDeleteConfirmText(""); setDeleteError(null); }}
+                className="flex-1 py-2.5 rounded-xl border border-border/50 text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                disabled={deleteConfirmText !== "注销账号" || deletePending}
+                onClick={async () => {
+                  if (deleteConfirmText !== "注销账号" || deletePending) return;
+                  setDeletePending(true);
+                  setDeleteError(null);
+                  try {
+                    const res = await fetch(`${BASE}/api/me/account`, { method: "DELETE", credentials: "include" });
+                    if (res.ok) {
+                      await signOut();
+                    } else {
+                      setDeleteError("注销失败，请稍后重试");
+                    }
+                  } catch {
+                    setDeleteError("网络错误，请稍后重试");
+                  } finally {
+                    setDeletePending(false);
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              >
+                {deletePending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />注销中…</> : <><Trash2 className="w-3.5 h-3.5" />确认注销</>}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </Layout>
   );

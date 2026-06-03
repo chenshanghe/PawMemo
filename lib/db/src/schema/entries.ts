@@ -262,3 +262,29 @@ export const feedbackTable = pgTable("feedback", {
 });
 
 export type Feedback = typeof feedbackTable.$inferSelect;
+
+// ── Safety / Moderation ───────────────────────────────────────────────────────
+export const userBlocksTable = pgTable(
+  "user_blocks",
+  {
+    blockerId: text("blocker_id").notNull(),
+    blockedId: text("blocked_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.blockerId, t.blockedId] }),
+  }),
+);
+
+export const contentReportsTable = pgTable("content_reports", {
+  id: serial("id").primaryKey(),
+  reporterId: text("reporter_id").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: text("target_id").notNull(),
+  reason: text("reason").notNull(),
+  details: text("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type UserBlock = typeof userBlocksTable.$inferSelect;
+export type ContentReport = typeof contentReportsTable.$inferSelect;

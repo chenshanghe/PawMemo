@@ -18,6 +18,7 @@ import collaboratorsRouter from "./collaborators";
 import payHupiRouter from "./pay-hupi";
 import prefsRouter from "./prefs";
 import feedbackRouter from "./feedback";
+import safetyRouter from "./safety";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use("/collections", collectionsRouter);
 router.use("/pay/hupi", payHupiRouter);
 router.use(prefsRouter);
 router.use(feedbackRouter);
+router.use(safetyRouter);
 
 export default router;

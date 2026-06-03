@@ -13,8 +13,9 @@ import {
   entryFavoritesTable,
   composeStylesTable,
   notificationsTable,
+  userBlocksTable,
 } from "@workspace/db";
-import { eq, sql, and, desc, inArray, count } from "drizzle-orm";
+import { eq, sql, and, desc, inArray, notInArray, count } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { getAuth } from "@clerk/express";
 import crypto from "crypto";
@@ -416,17 +417,41 @@ router.get("/square", optionalAuth, async (req, res) => {
   const offset = (page - 1) * limit;
   const tagName = typeof req.query.tag === "string" && req.query.tag.trim() ? req.query.tag.trim() : null;
 
-  // Build WHERE condition — optionally scoped to a tag
+  // Build WHERE condition — optionally scoped to a tag, excluding blocked users
+  const viewerUserId: string | null = (req as any).userId;
   const publicOnly = eq(diaryEntriesTable.visibility, "public");
   let whereCondition: any = publicOnly;
 
-  if (tagName) {
+  // Gather blocked user IDs (when logged in) to hide their content
+  let blockedUserIds: string[] = [];
+  if (viewerUserId) {
+    const blockRows = await db
+      .select({ blockedId: userBlocksTable.blockedId })
+      .from(userBlocksTable)
+      .where(eq(userBlocksTable.blockerId, viewerUserId));
+    blockedUserIds = blockRows.map((r) => r.blockedId);
+  }
+
+  if (tagName && blockedUserIds.length > 0) {
+    const taggedIds = db
+      .select({ entryId: entryTagsTable.entryId })
+      .from(entryTagsTable)
+      .innerJoin(tagsTable, eq(entryTagsTable.tagId, tagsTable.id))
+      .where(eq(tagsTable.name, tagName));
+    whereCondition = and(
+      publicOnly,
+      inArray(diaryEntriesTable.id, taggedIds),
+      notInArray(diaryEntriesTable.userId, blockedUserIds),
+    );
+  } else if (tagName) {
     const taggedIds = db
       .select({ entryId: entryTagsTable.entryId })
       .from(entryTagsTable)
       .innerJoin(tagsTable, eq(entryTagsTable.tagId, tagsTable.id))
       .where(eq(tagsTable.name, tagName));
     whereCondition = and(publicOnly, inArray(diaryEntriesTable.id, taggedIds));
+  } else if (blockedUserIds.length > 0) {
+    whereCondition = and(publicOnly, notInArray(diaryEntriesTable.userId, blockedUserIds));
   }
 
   const baseEntries = await db
@@ -437,7 +462,6 @@ router.get("/square", optionalAuth, async (req, res) => {
     .limit(limit)
     .offset(offset);
 
-  const viewerUserId: string | null = (req as any).userId;
   const result = await hydrateEntries(baseEntries, viewerUserId);
 
   const [{ total }] = await db

@@ -5,7 +5,7 @@ import { generateShareCard } from "@/lib/shareCard";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 import { Link } from "wouter";
 import { useUser } from "@clerk/react";
-import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Globe, Bookmark, UserPlus, UserCheck, Download } from "lucide-react";
+import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Globe, Bookmark, UserPlus, UserCheck, Download, Flag, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +84,13 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
   const [viewerFavorited, setViewerFavorited] = useState(false);
   const [favPending, setFavPending] = useState(false);
   const [cardGenerating, setCardGenerating] = useState(false);
+
+  // Report content
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportPending, setReportPending] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -282,6 +289,15 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
             {cardGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">分享卡片</span>
           </button>
+          {isSignedIn && (
+            <button
+              onClick={() => { setShowReport(true); setReportReason(""); setReportDetails(""); setReportDone(false); }}
+              title="举报内容"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+            >
+              <Flag className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -532,6 +548,94 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
           </div>
         </div>
       </div>
+
+      {/* ── Report modal ─────────────────────────────────────────────── */}
+      {showReport && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl bg-background border border-border/50 shadow-xl p-5 space-y-4 animate-in slide-in-from-bottom-4 duration-200">
+            {reportDone ? (
+              <div className="flex flex-col items-center gap-3 py-4">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <p className="font-semibold text-foreground">举报已提交</p>
+                <p className="text-xs text-muted-foreground text-center">感谢你的反馈，我们会尽快核查。</p>
+                <button onClick={() => setShowReport(false)} className="mt-2 px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                  关闭
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-foreground">举报内容</h3>
+                  <button onClick={() => setShowReport(false)} className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors">
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">举报原因</p>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {[
+                      { value: "spam", label: "垃圾内容 / 广告" },
+                      { value: "violence", label: "暴力或危险行为" },
+                      { value: "harassment", label: "骚扰或霸凌" },
+                      { value: "inappropriate", label: "不雅或色情内容" },
+                      { value: "misinformation", label: "虚假信息" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setReportReason(opt.value)}
+                        className={`w-full text-left px-3 py-2 rounded-xl border text-sm transition-colors ${reportReason === opt.value ? "border-primary bg-primary/5 text-primary" : "border-border/50 hover:border-border text-foreground"}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">补充说明（可选）</p>
+                  <textarea
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                    placeholder="请描述具体问题..."
+                    rows={3}
+                    className="w-full text-sm px-3 py-2.5 rounded-xl border border-border/60 bg-background text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowReport(false)} className="flex-1 py-2.5 rounded-xl border border-border/50 text-sm text-muted-foreground hover:bg-muted/50 transition-colors">
+                    取消
+                  </button>
+                  <button
+                    disabled={!reportReason || reportPending}
+                    onClick={async () => {
+                      if (!reportReason || reportPending) return;
+                      setReportPending(true);
+                      try {
+                        await fetch(`${BASE}/api/reports`, {
+                          method: "POST",
+                          credentials: "include",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ targetType: "entry", targetId: entryId, reason: reportReason, details: reportDetails }),
+                        });
+                        setReportDone(true);
+                      } catch {
+                        // silently dismiss
+                        setShowReport(false);
+                      } finally {
+                        setReportPending(false);
+                      }
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                  >
+                    {reportPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />提交中…</> : "提交举报"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
