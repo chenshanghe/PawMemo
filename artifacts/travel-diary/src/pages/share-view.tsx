@@ -227,7 +227,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
       {/* Top bar */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border/40 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xl">🍠</span>
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="红薯旅行日记" className="w-7 h-7 object-contain shrink-0" />
           <span className="font-serif font-bold text-foreground">红薯旅行日记</span>
         </div>
         <div className="flex items-center gap-3">

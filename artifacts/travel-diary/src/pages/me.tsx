@@ -1538,7 +1538,7 @@ function ReportTab({
   return (
     <div className="space-y-5 pb-6">
       <div className="text-center pt-4 space-y-0.5">
-        <div className="text-3xl mb-1">🍠</div>
+        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" className="w-10 h-10 object-contain mx-auto mb-1" />
         <h2 className="text-lg font-bold">{year} 旅行报告</h2>
         <p className="text-xs text-muted-foreground">你的全部旅行足迹一览</p>
       </div>
