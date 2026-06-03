@@ -10,7 +10,9 @@ import {
   Geography,
   Marker,
   Line,
+  ZoomableGroup,
 } from "react-simple-maps";
+import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import worldData from "@/assets/world-110m.json";
 
 const TRIP_COLORS = [
