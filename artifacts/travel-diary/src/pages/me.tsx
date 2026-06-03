@@ -182,6 +182,9 @@ export default function Me() {
   const [deletePending, setDeletePending] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Data export
+  const [exportPending, setExportPending] = useState(false);
+
   const handleSelectAvatar = async (url: string) => {
     setAvatarSaving(true);
     try {
@@ -679,6 +682,35 @@ export default function Me() {
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
             </Link>
+            <button
+              disabled={exportPending}
+              onClick={async () => {
+                setExportPending(true);
+                try {
+                  const res = await fetch(`${BASE}/api/me/export`, { credentials: "include" });
+                  if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `hongshu-export-${new Date().toISOString().slice(0, 10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }
+                } catch {}
+                finally { setExportPending(false); }
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group text-left border-t border-border/30 disabled:opacity-50"
+            >
+              <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+                {exportPending ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" /> : <Download className="w-4 h-4 text-muted-foreground" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">导出我的数据</p>
+                <p className="text-[11px] text-muted-foreground">下载所有旅行日记数据（JSON 格式）</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            </button>
             <button
               onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
               className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-destructive/5 transition-colors group text-left border-t border-border/30"

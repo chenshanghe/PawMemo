@@ -178,8 +178,14 @@ function SignInPage() {
 
 function SignUpPage() {
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-4 gap-4">
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+      <p className="text-xs text-muted-foreground text-center max-w-xs pb-4">
+        注册即表示你已阅读并同意{" "}
+        <a href={`${basePath}/terms`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">《用户服务协议》</a>
+        {" "}和{" "}
+        <a href={`${basePath}/privacy`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">《隐私政策》</a>
+      </p>
     </div>
   );
 }

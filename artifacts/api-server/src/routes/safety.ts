@@ -101,6 +101,38 @@ router.post("/reports", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/me/export — export all user data as JSON download
+router.get("/me/export", requireAuth, async (req, res) => {
+  const userId = (req as any).userId as string;
+
+  const [profile] = await db
+    .select()
+    .from(userProfilesTable)
+    .where(eq(userProfilesTable.userId, userId));
+
+  const entries = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.userId, userId));
+
+  const favorites = await db
+    .select({ entryId: entryFavoritesTable.entryId })
+    .from(entryFavoritesTable)
+    .where(eq(entryFavoritesTable.userId, userId));
+
+  const exportData = {
+    exportedAt: new Date().toISOString(),
+    profile: profile ?? null,
+    entries,
+    favorites: favorites.map((f) => f.entryId),
+  };
+
+  const filename = `hongshu-export-${new Date().toISOString().slice(0, 10)}.json`;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.json(exportData);
+});
+
 // DELETE /api/me/account — delete all user data (irreversible)
 // Clears entries, follows, favorites, blocks, notifications, then anonymizes profile.
 // The Clerk account itself is NOT deleted here (user must also delete from Clerk).
