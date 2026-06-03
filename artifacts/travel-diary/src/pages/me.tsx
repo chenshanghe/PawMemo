@@ -5,7 +5,7 @@ import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
-  Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, SlidersHorizontal, RotateCcw,
+  Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, SlidersHorizontal, RotateCcw, MessageSquare,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -167,6 +167,8 @@ export default function Me() {
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [digestSending, setDigestSending] = useState(false);
   const [digestToast, setDigestToast] = useState<string | null>(null);
+
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const [prefs, setPrefs] = useState<UserPrefs | null>(null);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -629,6 +631,19 @@ export default function Me() {
                 </div>
               </Link>
             ))}
+            <button
+              onClick={() => setShowFeedback(true)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer group text-left"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <MessageSquare className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">意见反馈</p>
+                <p className="text-[11px] text-muted-foreground">告诉我们你的想法或遇到的问题</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            </button>
           </div>
 
           {/* ── Travel Preferences ─────────────────────────────────────── */}
@@ -831,6 +846,9 @@ export default function Me() {
           onUpload={handleUploadAvatar}
           onClose={() => setShowAvatarPicker(false)}
         />
+      )}
+      {showFeedback && (
+        <FeedbackModal onClose={() => setShowFeedback(false)} />
       )}
     </Layout>
   );
@@ -1656,5 +1674,141 @@ function ExportTab({
         ))}
       </div>
     </>
+  );
+}
+
+// ── Feedback Modal ────────────────────────────────────────────────────────────
+const FEEDBACK_TYPES = [
+  { value: "bug",        emoji: "🐛", label: "Bug 反馈" },
+  { value: "suggestion", emoji: "💡", label: "功能建议" },
+  { value: "praise",     emoji: "👍", label: "表扬一下" },
+  { value: "other",      emoji: "💬", label: "其他" },
+];
+
+function FeedbackModal({ onClose }: { onClose: () => void }) {
+  const [type, setType] = useState("suggestion");
+  const [content, setContent] = useState("");
+  const [sending, setSending] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!content.trim()) return;
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch(`${BASE}/api/feedback`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, content }),
+      });
+      if (res.ok) {
+        setDone(true);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error ?? "提交失败，请重试");
+      }
+    } catch {
+      setError("网络错误，请重试");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-background rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-serif font-bold text-foreground">意见反馈</h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {done ? (
+          <div className="py-6 flex flex-col items-center gap-3 text-center">
+            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+              <Check className="w-6 h-6 text-green-600" />
+            </div>
+            <p className="text-base font-semibold text-foreground">感谢你的反馈！</p>
+            <p className="text-sm text-muted-foreground">我们会认真阅读每一条意见 🙏</p>
+            <button
+              onClick={onClose}
+              className="mt-2 px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              关闭
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Type selector */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">反馈类型</p>
+              <div className="grid grid-cols-4 gap-2">
+                {FEEDBACK_TYPES.map(({ value, emoji, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setType(value)}
+                    className={`flex flex-col items-center gap-1 py-2 rounded-xl border text-xs transition-colors ${
+                      type === value
+                        ? "border-primary bg-primary/8 text-primary font-semibold"
+                        : "border-border/40 bg-muted/20 text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    <span className="text-lg leading-none">{emoji}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Content */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">详细描述</p>
+              <Textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="请描述你遇到的问题或建议..."
+                maxLength={500}
+                rows={4}
+                className="resize-none text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground/60 text-right mt-1">{content.length}/500</p>
+            </div>
+
+            {error && (
+              <p className="text-xs text-destructive">{error}</p>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl border border-border/60 text-sm text-muted-foreground hover:bg-muted/40 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={sending || !content.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "提交反馈"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

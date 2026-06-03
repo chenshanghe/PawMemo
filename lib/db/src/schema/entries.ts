@@ -251,3 +251,14 @@ export const entryCollaboratorsTable = pgTable("entry_collaborators", {
 });
 
 export type EntryCollaborator = typeof entryCollaboratorsTable.$inferSelect;
+
+// ── User Feedback ─────────────────────────────────────────────────────────────
+export const feedbackTable = pgTable("feedback", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id"),
+  type: text("type").notNull().default("other"),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Feedback = typeof feedbackTable.$inferSelect;
