@@ -1,7 +1,10 @@
 import { Link } from "wouter";
-import { MapPin, BookOpen, Images, Star, Navigation } from "lucide-react";
+import { MapPin, BookOpen, Images, Star, Navigation, Sun, Moon, Monitor } from "lucide-react";
+import { useTheme } from "next-themes";
 
 export default function Landing() {
+  const { theme, setTheme } = useTheme();
+
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
       {/* Header */}
@@ -11,6 +14,24 @@ export default function Landing() {
           <span className="font-serif font-bold text-xl text-foreground">红薯旅行日记</span>
         </div>
         <div className="flex items-center gap-3">
+          {/* Theme segmented control */}
+          <div className="flex items-center rounded-xl border border-border/50 bg-muted/40 p-1 gap-0.5">
+            {([
+              { value: "light",  Icon: Sun,     label: "浅色" },
+              { value: "dark",   Icon: Moon,    label: "深色" },
+              { value: "system", Icon: Monitor, label: "跟随系统" },
+            ] as const).map(({ value, Icon, label }) => (
+              <button
+                key={value}
+                onClick={() => setTheme(value)}
+                title={label}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
           <Link href="/sign-in" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             登录
           </Link>

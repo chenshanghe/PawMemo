@@ -172,9 +172,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <h1 className="font-serif font-bold text-base text-foreground tracking-wide">红薯旅行日记</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={cycleTheme} title={themeLabel} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-lg">
-            <ThemeIcon className="w-4.5 h-4.5" />
-          </button>
+          {/* Theme segmented control — mobile */}
+          <div className="flex items-center rounded-lg border border-border/50 bg-muted/40 p-0.5 gap-0.5">
+            {([
+              { value: "light",  Icon: Sun,     label: "浅色" },
+              { value: "dark",   Icon: Moon,    label: "深色" },
+              { value: "system", Icon: Monitor, label: "跟随系统" },
+            ] as const).map(({ value, Icon, label }) => (
+              <button
+                key={value}
+                onClick={() => setTheme(value)}
+                title={label}
+                className={`w-6 h-6 flex items-center justify-center rounded-md transition-colors ${theme === value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+              </button>
+            ))}
+          </div>
           <Link href="/notifications" className="relative w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
@@ -203,8 +217,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <span>当前无网络连接，显示已缓存内容</span>
           </div>
         )}
-        {/* Desktop top-right notification button */}
-        <div className="hidden md:flex items-center justify-end px-8 pt-5 pb-0">
+        {/* Desktop top-right: theme switcher + notification bell */}
+        <div className="hidden md:flex items-center gap-2 justify-end px-8 pt-5 pb-0">
+          {/* Theme segmented control */}
+          <div className="flex items-center rounded-xl border border-border/50 bg-muted/40 p-1 gap-0.5">
+            {([
+              { value: "light",  Icon: Sun,     label: "浅色" },
+              { value: "dark",   Icon: Moon,    label: "深色" },
+              { value: "system", Icon: Monitor, label: "跟随系统" },
+            ] as const).map(({ value, Icon, label }) => (
+              <button
+                key={value}
+                onClick={() => setTheme(value)}
+                title={label}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${theme === value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
           <Link
             href="/notifications"
             className={`relative p-2 rounded-full transition-colors ${isNotifs ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
