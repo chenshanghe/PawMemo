@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://REPLACE_WITH_YOUR_DOMAIN/travel-diary/sitemap.xml
+Sitemap: https://urchins.life/sitemap.xml
