@@ -47,6 +47,7 @@ interface UserPrefs {
   specialNeeds: string[];
   fromCity: string;
   travelStyle: string;
+  travelers: number;
 }
 
 interface MyProfile {
@@ -265,9 +266,10 @@ export default function Me() {
             specialNeeds: Array.isArray(data.specialNeeds) ? data.specialNeeds : [],
             fromCity: data.fromCity ?? "",
             travelStyle: data.travelStyle ?? "",
+            travelers: typeof data.travelers === "number" && data.travelers >= 1 ? data.travelers : 2,
           });
         } else {
-          setPrefs({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "" });
+          setPrefs({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 });
         }
       }
     } finally {
@@ -298,14 +300,14 @@ export default function Me() {
       saveDebounceRef.current = null;
     }
     pendingSaveRef.current = null;
-    const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "" };
+    const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 };
     setPrefs(cleared);
     await savePrefs(cleared);
   };
 
   const updatePrefs = (patch: Partial<UserPrefs>) => {
     setPrefs((prev) => {
-      const next = { ...(prev ?? { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "" }), ...patch };
+      const next = { ...(prev ?? { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 }), ...patch };
       if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
       pendingSaveRef.current = next;
       saveDebounceRef.current = setTimeout(() => {
@@ -791,6 +793,36 @@ export default function Me() {
                     placeholder="例如：上海"
                     className="w-full rounded-lg border border-border/60 bg-background text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50"
                   />
+                </div>
+                {/* Traveler count */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                    👥 默认出行人数：<span className="font-semibold text-foreground">{prefs?.travelers ?? 2} 人</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => updatePrefs({ travelers: Math.max(1, (prefs?.travelers ?? 2) - 1) })}
+                      disabled={(prefs?.travelers ?? 2) <= 1}
+                      className="w-7 h-7 rounded-full border border-border/60 flex items-center justify-center text-sm font-bold text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="range"
+                      min={1}
+                      max={10}
+                      value={prefs?.travelers ?? 2}
+                      onChange={(e) => updatePrefs({ travelers: Number(e.target.value) })}
+                      className="flex-1 accent-primary"
+                    />
+                    <button
+                      onClick={() => updatePrefs({ travelers: Math.min(10, (prefs?.travelers ?? 2) + 1) })}
+                      disabled={(prefs?.travelers ?? 2) >= 10}
+                      className="w-7 h-7 rounded-full border border-border/60 flex items-center justify-center text-sm font-bold text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      ＋
+                    </button>
+                  </div>
                 </div>
                 {/* Travel mode */}
                 <div>
