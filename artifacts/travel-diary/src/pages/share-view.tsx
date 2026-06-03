@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import { Helmet } from "react-helmet-async";
+import { generateShareCard } from "@/lib/shareCard";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 import { useUser } from "@clerk/react";
-import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2 } from "lucide-react";
+import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Download } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +76,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commentPending, setCommentPending] = useState(false);
+  const [cardGenerating, setCardGenerating] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -135,6 +138,31 @@ export default function ShareView({ params }: { params: { token: string } }) {
     } catch {}
   };
 
+  const handleDownloadCard = async () => {
+    if (!data || cardGenerating) return;
+    setCardGenerating(true);
+    try {
+      const { entry } = data;
+      const blob = await generateShareCard({
+        title: entry.title,
+        destination: entry.destination,
+        date: entry.startDate ? format(new Date(entry.startDate), "yyyy年M月d日") : null,
+        rating: entry.rating ?? null,
+        coverUrl: entry.photos?.[0]?.url ?? entry.coverImage ?? null,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${entry.title || "旅行日记"}-分享卡片.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("生成分享卡片失败", e);
+    } finally {
+      setCardGenerating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[100dvh] bg-background flex items-center justify-center">
@@ -171,8 +199,27 @@ export default function ShareView({ params }: { params: { token: string } }) {
     ? Math.max(1, Math.ceil((new Date(entry.endDate).getTime() - new Date(entry.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)
     : 1;
 
+  const ogTitle = `${entry.title} — 红薯旅行日记`;
+  const ogDesc = entry.destination
+    ? `📍 ${entry.destination}${entry.content ? " · " + entry.content.slice(0, 80) : ""}`
+    : entry.content?.slice(0, 100) ?? "旅行日记";
+  const ogImage = photos[0]?.url ?? entry.coverImage ?? "";
+
   return (
     <div className="min-h-[100dvh] bg-background">
+      <Helmet>
+        <title>{ogTitle}</title>
+        <meta name="description" content={ogDesc} />
+        <meta property="og:title" content={ogTitle} />
+        <meta property="og:description" content={ogDesc} />
+        <meta property="og:type" content="article" />
+        {ogImage && <meta property="og:image" content={ogImage} />}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={ogTitle} />
+        <meta name="twitter:description" content={ogDesc} />
+        {ogImage && <meta name="twitter:image" content={ogImage} />}
+      </Helmet>
+
       {lightboxIndex !== null && (
         <Lightbox photos={photos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
       )}
@@ -183,7 +230,18 @@ export default function ShareView({ params }: { params: { token: string } }) {
           <span className="text-xl">🍠</span>
           <span className="font-serif font-bold text-foreground">红薯旅行日记</span>
         </div>
-        <a href="/sign-in" className="text-xs text-primary hover:underline">登录 / 注册</a>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleDownloadCard}
+            disabled={cardGenerating}
+            title="下载分享卡片"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            {cardGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">分享卡片</span>
+          </button>
+          <a href="/sign-in" className="text-xs text-primary hover:underline">登录 / 注册</a>
+        </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

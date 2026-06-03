@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, WifiOff } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, WifiOff, Sun, Moon, Monitor, Download } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
+import { useTheme } from "next-themes";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -55,6 +57,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isNotifs = location === "/notifications";
 
   const online = useOnlineStatus();
+  const { theme, setTheme } = useTheme();
+  const { canInstall, install } = usePWAInstall();
+
+  const cycleTheme = () => {
+    if (theme === "light") setTheme("dark");
+    else if (theme === "dark") setTheme("system");
+    else setTheme("light");
+  };
+  const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
+  const themeLabel = theme === "dark" ? "深色" : theme === "light" ? "浅色" : "跟随系统";
 
   const displayName = profile?.name || user?.fullName || user?.username || "旅行者";
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -99,6 +111,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="mt-auto space-y-3">
+          {/* Theme toggle */}
+          <button
+            onClick={cycleTheme}
+            title={themeLabel}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+          >
+            <ThemeIcon className="w-4 h-4 shrink-0" />
+            <span>{themeLabel}</span>
+          </button>
+
+          {/* PWA install prompt */}
+          {canInstall && (
+            <button
+              onClick={install}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-primary bg-primary/8 hover:bg-primary/15 border border-primary/20 transition-colors font-medium"
+            >
+              <Download className="w-4 h-4 shrink-0" />
+              <span>安装到桌面</span>
+            </button>
+          )}
+
           <Link href="/entries/new" className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 py-2.5 rounded-xl shadow-sm transition-all hover:shadow-md active:scale-95 font-semibold text-sm">
             <Plus className="w-4 h-4" />写随记
           </Link>
@@ -139,6 +172,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <h1 className="font-serif font-bold text-base text-foreground tracking-wide">红薯旅行日记</h1>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={cycleTheme} title={themeLabel} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-lg">
+            <ThemeIcon className="w-4.5 h-4.5" />
+          </button>
           <Link href="/notifications" className="relative w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
