@@ -357,7 +357,7 @@ function EntryCardInner({ entry, travelDays }: { entry: any; travelDays: (e: any
     <>
       <div className="relative aspect-[16/7] overflow-hidden bg-muted/40">
         {entry.coverImage ? (
-          <img src={entry.coverImage} alt={entry.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          <img src={entry.coverImage} alt={entry.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
         ) : (
           <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-10 h-10 text-muted-foreground/25" /></div>
         )}

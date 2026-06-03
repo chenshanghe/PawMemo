@@ -1012,7 +1012,7 @@ function NotesGrid({ notes, loaded }: { notes: MyEntry[]; loaded: boolean }) {
           <div className="rounded-xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all group cursor-pointer">
             <div className="relative aspect-[4/5] bg-muted/30 overflow-hidden">
               {n.coverImage ? (
-                <img src={n.coverImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <img src={n.coverImage} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <ImageIcon className="w-8 h-8 text-muted-foreground/20" />
@@ -1059,7 +1059,7 @@ function FavoritesGrid({ favs, loaded }: { favs: FavEntry[]; loaded: boolean }) 
             <div className="rounded-xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all group cursor-pointer">
               <div className="relative aspect-[4/5] bg-muted/30 overflow-hidden">
                 {f.coverPhotoUrl ? (
-                  <img src={f.coverPhotoUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <img src={f.coverPhotoUrl} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ImageIcon className="w-8 h-8 text-muted-foreground/20" />

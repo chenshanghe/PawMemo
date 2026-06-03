@@ -62,7 +62,7 @@ export default function Home() {
             <div className="flex items-center gap-4 bg-card rounded-2xl p-4 shadow-sm border border-border/40 hover:border-primary/30 transition-colors">
               <div className="shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-muted/50">
                 {latestEntry.coverImage ? (
-                  <img src={latestEntry.coverImage} alt={latestEntry.title} className="w-full h-full object-cover" />
+                  <img src={latestEntry.coverImage} alt={latestEntry.title} loading="lazy" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ImageIcon className="w-6 h-6 text-muted-foreground/40" />

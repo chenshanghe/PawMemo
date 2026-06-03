@@ -245,7 +245,7 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
                     photos.length > 4 && i === 3 ? "relative" : ""
                   )}
                 >
-                  <img src={photo.url} alt={photo.caption ?? ""} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                  <img src={photo.url} alt={photo.caption ?? ""} loading="lazy" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
                   {photos.length > 4 && i === 3 && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white font-semibold text-lg">
                       +{photos.length - 4}

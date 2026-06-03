@@ -373,7 +373,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         {/* Cover */}
         {entry.coverImage && (
           <div className="rounded-2xl overflow-hidden aspect-[21/9] shadow-lg">
-            <img src={entry.coverImage} alt={entry.title} className="w-full h-full object-cover" />
+            <img src={entry.coverImage} alt={entry.title} loading="lazy" className="w-full h-full object-cover" />
           </div>
         )}
 

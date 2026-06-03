@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, WifiOff } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -52,6 +53,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isPhotos = location === "/photos";
   const isPlan = location === "/plan" || location === "/plan/list";
   const isNotifs = location === "/notifications";
+
+  const online = useOnlineStatus();
 
   const displayName = profile?.name || user?.fullName || user?.username || "旅行者";
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -157,6 +160,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* ── Main Content ── */}
       <main className="flex-1 flex flex-col relative">
+        {/* Offline banner */}
+        {!online && (
+          <div className="sticky top-0 z-50 flex items-center justify-center gap-2 bg-amber-500/90 backdrop-blur-sm text-white text-xs font-medium py-1.5 px-4">
+            <WifiOff className="w-3.5 h-3.5 shrink-0" />
+            <span>当前无网络连接，显示已缓存内容</span>
+          </div>
+        )}
         {/* Desktop top-right notification button */}
         <div className="hidden md:flex items-center justify-end px-8 pt-5 pb-0">
           <Link

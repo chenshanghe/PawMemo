@@ -192,7 +192,7 @@ export default function UserProfile({ params }: { params: { userId: string } }) 
                     <div className="rounded-xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all group cursor-pointer">
                       <div className="relative aspect-[4/5] bg-muted/30 overflow-hidden">
                         {e.coverPhotoUrl ? (
-                          <img src={e.coverPhotoUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <img src={e.coverPhotoUrl} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <ImageIcon className="w-8 h-8 text-muted-foreground/20" />

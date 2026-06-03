@@ -190,7 +190,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
         {/* Cover */}
         {entry.coverImage && (
           <div className="rounded-2xl overflow-hidden aspect-[21/9] shadow-lg">
-            <img src={entry.coverImage} alt={entry.title} className="w-full h-full object-cover" />
+            <img src={entry.coverImage} alt={entry.title} loading="lazy" className="w-full h-full object-cover" />
           </div>
         )}
 
@@ -243,7 +243,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
             <div className="grid grid-cols-3 gap-2">
               {photos.map((photo, idx) => (
                 <div key={photo.id} className="aspect-square overflow-hidden rounded-xl shadow-sm bg-muted/30 cursor-pointer" onClick={() => setLightboxIndex(idx)}>
-                  <img src={photo.url} alt={photo.caption ?? "旅途照片"} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                  <img src={photo.url} alt={photo.caption ?? "旅途照片"} loading="lazy" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
                 </div>
               ))}
             </div>

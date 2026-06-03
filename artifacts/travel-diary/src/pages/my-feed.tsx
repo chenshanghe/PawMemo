@@ -146,7 +146,7 @@ export default function MyFeed() {
                     <div className="group rounded-2xl border border-border/50 bg-card overflow-hidden cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5 flex flex-col">
                       <div className="relative h-44 bg-muted/30 overflow-hidden shrink-0">
                         {entry.coverPhotoUrl ? (
-                          <img src={entry.coverPhotoUrl} alt={entry.destination} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <img src={entry.coverPhotoUrl} alt={entry.destination} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <ImageIcon className="w-10 h-10 text-muted-foreground/20" />
