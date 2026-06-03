@@ -171,6 +171,7 @@ function SavedPlanCard({ plan, onLoad, onDelete }: { plan: SavedPlan; onLoad: (i
         <p className="text-xs text-muted-foreground mt-0.5 truncate">{plan.from} → {plan.destinations.join("、")} · {nights} 晚</p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <span className="text-[10px] text-muted-foreground/70">{plan.startDate.slice(0, 7)}</span>
+          {plan.travelers > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600">👥 {plan.travelers}人</span>}
           {plan.travelMode && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600">{plan.travelMode}</span>}
           {plan.budget && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">{plan.budget.split("（")[0]}</span>}
           {plan.style && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{plan.style}</span>}
