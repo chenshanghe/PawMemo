@@ -33,6 +33,7 @@ import AchievementsPage from "@/pages/achievements";
 import PlanListPage from "@/pages/plan-list";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
+import { Onboarding } from "@/components/onboarding";
 
 const queryClient = new QueryClient();
 
@@ -269,6 +270,7 @@ function ClerkProviderWithRoutes() {
         <TooltipProvider>
           <ClerkQueryClientCacheInvalidator />
           <AppRouter />
+          <Onboarding />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

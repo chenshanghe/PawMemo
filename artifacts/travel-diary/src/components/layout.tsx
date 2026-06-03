@@ -5,6 +5,7 @@ import { useClerk, useUser } from "@clerk/react";
 import { useTheme } from "next-themes";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { NotifPermissionBanner } from "@/components/notif-permission-banner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -249,6 +250,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
           </Link>
         </div>
+        <NotifPermissionBanner unreadCount={unreadCount} />
         <div className="flex-1 p-4 pb-24 md:px-8 md:pb-8 md:pt-4 max-w-5xl mx-auto w-full">
           {children}
         </div>
