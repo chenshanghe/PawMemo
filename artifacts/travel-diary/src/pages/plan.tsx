@@ -319,6 +319,10 @@ export default function PlanPage() {
           clearedTimer.current = setTimeout(() => setClearedPrefs(false), 2000);
         }
       }).catch(() => {});
+    } else {
+      setClearedPrefs(true);
+      if (clearedTimer.current) clearTimeout(clearedTimer.current);
+      clearedTimer.current = setTimeout(() => setClearedPrefs(false), 2000);
     }
   };
 
