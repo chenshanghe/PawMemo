@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useUser, useClerk } from "@clerk/react";
 import {
@@ -175,6 +175,8 @@ export default function Me() {
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [prefsSaving, setPrefsSaving] = useState(false);
   const [prefsSaved, setPrefsSaved] = useState(false);
+  const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<UserPrefs | null>(null);
 
   // Account deletion
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
@@ -291,6 +293,11 @@ export default function Me() {
   };
 
   const handleClearPrefs = async () => {
+    if (saveDebounceRef.current) {
+      clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = null;
+    }
+    pendingSaveRef.current = null;
     const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "" };
     setPrefs(cleared);
     await savePrefs(cleared);
@@ -299,13 +306,33 @@ export default function Me() {
   const updatePrefs = (patch: Partial<UserPrefs>) => {
     setPrefs((prev) => {
       const next = { ...(prev ?? { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "" }), ...patch };
-      savePrefs(next);
+      if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+      pendingSaveRef.current = next;
+      saveDebounceRef.current = setTimeout(() => {
+        pendingSaveRef.current = null;
+        savePrefs(next);
+      }, 500);
       return next;
     });
   };
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
   useEffect(() => { fetchPrefs(); }, [fetchPrefs]);
+  useEffect(() => () => {
+    if (saveDebounceRef.current) {
+      clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = null;
+      if (pendingSaveRef.current) {
+        fetch(`${BASE}/api/prefs`, {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pendingSaveRef.current),
+        }).catch(() => {});
+        pendingSaveRef.current = null;
+      }
+    }
+  }, []);
 
   // Lazy-load tabs
   useEffect(() => {
