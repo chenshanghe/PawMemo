@@ -125,7 +125,7 @@ function ClerkQueryClientCacheInvalidator() {
           user.username ||
           user.primaryEmailAddress?.emailAddress?.split("@")[0] ||
           "旅行者";
-        fetch("/api/me/profile", {
+        fetch(`${basePath}/api/me/profile`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

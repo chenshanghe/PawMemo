@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
@@ -51,5 +51,12 @@ app.use(
 );
 
 app.use("/api", router);
+
+// Global async error handler — catches unhandled promise rejections from route handlers
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error(err, "Unhandled route error");
+  const message = err instanceof Error ? err.message : "Internal server error";
+  res.status(500).json({ error: message });
+});
 
 export default app;

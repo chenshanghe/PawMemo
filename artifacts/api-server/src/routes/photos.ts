@@ -33,7 +33,7 @@ router.delete("/:photoId", async (req, res) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  await db.delete(photosTable).where(eq(photosTable.id, parsed.data.photoId));
+  await db.delete(photosTable).where(and(eq(photosTable.id, parsed.data.photoId), eq(photosTable.entryId, entry.id)));
   res.status(204).send();
 });
 

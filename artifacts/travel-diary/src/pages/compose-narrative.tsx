@@ -520,7 +520,7 @@ export default function ComposeNarrative() {
                               sel ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-55 hover:opacity-80",
                             )}
                           >
-                            <img src={p.url} alt="" className="w-full h-full object-cover" />
+                            <img src={p.url} alt={p.caption || "旅行照片"} className="w-full h-full object-cover" />
                             <div className={cn(
                               "absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-white transition-all",
                               sel ? "bg-primary" : "bg-black/40",
