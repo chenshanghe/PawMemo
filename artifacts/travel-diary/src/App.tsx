@@ -5,7 +5,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
-import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, useLocation, Router as WouterRouter, Redirect, Link } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -184,9 +184,9 @@ function SignUpPage() {
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
       <p className="text-xs text-muted-foreground text-center max-w-xs pb-4">
         注册即表示你已阅读并同意{" "}
-        <a href={`${basePath}/terms`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">《用户服务协议》</a>
+        <Link href="/terms" className="text-primary hover:underline">《用户服务协议》</Link>
         {" "}和{" "}
-        <a href={`${basePath}/privacy`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">《隐私政策》</a>
+        <Link href="/privacy" className="text-primary hover:underline">《隐私政策》</Link>
       </p>
     </div>
   );
