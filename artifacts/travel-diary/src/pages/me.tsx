@@ -189,6 +189,7 @@ export default function Me() {
   const [prefsSaveError, setPrefsSaveError] = useState<string | null>(null);
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<UserPrefs | null>(null);
+  const latestPrefsRef = useRef<UserPrefs | null>(null);
   const prefsPanelRef = useRef<HTMLDivElement>(null);
 
   // Account deletion
@@ -285,7 +286,7 @@ export default function Me() {
       if (res.ok) {
         const data = await res.json();
         if (data) {
-          setPrefs({
+          const loaded: UserPrefs = {
             travelMode: data.travelMode ?? "",
             budget: data.budget ?? "",
             specialNeeds: Array.isArray(data.specialNeeds) ? data.specialNeeds : [],
@@ -293,9 +294,13 @@ export default function Me() {
             travelStyle: data.travelStyle ?? "",
             travelers: typeof data.travelers === "number" && data.travelers >= 1 ? data.travelers : 2,
             groupType: data.groupType ?? "",
-          });
+          };
+          latestPrefsRef.current = loaded;
+          setPrefs(loaded);
         } else {
-          setPrefs({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" });
+          const empty: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" };
+          latestPrefsRef.current = empty;
+          setPrefs(empty);
         }
       }
     } finally {
@@ -339,6 +344,7 @@ export default function Me() {
   const handleClearPrefs = () => {
     const snapshot = prefs;
     const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" };
+    latestPrefsRef.current = cleared;
     setPrefs(cleared);
     if (saveDebounceRef.current) {
       clearTimeout(saveDebounceRef.current);
@@ -359,6 +365,7 @@ export default function Me() {
       setPrefsSaved(true);
       setTimeout(() => setPrefsSaved(false), 2500);
     }).catch(() => {
+      latestPrefsRef.current = snapshot;
       setPrefs(snapshot);
       setPrefsSaveError(navigator.onLine ? "清除失败，请重试" : "网络不可用");
       setTimeout(() => setPrefsSaveError(null), 4000);
@@ -372,11 +379,12 @@ export default function Me() {
     setPrefsDebouncing(true);
     setPrefs((prev) => {
       const next = { ...(prev ?? { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" }), ...patch };
-      if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+      latestPrefsRef.current = next;
       pendingSaveRef.current = next;
+      if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
       saveDebounceRef.current = setTimeout(() => {
         pendingSaveRef.current = null;
-        savePrefs(next);
+        savePrefs(latestPrefsRef.current!);
       }, 500);
       return next;
     });
