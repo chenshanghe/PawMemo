@@ -26,12 +26,6 @@ type Step = "qr" | "success" | "error";
 
 const PAY_TYPES: { id: PayType; label: string; bgColor: string; icon: string }[] = [
   {
-    id: "alipay",
-    label: "支付宝",
-    bgColor: "#1677ff",
-    icon: "https://gw.alipayobjects.com/zos/rmsportal/KDpgvguMpGfqaHPjicRK.svg",
-  },
-  {
     id: "wechat",
     label: "微信支付",
     bgColor: "#07c160",
@@ -42,7 +36,7 @@ const PAY_TYPES: { id: PayType; label: string; bgColor: string; icon: string }[]
 
 export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) {
   const { getToken } = useAuth();
-  const [payType, setPayType]         = useState<PayType>("alipay");
+  const [payType, setPayType]         = useState<PayType>("wechat");
   const [step, setStep]               = useState<Step>("qr");
   const [qrCodeUrl, setQrCodeUrl]     = useState<string | null>(null);
   const [errorMsg, setErrorMsg]       = useState("");
