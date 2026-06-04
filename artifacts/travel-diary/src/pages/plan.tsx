@@ -450,7 +450,17 @@ export default function PlanPage() {
         travelMode: plan.travelMode,
         budget: plan.budget,
         specialNeeds: plan.specialNeeds,
+        groupType: plan.groupType ?? undefined,
       });
+      setFrom(plan.from ?? "");
+      setDestinations(Array.isArray(plan.destinations) && plan.destinations.length ? plan.destinations : [""]);
+      setStartDate(plan.startDate ?? today);
+      setEndDate(plan.endDate ?? nextWeek);
+      setTravelers(plan.travelers ?? 2);
+      setStyle(plan.style ?? "文化探索");
+      setTravelMode(plan.travelMode ?? "");
+      setBudget(plan.budget ?? "");
+      setGroupType(plan.groupType ?? "");
       if (Array.isArray(plan.specialNeeds)) setSpecialNeeds(plan.specialNeeds);
       else setSpecialNeeds([]);
       setSavedId(id);
