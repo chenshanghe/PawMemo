@@ -281,6 +281,33 @@ router.get("/plan/saved/:id", requireAuth, async (req, res) => {
   }
 });
 
+// ── Rename a saved plan ──────────────────────────────────────────────────────
+router.patch("/plan/saved/:id", requireAuth, async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "未登录" }); return; }
+
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "无效 ID" }); return; }
+
+  const { title } = req.body ?? {};
+  if (!title || typeof title !== "string" || !title.trim()) {
+    res.status(400).json({ error: "标题不能为空" }); return;
+  }
+
+  try {
+    const [updated] = await db
+      .update(savedPlansTable)
+      .set({ title: title.trim() })
+      .where(and(eq(savedPlansTable.id, id), eq(savedPlansTable.userId, userId)))
+      .returning();
+    if (!updated) { res.status(404).json({ error: "未找到或无权限" }); return; }
+    res.json({ ok: true, title: updated.title });
+  } catch (err: any) {
+    console.error("[plan/rename] error:", err);
+    res.status(500).json({ error: "重命名失败" });
+  }
+});
+
 // ── Delete a saved plan ──────────────────────────────────────────────────────
 router.delete("/plan/saved/:id", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);

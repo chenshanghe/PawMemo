@@ -6,7 +6,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useLocation } from "wouter";
-import { Plus, X, Loader2, MapPin, Plane, Train, Hotel, ExternalLink, RotateCcw, ChevronLeft, ChevronRight, Lightbulb, Bookmark, BookmarkCheck, Trash2, RefreshCw, List } from "lucide-react";
+import { Plus, X, Loader2, MapPin, Plane, Train, Hotel, ExternalLink, RotateCcw, ChevronLeft, ChevronRight, Lightbulb, Bookmark, BookmarkCheck, Trash2, RefreshCw, List, Pencil } from "lucide-react";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -169,12 +169,49 @@ function MealCard({ data, icon }: { data: PlaceCard; icon: string }) {
   );
 }
 
-function SavedPlanCard({ plan, onLoad, onDelete }: { plan: SavedPlan; onLoad: (id: number) => void; onDelete: (id: number) => void }) {
+function SavedPlanCard({ plan, onLoad, onDelete, onRename }: { plan: SavedPlan; onLoad: (id: number) => void; onDelete: (id: number) => void; onRename: (id: number, title: string) => void }) {
   const nights = Math.round((new Date(plan.endDate).getTime() - new Date(plan.startDate).getTime()) / 86400000);
+  const [editing, setEditing] = React.useState(false);
+  const [editTitle, setEditTitle] = React.useState(plan.title);
+
+  React.useEffect(() => { setEditTitle(plan.title); }, [plan.title]);
+
+  const commitRename = () => {
+    const trimmed = editTitle.trim();
+    setEditing(false);
+    if (!trimmed || trimmed === plan.title) { setEditTitle(plan.title); return; }
+    onRename(plan.id, trimmed);
+  };
+
   return (
     <div className="flex items-start gap-3 p-3 rounded-xl border border-border/40 bg-card hover:border-primary/30 hover:shadow-sm transition-all group">
-      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onLoad(plan.id)}>
-        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{plan.title}</p>
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !editing && onLoad(plan.id)}>
+        <div className="flex items-center gap-1 group/title">
+          {editing ? (
+            <input
+              autoFocus
+              className="text-sm font-semibold bg-transparent border-b border-primary outline-none flex-1 min-w-0 text-foreground"
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") { e.preventDefault(); commitRename(); }
+                if (e.key === "Escape") { setEditing(false); setEditTitle(plan.title); }
+                e.stopPropagation();
+              }}
+              onClick={e => e.stopPropagation()}
+              onBlur={commitRename}
+            />
+          ) : (
+            <>
+              <p
+                className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-text"
+                title="点击重命名"
+                onClick={e => { e.stopPropagation(); setEditing(true); }}
+              >{plan.title}</p>
+              <Pencil className="w-3 h-3 opacity-0 group-hover/title:opacity-40 transition-opacity shrink-0 text-muted-foreground" />
+            </>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">{plan.from} → {plan.destinations.join("、")} · {nights} 晚</p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <span className="text-[10px] text-muted-foreground/70">{plan.startDate.slice(0, 7)}</span>
@@ -422,6 +459,21 @@ export default function PlanPage() {
     } catch {}
   };
 
+  const handleRenameSaved = async (id: number, newTitle: string) => {
+    const oldTitle = savedPlans.find(p => p.id === id)?.title ?? "";
+    setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p));
+    try {
+      const res = await apiFetch(`/api/plan/saved/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle }),
+      });
+      if (!res.ok) setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+    } catch {
+      setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+    }
+  };
+
   const handleRegenerate = async () => {
     if (!currentPlanParams) return;
     setRegenLoading(true);
@@ -519,6 +571,7 @@ export default function PlanPage() {
                     plan={p}
                     onLoad={handleLoadSaved}
                     onDelete={handleDeleteSaved}
+                    onRename={handleRenameSaved}
                   />
                 ))
               )}

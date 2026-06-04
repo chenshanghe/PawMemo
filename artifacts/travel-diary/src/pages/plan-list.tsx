@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Layout } from "@/components/layout";
 import { Link, useLocation } from "wouter";
-import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal, ArrowUpDown, Pencil } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -113,6 +113,8 @@ export default function PlanListPage() {
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("createdAt");
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
 
   const [budgetFilter, toggleBudget] = useToggleSet();
   const [needsFilter, toggleNeeds] = useToggleSet();
@@ -157,6 +159,25 @@ export default function PlanListPage() {
       return b.createdAt.localeCompare(a.createdAt);
     });
   }, [plans, budgetFilter, needsFilter, modeFilter, travelersFilter, sortBy]);
+
+  const handleRename = async (id: number) => {
+    const trimmed = renameTitle.trim();
+    if (!trimmed) { setRenamingId(null); setRenameTitle(""); return; }
+    const oldTitle = plans.find(p => p.id === id)?.title ?? "";
+    setPlans(prev => prev.map(p => p.id === id ? { ...p, title: trimmed } : p));
+    setRenamingId(null);
+    setRenameTitle("");
+    try {
+      const res = await apiFetch(`/api/plan/saved/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      if (!res.ok) setPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+    } catch {
+      setPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+    }
+  };
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -336,9 +357,34 @@ export default function PlanListPage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
-                            {plan.title}
-                          </h3>
+                          <div className="flex items-center gap-1 flex-1 min-w-0 group/title">
+                            {renamingId === plan.id ? (
+                              <input
+                                autoFocus
+                                className="text-sm font-semibold bg-transparent border-b border-primary outline-none flex-1 min-w-0 text-foreground"
+                                value={renameTitle}
+                                onChange={e => setRenameTitle(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === "Enter") { e.preventDefault(); handleRename(plan.id); }
+                                  if (e.key === "Escape") { setRenamingId(null); setRenameTitle(""); }
+                                  e.stopPropagation();
+                                }}
+                                onClick={e => e.stopPropagation()}
+                                onBlur={() => handleRename(plan.id)}
+                              />
+                            ) : (
+                              <>
+                                <h3
+                                  className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug truncate cursor-text"
+                                  title="点击重命名"
+                                  onClick={e => { e.stopPropagation(); e.preventDefault(); setRenamingId(plan.id); setRenameTitle(plan.title); }}
+                                >
+                                  {plan.title}
+                                </h3>
+                                <Pencil className="w-3 h-3 opacity-0 group-hover/title:opacity-40 transition-opacity shrink-0 text-muted-foreground" />
+                              </>
+                            )}
+                          </div>
                           <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary/60 transition-colors shrink-0 mt-0.5" />
                         </div>
 
