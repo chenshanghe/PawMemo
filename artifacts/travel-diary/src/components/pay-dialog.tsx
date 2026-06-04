@@ -39,9 +39,6 @@ const PAY_TYPES: { id: PayType; label: string; bgColor: string; icon: string }[]
   },
 ];
 
-function qrImageUrl(data: string): string {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(data)}`;
-}
 
 export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) {
   const { getToken } = useAuth();
@@ -196,7 +193,7 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
                   <Loader2 className="w-8 h-8 animate-spin text-muted-foreground/40" />
                 ) : (
                   <img
-                    src={qrImageUrl(qrCodeUrl)}
+                    src={qrCodeUrl}
                     alt={`${activeType.label}付款码`}
                     className="w-full h-full object-contain"
                   />

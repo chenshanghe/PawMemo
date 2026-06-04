@@ -42,14 +42,16 @@ const DURATION_DAYS: Record<string, number> = {
   yearly:  366,
 };
 
-// ── Signature (xunhupay: sorted params + &key=APPKEY, MD5 → "hash") ──────────
-// Same algorithm as old hupi.io but field name is "hash" not "sign".
+// ── Signature (xunhupay: sorted_params_string + APPKEY, MD5 → "hash") ────────
+// NOTE: append APPKEY directly (no "&key=" prefix) — per official PHP SDK.
 // Empty values are excluded from signing.
 function makeHash(params: Record<string, string | number>): string {
   const keys = Object.keys(params)
     .filter(k => k !== "hash" && params[k] !== "" && params[k] !== undefined && params[k] !== null)
     .sort();
-  const base = keys.map(k => `${k}=${params[k]}`).join("&") + `&key=${HUPI_APPKEY}`;
+  // xunhupay signs by: sorted_params_string + APPKEY (no "&key=" separator)
+  // ref: XH_Payment_Api::generate_xh_hash in official PHP SDK
+  const base = keys.map(k => `${k}=${params[k]}`).join("&") + HUPI_APPKEY;
   return crypto.createHash("md5").update(base).digest("hex");
 }
 
