@@ -8,7 +8,7 @@
   "theme_color": "#f97316",
   "orientation": "portrait-primary",
   "icons": [
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/logo.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any maskable" }
   ],
   "categories": ["travel", "lifestyle"],
   "lang": "zh-CN"
