@@ -188,6 +188,7 @@ export default function Me() {
   const [prefsSaveError, setPrefsSaveError] = useState<string | null>(null);
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<UserPrefs | null>(null);
+  const prefsPanelRef = useRef<HTMLDivElement>(null);
 
   // Account deletion
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
@@ -374,6 +375,22 @@ export default function Me() {
       return next;
     });
   };
+
+  useEffect(() => {
+    const el = prefsPanelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) {
+          setPrefsSaved(false);
+          setPrefsDebouncing(false);
+        }
+      },
+      { threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
   useEffect(() => { fetchPrefs(); }, [fetchPrefs]);
@@ -840,7 +857,7 @@ export default function Me() {
           </div>
 
           {/* ── Travel Preferences ─────────────────────────────────────── */}
-          <div className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden">
+          <div ref={prefsPanelRef} className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
               <div className="flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-primary" />
