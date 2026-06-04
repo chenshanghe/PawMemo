@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Layout } from "@/components/layout";
 import { Link, useLocation } from "wouter";
-import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal, ArrowUpDown } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -23,7 +23,10 @@ interface SavedPlan {
   budget: string | null;
   specialNeeds: string[] | null;
   createdAt: string;
+  lastViewedAt: string | null;
 }
+
+type SortKey = "createdAt" | "lastViewedAt";
 
 const BUDGET_OPTIONS = ["经济实惠", "舒适中档", "豪华品质"];
 const SPECIAL_NEEDS_OPTIONS = ["素食友好", "宠物友好", "无障碍设施"];
@@ -76,10 +79,11 @@ function ChipGroup({
   );
 }
 
-function groupByMonth(plans: SavedPlan[]): { label: string; items: SavedPlan[] }[] {
+function groupByMonth(plans: SavedPlan[], sortKey: SortKey): { label: string; items: SavedPlan[] }[] {
   const map = new Map<string, SavedPlan[]>();
   for (const p of plans) {
-    const key = p.createdAt.slice(0, 7);
+    const dateStr = sortKey === "lastViewedAt" && p.lastViewedAt ? p.lastViewedAt : p.createdAt;
+    const key = dateStr.slice(0, 7);
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(p);
   }
@@ -108,6 +112,7 @@ export default function PlanListPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<SortKey>("createdAt");
 
   const [budgetFilter, toggleBudget] = useToggleSet();
   const [needsFilter, toggleNeeds] = useToggleSet();
@@ -124,7 +129,7 @@ export default function PlanListPage() {
   const activeFilterCount = budgetFilter.size + needsFilter.size + modeFilter.size + travelersFilter.size;
 
   const filteredPlans = useMemo(() => {
-    return plans.filter(p => {
+    const filtered = plans.filter(p => {
       if (budgetFilter.size > 0) {
         const label = budgetLabel(p.budget);
         if (!label || !budgetFilter.has(label)) return false;
@@ -142,7 +147,16 @@ export default function PlanListPage() {
       }
       return true;
     });
-  }, [plans, budgetFilter, needsFilter, modeFilter, travelersFilter]);
+
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "lastViewedAt") {
+        const aDate = a.lastViewedAt ?? a.createdAt;
+        const bDate = b.lastViewedAt ?? b.createdAt;
+        return bDate.localeCompare(aDate);
+      }
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }, [plans, budgetFilter, needsFilter, modeFilter, travelersFilter, sortBy]);
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -163,7 +177,7 @@ export default function PlanListPage() {
   const nights = (p: SavedPlan) =>
     Math.round((new Date(p.endDate).getTime() - new Date(p.startDate).getTime()) / 86400000);
 
-  const groups = groupByMonth(filteredPlans);
+  const groups = groupByMonth(filteredPlans, sortBy);
 
   return (
     <Layout>
@@ -182,22 +196,36 @@ export default function PlanListPage() {
           </div>
           <div className="flex items-center gap-2">
             {!loading && plans.length > 0 && (
-              <button
-                onClick={() => setShowFilters(v => !v)}
-                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
-                  showFilters || activeFilterCount > 0
-                    ? "bg-primary/8 border-primary/30 text-primary"
-                    : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
-              >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                筛选
-                {activeFilterCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
+              <>
+                <button
+                  onClick={() => setSortBy(v => v === "createdAt" ? "lastViewedAt" : "createdAt")}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                    sortBy === "lastViewedAt"
+                      ? "bg-primary/8 border-primary/30 text-primary"
+                      : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
+                  title={sortBy === "createdAt" ? "当前：最新保存" : "当前：最近查看"}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  {sortBy === "createdAt" ? "最新保存" : "最近查看"}
+                </button>
+                <button
+                  onClick={() => setShowFilters(v => !v)}
+                  className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                    showFilters || activeFilterCount > 0
+                      ? "bg-primary/8 border-primary/30 text-primary"
+                      : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  筛选
+                  {activeFilterCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+              </>
             )}
             <Link href="/plan">
               <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm hover:shadow-md active:scale-[0.98]">

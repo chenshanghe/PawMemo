@@ -4,7 +4,7 @@ import { requireAuth } from "../middlewares/auth";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { savedPlansTable } from "@workspace/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -243,6 +243,7 @@ router.get("/plan/saved", requireAuth, async (req, res) => {
         budget: savedPlansTable.budget,
         specialNeeds: savedPlansTable.specialNeeds,
         createdAt: savedPlansTable.createdAt,
+        lastViewedAt: savedPlansTable.lastViewedAt,
       })
       .from(savedPlansTable)
       .where(eq(savedPlansTable.userId, userId))
@@ -268,6 +269,12 @@ router.get("/plan/saved/:id", requireAuth, async (req, res) => {
       .from(savedPlansTable)
       .where(and(eq(savedPlansTable.id, id), eq(savedPlansTable.userId, userId)));
     if (!plan) { res.status(404).json({ error: "未找到" }); return; }
+
+    await db
+      .update(savedPlansTable)
+      .set({ lastViewedAt: sql`now()` })
+      .where(eq(savedPlansTable.id, id));
+
     res.json(plan);
   } catch (err: any) {
     res.status(500).json({ error: "获取失败" });

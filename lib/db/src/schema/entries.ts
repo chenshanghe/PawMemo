@@ -161,6 +161,7 @@ export const savedPlansTable = pgTable("saved_plans", {
   specialNeeds: json("special_needs").$type<string[]>().default([]),
   planData: json("plan_data").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastViewedAt: timestamp("last_viewed_at"),
 });
 
 export type SavedPlan = typeof savedPlansTable.$inferSelect;
