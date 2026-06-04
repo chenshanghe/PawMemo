@@ -329,10 +329,35 @@ export default function Me() {
     await savePrefs(updated);
   };
 
-  const handleClearPrefs = async () => {
+  const handleClearPrefs = () => {
+    const snapshot = prefs;
     const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" };
     setPrefs(cleared);
-    await flushAndSave(cleared);
+    if (saveDebounceRef.current) {
+      clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = null;
+    }
+    pendingSaveRef.current = null;
+    setPrefsDebouncing(false);
+    setPrefsSaving(true);
+    setPrefsSaved(false);
+    setPrefsSaveError(null);
+    fetch(`${BASE}/api/prefs`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cleared),
+    }).then((res) => {
+      if (!res.ok) throw new Error("save_failed");
+      setPrefsSaved(true);
+      setTimeout(() => setPrefsSaved(false), 2500);
+    }).catch(() => {
+      setPrefs(snapshot);
+      setPrefsSaveError(navigator.onLine ? "清除失败，请重试" : "网络不可用");
+      setTimeout(() => setPrefsSaveError(null), 4000);
+    }).finally(() => {
+      setPrefsSaving(false);
+    });
   };
 
   const updatePrefs = (patch: Partial<UserPrefs>) => {
