@@ -174,8 +174,10 @@ export default function Me() {
 
   const [prefs, setPrefs] = useState<UserPrefs | null>(null);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [prefsDebouncing, setPrefsDebouncing] = useState(false);
   const [prefsSaving, setPrefsSaving] = useState(false);
   const [prefsSaved, setPrefsSaved] = useState(false);
+  const [prefsSaveError, setPrefsSaveError] = useState<string | null>(null);
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<UserPrefs | null>(null);
 
@@ -278,17 +280,23 @@ export default function Me() {
   }, []);
 
   const savePrefs = async (updated: UserPrefs) => {
+    setPrefsDebouncing(false);
     setPrefsSaving(true);
     setPrefsSaved(false);
+    setPrefsSaveError(null);
     try {
-      await fetch(`${BASE}/api/prefs`, {
+      const res = await fetch(`${BASE}/api/prefs`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updated),
       });
+      if (!res.ok) throw new Error("save_failed");
       setPrefsSaved(true);
       setTimeout(() => setPrefsSaved(false), 2500);
+    } catch {
+      setPrefsSaveError(navigator.onLine ? "保存失败，请重试" : "网络不可用");
+      setTimeout(() => setPrefsSaveError(null), 4000);
     } finally {
       setPrefsSaving(false);
     }
@@ -300,12 +308,15 @@ export default function Me() {
       saveDebounceRef.current = null;
     }
     pendingSaveRef.current = null;
+    setPrefsDebouncing(false);
     const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 };
     setPrefs(cleared);
     await savePrefs(cleared);
   };
 
   const updatePrefs = (patch: Partial<UserPrefs>) => {
+    setPrefsSaveError(null);
+    setPrefsDebouncing(true);
     setPrefs((prev) => {
       const next = { ...(prev ?? { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 }), ...patch };
       if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
@@ -764,8 +775,16 @@ export default function Me() {
                 <span className="text-[11px] text-muted-foreground">· 用于规划行程时的默认设置</span>
               </div>
               <div className="flex items-center gap-2">
+                {prefsDebouncing && !prefsSaving && (
+                  <span className="text-[11px] text-muted-foreground animate-pulse">待保存…</span>
+                )}
                 {prefsSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
-                {prefsSaved && !prefsSaving && <span className="text-[11px] text-green-600 font-medium">已保存 ✓</span>}
+                {prefsSaved && !prefsSaving && !prefsDebouncing && (
+                  <span className="text-[11px] text-green-600 font-medium">已保存 ✓</span>
+                )}
+                {prefsSaveError && !prefsSaving && (
+                  <span className="text-[11px] text-destructive font-medium">{prefsSaveError}</span>
+                )}
                 {prefs && (prefs.travelMode || prefs.budget || prefs.specialNeeds.length > 0 || prefs.fromCity || prefs.travelStyle) && (
                   <button
                     onClick={handleClearPrefs}
