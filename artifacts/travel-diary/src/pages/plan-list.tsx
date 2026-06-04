@@ -28,6 +28,14 @@ interface SavedPlan {
 const BUDGET_OPTIONS = ["经济实惠", "舒适中档", "豪华品质"];
 const SPECIAL_NEEDS_OPTIONS = ["素食友好", "宠物友好", "无障碍设施"];
 const TRAVEL_MODE_OPTIONS = ["自驾", "跟团", "背包", "高铁", "飞机"];
+const TRAVELER_OPTIONS = ["1人", "2人", "3-5人", "6+人"];
+
+function travelerBucket(n: number): string {
+  if (n === 1) return "1人";
+  if (n === 2) return "2人";
+  if (n >= 3 && n <= 5) return "3-5人";
+  return "6+人";
+}
 
 function budgetLabel(budget: string | null) {
   if (!budget) return null;
@@ -104,6 +112,7 @@ export default function PlanListPage() {
   const [budgetFilter, toggleBudget] = useToggleSet();
   const [needsFilter, toggleNeeds] = useToggleSet();
   const [modeFilter, toggleMode] = useToggleSet();
+  const [travelersFilter, toggleTravelers] = useToggleSet();
 
   useEffect(() => {
     apiFetch("/api/plan/saved")
@@ -112,7 +121,7 @@ export default function PlanListPage() {
       .catch(() => { setError("加载失败，请刷新重试"); setLoading(false); });
   }, []);
 
-  const activeFilterCount = budgetFilter.size + needsFilter.size + modeFilter.size;
+  const activeFilterCount = budgetFilter.size + needsFilter.size + modeFilter.size + travelersFilter.size;
 
   const filteredPlans = useMemo(() => {
     return plans.filter(p => {
@@ -128,9 +137,12 @@ export default function PlanListPage() {
       if (modeFilter.size > 0) {
         if (!p.travelMode || !modeFilter.has(p.travelMode)) return false;
       }
+      if (travelersFilter.size > 0) {
+        if (!travelersFilter.has(travelerBucket(p.travelers))) return false;
+      }
       return true;
     });
-  }, [plans, budgetFilter, needsFilter, modeFilter]);
+  }, [plans, budgetFilter, needsFilter, modeFilter, travelersFilter]);
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -216,12 +228,19 @@ export default function PlanListPage() {
               selected={modeFilter}
               onToggle={toggleMode}
             />
+            <ChipGroup
+              label="出行人数"
+              options={TRAVELER_OPTIONS}
+              selected={travelersFilter}
+              onToggle={toggleTravelers}
+            />
             {activeFilterCount > 0 && (
               <button
                 onClick={() => {
                   [...budgetFilter].forEach(v => toggleBudget(v));
                   [...needsFilter].forEach(v => toggleNeeds(v));
                   [...modeFilter].forEach(v => toggleMode(v));
+                  [...travelersFilter].forEach(v => toggleTravelers(v));
                 }}
                 className="text-[11px] text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2"
               >
@@ -264,6 +283,7 @@ export default function PlanListPage() {
                 [...budgetFilter].forEach(v => toggleBudget(v));
                 [...needsFilter].forEach(v => toggleNeeds(v));
                 [...modeFilter].forEach(v => toggleMode(v));
+                [...travelersFilter].forEach(v => toggleTravelers(v));
               }}
               className="text-xs text-primary hover:underline"
             >
