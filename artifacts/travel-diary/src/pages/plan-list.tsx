@@ -35,6 +35,14 @@ const GROUP_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 type SortKey = "createdAt" | "lastViewedAt";
+type GroupTypeKey = "solo" | "couple" | "family" | "friends";
+
+const GROUP_TYPE_CHIPS: { key: GroupTypeKey; label: string; activeCls: string; inactiveCls: string }[] = [
+  { key: "solo",    label: "🧍 独自",   activeCls: "bg-violet-500 text-white border-violet-500 shadow-sm", inactiveCls: "bg-violet-50 text-violet-600 border-violet-200 hover:border-violet-400" },
+  { key: "couple",  label: "💑 情侣",   activeCls: "bg-pink-500 text-white border-pink-500 shadow-sm",   inactiveCls: "bg-pink-50 text-pink-600 border-pink-200 hover:border-pink-400" },
+  { key: "family",  label: "👨‍👩‍👧 家庭", activeCls: "bg-amber-500 text-white border-amber-500 shadow-sm", inactiveCls: "bg-amber-50 text-amber-600 border-amber-200 hover:border-amber-400" },
+  { key: "friends", label: "👫 朋友",   activeCls: "bg-teal-500 text-white border-teal-500 shadow-sm",   inactiveCls: "bg-teal-50 text-teal-600 border-teal-200 hover:border-teal-400" },
+];
 
 const BUDGET_OPTIONS = ["经济实惠", "舒适中档", "豪华品质"];
 const SPECIAL_NEEDS_OPTIONS = ["素食友好", "宠物友好", "无障碍设施"];
@@ -124,6 +132,7 @@ export default function PlanListPage() {
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
 
+  const [groupTypeFilter, setGroupTypeFilter] = useState<GroupTypeKey | null>(null);
   const [budgetFilter, toggleBudget] = useToggleSet();
   const [needsFilter, toggleNeeds] = useToggleSet();
   const [modeFilter, toggleMode] = useToggleSet();
@@ -136,10 +145,19 @@ export default function PlanListPage() {
       .catch(() => { setError("加载失败，请刷新重试"); setLoading(false); });
   }, []);
 
-  const activeFilterCount = budgetFilter.size + needsFilter.size + modeFilter.size + travelersFilter.size;
+  const activeFilterCount = (groupTypeFilter ? 1 : 0) + budgetFilter.size + needsFilter.size + modeFilter.size + travelersFilter.size;
+
+  const clearAllFilters = () => {
+    setGroupTypeFilter(null);
+    [...budgetFilter].forEach(v => toggleBudget(v));
+    [...needsFilter].forEach(v => toggleNeeds(v));
+    [...modeFilter].forEach(v => toggleMode(v));
+    [...travelersFilter].forEach(v => toggleTravelers(v));
+  };
 
   const filteredPlans = useMemo(() => {
     const filtered = plans.filter(p => {
+      if (groupTypeFilter && p.groupType !== groupTypeFilter) return false;
       if (budgetFilter.size > 0) {
         const label = budgetLabel(p.budget);
         if (!label || !budgetFilter.has(label)) return false;
@@ -166,7 +184,7 @@ export default function PlanListPage() {
       }
       return b.createdAt.localeCompare(a.createdAt);
     });
-  }, [plans, budgetFilter, needsFilter, modeFilter, travelersFilter, sortBy]);
+  }, [plans, groupTypeFilter, budgetFilter, needsFilter, modeFilter, travelersFilter, sortBy]);
 
   const handleRename = async (id: number) => {
     const trimmed = renameTitle.trim();
@@ -267,6 +285,31 @@ export default function PlanListPage() {
         {/* Filter Panel */}
         {showFilters && (
           <div className="rounded-2xl border border-border/40 bg-card p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
+            {/* Group type chips */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-semibold text-muted-foreground shrink-0">出行类型</span>
+              <button
+                onClick={() => setGroupTypeFilter(null)}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
+                  groupTypeFilter === null
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
+                }`}
+              >
+                全部
+              </button>
+              {GROUP_TYPE_CHIPS.map(({ key, label, activeCls, inactiveCls }) => (
+                <button
+                  key={key}
+                  onClick={() => setGroupTypeFilter(prev => prev === key ? null : key)}
+                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
+                    groupTypeFilter === key ? activeCls : inactiveCls
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <ChipGroup
               label="预算"
               options={BUDGET_OPTIONS}
@@ -293,12 +336,7 @@ export default function PlanListPage() {
             />
             {activeFilterCount > 0 && (
               <button
-                onClick={() => {
-                  [...budgetFilter].forEach(v => toggleBudget(v));
-                  [...needsFilter].forEach(v => toggleNeeds(v));
-                  [...modeFilter].forEach(v => toggleMode(v));
-                  [...travelersFilter].forEach(v => toggleTravelers(v));
-                }}
+                onClick={clearAllFilters}
                 className="text-[11px] text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2"
               >
                 清除全部筛选
@@ -336,12 +374,7 @@ export default function PlanListPage() {
               <p className="text-xs text-muted-foreground mt-1">尝试调整筛选条件</p>
             </div>
             <button
-              onClick={() => {
-                [...budgetFilter].forEach(v => toggleBudget(v));
-                [...needsFilter].forEach(v => toggleNeeds(v));
-                [...modeFilter].forEach(v => toggleMode(v));
-                [...travelersFilter].forEach(v => toggleTravelers(v));
-              }}
+              onClick={clearAllFilters}
               className="text-xs text-primary hover:underline"
             >
               清除筛选

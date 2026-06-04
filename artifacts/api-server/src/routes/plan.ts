@@ -196,11 +196,11 @@ router.post("/plan/save", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "未登录" }); return; }
 
-  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget, specialNeeds, planData } = req.body ?? {};
+  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget, specialNeeds, groupType, planData } = req.body ?? {};
   if (!from || !planData) { res.status(400).json({ error: "缺少参数" }); return; }
 
   try {
-    const [saved] = await db.insert(savedPlansTable).values({
+    const insertValues = {
       userId,
       title: planData.title ?? "我的行程",
       summary: planData.summary ?? null,
@@ -213,8 +213,10 @@ router.post("/plan/save", requireAuth, async (req, res) => {
       travelMode: travelMode ?? null,
       budget: budget ?? null,
       specialNeeds: Array.isArray(specialNeeds) ? specialNeeds : [],
+      groupType: groupType ?? null,
       planData,
-    }).returning();
+    };
+    const [saved] = await db.insert(savedPlansTable).values(insertValues).returning();
     res.json(saved);
   } catch (err: any) {
     console.error("[plan/save] error:", err);
@@ -242,6 +244,7 @@ router.get("/plan/saved", requireAuth, async (req, res) => {
         travelMode: savedPlansTable.travelMode,
         budget: savedPlansTable.budget,
         specialNeeds: savedPlansTable.specialNeeds,
+        groupType: savedPlansTable.groupType,
         createdAt: savedPlansTable.createdAt,
         lastViewedAt: savedPlansTable.lastViewedAt,
       })

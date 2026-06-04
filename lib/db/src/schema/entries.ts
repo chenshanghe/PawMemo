@@ -159,6 +159,7 @@ export const savedPlansTable = pgTable("saved_plans", {
   travelMode: text("travel_mode"),
   budget: text("budget"),
   specialNeeds: json("special_needs").$type<string[]>().default([]),
+  groupType: text("group_type"),
   planData: json("plan_data").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastViewedAt: timestamp("last_viewed_at"),
