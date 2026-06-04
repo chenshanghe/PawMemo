@@ -66,28 +66,35 @@ function ChipGroup({
   options,
   selected,
   onToggle,
+  counts,
 }: {
   label: string;
   options: string[];
   selected: Set<string>;
   onToggle: (v: string) => void;
+  counts?: Map<string, number>;
 }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <span className="text-[11px] font-semibold text-muted-foreground shrink-0">{label}</span>
       {options.map((opt) => {
         const active = selected.has(opt);
+        const count = counts?.get(opt);
+        const isZero = count === 0 && !active;
         return (
           <button
             key={opt}
-            onClick={() => onToggle(opt)}
+            onClick={() => { if (!isZero) onToggle(opt); }}
+            disabled={isZero}
             className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
               active
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
+                : isZero
+                  ? "bg-background text-muted-foreground/35 border-border/30 cursor-not-allowed"
+                  : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
             }`}
           >
-            {opt}
+            {opt}{count !== undefined ? <span className={`ml-1 ${active ? "opacity-70" : isZero ? "opacity-50" : "opacity-60"}`}>({count})</span> : null}
           </button>
         );
       })}
@@ -187,27 +194,42 @@ export default function PlanListPage() {
     [...travelersFilter].forEach(v => toggleTravelers(v));
   };
 
-  const filteredPlans = useMemo(() => {
-    const filtered = plans.filter(p => {
-      if (groupTypeFilter && p.groupType !== groupTypeFilter) return false;
-      if (budgetFilter.size > 0) {
-        const label = budgetLabel(p.budget);
-        if (!label || !budgetFilter.has(label)) return false;
-      }
-      if (needsFilter.size > 0) {
-        const needs = p.specialNeeds ?? [];
-        const hasAll = [...needsFilter].every(n => needs.includes(n));
-        if (!hasAll) return false;
-      }
-      if (modeFilter.size > 0) {
-        if (!p.travelMode || !modeFilter.has(p.travelMode)) return false;
-      }
-      if (travelersFilter.size > 0) {
-        if (!travelersFilter.has(travelerBucket(p.travelers))) return false;
-      }
-      return true;
-    });
+  // Core per-plan filter predicate (omit whichever group is being counted)
+  const matchesPlan = useMemo(() => (
+    p: SavedPlan,
+    opts: {
+      groupType?: GroupTypeKey | null;
+      budget?: Set<string>;
+      needs?: Set<string>;
+      mode?: Set<string>;
+      travelers?: Set<string>;
+    }
+  ) => {
+    const gt = "groupType" in opts ? opts.groupType : groupTypeFilter;
+    const bd = opts.budget ?? budgetFilter;
+    const nd = opts.needs ?? needsFilter;
+    const md = opts.mode ?? modeFilter;
+    const tv = opts.travelers ?? travelersFilter;
+    if (gt && p.groupType !== gt) return false;
+    if (bd.size > 0) {
+      const lbl = budgetLabel(p.budget);
+      if (!lbl || !bd.has(lbl)) return false;
+    }
+    if (nd.size > 0) {
+      const needs = p.specialNeeds ?? [];
+      if (![...nd].every(n => needs.includes(n))) return false;
+    }
+    if (md.size > 0) {
+      if (!p.travelMode || !md.has(p.travelMode)) return false;
+    }
+    if (tv.size > 0) {
+      if (!tv.has(travelerBucket(p.travelers))) return false;
+    }
+    return true;
+  }, [groupTypeFilter, budgetFilter, needsFilter, modeFilter, travelersFilter]);
 
+  const filteredPlans = useMemo(() => {
+    const filtered = plans.filter(p => matchesPlan(p, {}));
     return [...filtered].sort((a, b) => {
       if (sortBy === "lastViewedAt") {
         const aDate = a.lastViewedAt ?? a.createdAt;
@@ -216,7 +238,52 @@ export default function PlanListPage() {
       }
       return b.createdAt.localeCompare(a.createdAt);
     });
-  }, [plans, groupTypeFilter, budgetFilter, needsFilter, modeFilter, travelersFilter, sortBy]);
+  }, [plans, matchesPlan, sortBy]);
+
+  // Per-option counts (how many plans match all OTHER active filters + this option)
+  const groupTypeCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const { key } of GROUP_TYPE_CHIPS) {
+      map.set(key, plans.filter(p => matchesPlan(p, { groupType: key })).length);
+    }
+    return map;
+  }, [plans, matchesPlan]);
+
+  const budgetCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const opt of BUDGET_OPTIONS) {
+      const testSet = new Set([opt]);
+      map.set(opt, plans.filter(p => matchesPlan(p, { budget: testSet })).length);
+    }
+    return map;
+  }, [plans, matchesPlan]);
+
+  const needsCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const opt of SPECIAL_NEEDS_OPTIONS) {
+      const testSet = new Set([...needsFilter, opt]);
+      map.set(opt, plans.filter(p => matchesPlan(p, { needs: testSet })).length);
+    }
+    return map;
+  }, [plans, matchesPlan, needsFilter]);
+
+  const modeCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const opt of TRAVEL_MODE_OPTIONS) {
+      const testSet = new Set([opt]);
+      map.set(opt, plans.filter(p => matchesPlan(p, { mode: testSet })).length);
+    }
+    return map;
+  }, [plans, matchesPlan]);
+
+  const travelerCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const opt of TRAVELER_OPTIONS) {
+      const testSet = new Set([opt]);
+      map.set(opt, plans.filter(p => matchesPlan(p, { travelers: testSet })).length);
+    }
+    return map;
+  }, [plans, matchesPlan]);
 
   const handleRename = async (id: number) => {
     const trimmed = renameTitle.trim();
@@ -330,41 +397,51 @@ export default function PlanListPage() {
               >
                 全部
               </button>
-              {GROUP_TYPE_CHIPS.map(({ key, label, activeCls, inactiveCls }) => (
-                <button
-                  key={key}
-                  onClick={() => setGroupTypeFilter(prev => prev === key ? null : key)}
-                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
-                    groupTypeFilter === key ? activeCls : inactiveCls
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              {GROUP_TYPE_CHIPS.map(({ key, label, activeCls, inactiveCls }) => {
+                const count = groupTypeCounts.get(key) ?? 0;
+                const isActive = groupTypeFilter === key;
+                const isZero = count === 0 && !isActive;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => { if (!isZero) setGroupTypeFilter(prev => prev === key ? null : key); }}
+                    disabled={isZero}
+                    className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
+                      isActive ? activeCls : isZero ? "opacity-40 cursor-not-allowed " + inactiveCls : inactiveCls
+                    }`}
+                  >
+                    {label}<span className={`ml-1 ${isActive ? "opacity-70" : "opacity-60"}`}>({count})</span>
+                  </button>
+                );
+              })}
             </div>
             <ChipGroup
               label="预算"
               options={BUDGET_OPTIONS}
               selected={budgetFilter}
               onToggle={toggleBudget}
+              counts={budgetCounts}
             />
             <ChipGroup
               label="特殊需求"
               options={SPECIAL_NEEDS_OPTIONS}
               selected={needsFilter}
               onToggle={toggleNeeds}
+              counts={needsCounts}
             />
             <ChipGroup
               label="出行方式"
               options={TRAVEL_MODE_OPTIONS}
               selected={modeFilter}
               onToggle={toggleMode}
+              counts={modeCounts}
             />
             <ChipGroup
               label="出行人数"
               options={TRAVELER_OPTIONS}
               selected={travelersFilter}
               onToggle={toggleTravelers}
+              counts={travelerCounts}
             />
             {activeFilterCount > 0 && (
               <button
