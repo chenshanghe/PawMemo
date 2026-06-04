@@ -62,50 +62,33 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
   });
 
   const handleFile = async (file: File) => {
-    // Revoke any previous blob before creating a new one
+    // Revoke any previous blob and clear preview while we process
     revokeCurrent();
-
-    // For HEIC files, show a placeholder until conversion is done
-    // (raw HEIC blob URLs don't display in non-Safari browsers)
-    const initialPreview = URL.createObjectURL(file);
-    blobUrlRef.current = initialPreview;
-    setPreview(initialPreview);
+    setPreview(null);
     setCompressing(true);
 
-    let converted: File;
+    let toUpload: File;
     try {
-      // Convert HEIC → JPEG first; no-op for other formats
-      converted = await convertHeicToJpeg(file);
+      // Step 1: HEIC → JPEG (no-op for other formats)
+      const converted = await convertHeicToJpeg(file);
+
+      // Step 2: compress if large
+      toUpload = converted.size <= SKIP_BYTES
+        ? converted
+        : await imageCompression(converted, COMPRESS_OPTIONS);
     } finally {
       setCompressing(false);
     }
 
-    // Update preview with the converted (displayable) blob
-    revokeCurrent();
-    const convertedPreview = URL.createObjectURL(converted);
-    blobUrlRef.current = convertedPreview;
-    setPreview(convertedPreview);
-
-    let toUpload: File;
-    if (converted.size <= SKIP_BYTES) {
-      toUpload = converted;
-    } else {
-      setCompressing(true);
-      try {
-        toUpload = await imageCompression(converted, COMPRESS_OPTIONS);
-      } finally {
-        setCompressing(false);
-      }
-    }
-
-    // Replace with compressed blob preview
-    revokeCurrent();
-    const compressedPreview = URL.createObjectURL(toUpload);
-    blobUrlRef.current = compressedPreview;
-    setPreview(compressedPreview);
+    // Create exactly ONE blob URL after processing is complete.
+    // Keep it alive until the user picks a new file, clicks remove,
+    // or the component unmounts — avoids 404 from server ACL when the
+    // entry hasn't been saved yet.
+    const blobUrl = URL.createObjectURL(toUpload);
+    blobUrlRef.current = blobUrl;
+    setPreview(blobUrl);
 
     await uploadFile(toUpload);
-    // Keep compressedPreview alive — revokeCurrent() handles cleanup later
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,6 +151,11 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
               </button>
             </div>
           )}
+        </div>
+      ) : busy ? (
+        <div className="rounded-xl bg-muted/30 aspect-[3/1] flex flex-col items-center justify-center gap-2 shadow-sm">
+          <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+          <p className="text-xs text-muted-foreground">{statusLabel ?? "处理中..."}</p>
         </div>
       ) : (
         <div
