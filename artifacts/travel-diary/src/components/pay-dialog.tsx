@@ -91,9 +91,13 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
         body: JSON.stringify({ tier, period, type }),
       });
       const data = await res.json();
+      console.log("[pay-dialog] create response", res.status, JSON.stringify(data));
       if (!mountedRef.current) return;
       if (!res.ok) {
-        setErrorMsg(data.error ?? "创建订单失败");
+        const detail = res.status === 401 ? "登录状态失效，请重新登录后重试"
+          : res.status === 503 ? (data.error ?? "支付服务未配置")
+          : (data.error ?? `服务器错误 ${res.status}`);
+        setErrorMsg(detail);
         setStep("error");
         return;
       }

@@ -8,20 +8,25 @@ import crypto from "crypto";
 const router = Router();
 
 // ── Config ───────────────────────────────────────────────────────────────────
-// Set HUPI_APPID and HUPI_APPKEY from your 虎皮椒 (hupi.io) merchant account.
-const HUPI_APPID = process.env.HUPI_APPID ?? "";
-const HUPI_APPKEY = process.env.HUPI_APPKEY ?? "";
+// Set HUPI_APPID / HUPI_APPKEY from your 虎皮椒 merchant account.
+// Set HUPI_API_BASE to your payment provider's base URL.
+// Example: HUPI_API_BASE=https://api.xunhupay.com  (if you migrated to 迅虎支付)
+// The old api.hupi.io domain has been taken over by an unrelated Spanish company.
+const HUPI_APPID    = process.env.HUPI_APPID    ?? "";
+const HUPI_APPKEY   = process.env.HUPI_APPKEY   ?? "";
+const HUPI_API_BASE = (process.env.HUPI_API_BASE ?? "").replace(/\/$/, "");
 
 export function hupiConfigured(): boolean {
-  return !!(HUPI_APPID && HUPI_APPKEY);
+  return !!(HUPI_APPID && HUPI_APPKEY && HUPI_API_BASE);
 }
 
 // ── Debug: test endpoint (no auth) ───────────────────────────────────────────
 router.get("/debug-config", (_req: Request, res: Response) => {
   res.json({
     hupiConfigured: hupiConfigured(),
-    appidLen: HUPI_APPID.length,
-    appkeyLen: HUPI_APPKEY.length,
+    appidLen:    HUPI_APPID.length,
+    appkeyLen:   HUPI_APPKEY.length,
+    apiBase:     HUPI_API_BASE || "(未设置)",
   });
 });
 
@@ -68,7 +73,10 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
   if (!["alipay", "wechat"].includes(type)) { res.status(400).json({ error: "无效支付方式" }); return; }
 
   if (!hupiConfigured()) {
-    res.status(503).json({ error: "支付服务未配置，请联系管理员" });
+    res.status(503).json({
+      error: "支付服务未配置，请联系管理员",
+      _debug: { pid: process.pid, ts: Date.now(), appidLen: HUPI_APPID.length, appkeyLen: HUPI_APPKEY.length },
+    });
     return;
   }
 
@@ -101,7 +109,7 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
     };
     params.sign = makeSign(params);
 
-    const apiRes = await fetch("https://api.hupi.io/payment/native", {
+    const apiRes = await fetch(`${HUPI_API_BASE}/payment/native`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
@@ -158,7 +166,7 @@ router.get("/query/:outTradeNo", requireAuth, async (req: Request, res: Response
     };
     params.sign = makeSign(params);
 
-    const apiRes = await fetch("https://api.hupi.io/payment/query", {
+    const apiRes = await fetch(`${HUPI_API_BASE}/payment/query`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
