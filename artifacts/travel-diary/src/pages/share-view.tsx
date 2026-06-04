@@ -199,7 +199,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
     ? Math.max(1, Math.ceil((new Date(entry.endDate).getTime() - new Date(entry.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)
     : 1;
 
-  const ogTitle = `${entry.title} — 红薯旅行日记`;
+  const ogTitle = `${entry.title} — 顽童日记`;
   const ogDesc = entry.destination
     ? `📍 ${entry.destination}${entry.content ? " · " + entry.content.slice(0, 80) : ""}`
     : entry.content?.slice(0, 100) ?? "旅行日记";
@@ -227,8 +227,8 @@ export default function ShareView({ params }: { params: { token: string } }) {
       {/* Top bar */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border/40 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="红薯旅行日记" className="w-7 h-7 object-contain shrink-0" />
-          <span className="font-serif font-bold text-foreground">红薯旅行日记</span>
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="顽童日记" className="w-7 h-7 object-contain shrink-0" />
+          <span className="font-serif font-bold text-foreground">顽童日记</span>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -419,7 +419,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
 
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground pb-8">
-          由 <a href="/" className="text-primary hover:underline">红薯旅行日记</a> 分享
+          由 <a href="/" className="text-primary hover:underline">顽童日记</a> 分享
         </div>
       </main>
     </div>

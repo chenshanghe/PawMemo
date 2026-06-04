@@ -163,7 +163,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
     const token = await ensureShareToken();
     if (!token) return;
     const url = makeShareUrl(token);
-    const title = document.title.replace(" - 红薯旅行日记", "").trim() || "旅行日记";
+    const title = document.title.replace(" - 顽童日记", "").trim() || "旅行日记";
     const text = `分享我的旅行日记：${title}`;
 
     const copyToClipboard = async () => {
@@ -196,7 +196,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
         break;
       case "qq":
         if (!await nativeShare("QQ")) {
-          window.open(`https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent("红薯旅行日记")}`, "_blank");
+          window.open(`https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent("顽童日记")}`, "_blank");
         }
         break;
       case "weibo":

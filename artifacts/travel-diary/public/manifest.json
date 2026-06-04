@@ -1,6 +1,6 @@
 {
-  "name": "红薯旅行日记",
-  "short_name": "红薯旅记",
+  "name": "顽童日记",
+  "short_name": "顽童日记",
   "description": "记录你的每一次旅行",
   "start_url": "/",
   "display": "standalone",

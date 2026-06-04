@@ -10,8 +10,8 @@ export default function Landing() {
       {/* Header */}
       <header className="px-6 py-4 flex items-center justify-between border-b border-border/50">
         <div className="flex items-center gap-2.5">
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="红薯旅行日记" className="w-8 h-8 object-contain shrink-0" />
-          <span className="font-serif font-bold text-xl text-foreground">红薯旅行日记</span>
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="顽童日记" className="w-8 h-8 object-contain shrink-0" />
+          <span className="font-serif font-bold text-xl text-foreground">顽童日记</span>
         </div>
         <div className="flex items-center gap-3">
           {/* Theme segmented control */}
@@ -50,7 +50,7 @@ export default function Landing() {
           记录每一次<br className="md:hidden" />远行的故事
         </h1>
         <p className="text-lg text-muted-foreground max-w-md mb-10 leading-relaxed">
-          红薯旅行日记，帮你留住旅途中的每个瞬间——文字、照片、心情，一键保存。
+          顽童日记，帮你留住旅途中的每个瞬间——文字、照片、心情，一键保存。
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <Link
@@ -96,7 +96,7 @@ export default function Landing() {
       </section>
 
       <footer className="text-center text-xs text-muted-foreground py-5 border-t border-border/40 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 px-4">
-        <span>© 2025 红薯旅行日记</span>
+        <span>© 2025 顽童日记</span>
         <span className="hidden sm:inline text-border">·</span>
         <Link href="/privacy" className="hover:text-primary transition-colors">隐私政策</Link>
         <span className="hidden sm:inline text-border">·</span>

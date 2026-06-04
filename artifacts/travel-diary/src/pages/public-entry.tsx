@@ -244,7 +244,7 @@ export default function PublicEntry({ params }: { params: { id: string } }) {
     ? Math.max(1, Math.ceil((new Date(entry.endDate).getTime() - new Date(entry.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)
     : 1;
 
-  const ogTitle = `${entry.title} — 红薯旅行日记`;
+  const ogTitle = `${entry.title} — 顽童日记`;
   const ogDesc = entry.destination
     ? `📍 ${entry.destination}${entry.content ? " · " + entry.content.slice(0, 80) : ""}`
     : entry.content?.slice(0, 100) ?? "旅行日记";

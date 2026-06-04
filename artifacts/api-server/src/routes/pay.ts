@@ -75,7 +75,7 @@ router.post("/alipay/create", requireAuth, async (req: Request, res: Response): 
   if (!amountCents) { res.status(400).json({ error: "价格配置错误" }); return; }
 
   const outTradeNo = makeOutTradeNo();
-  const subject = `红薯旅行日记 ${tier === "pro" ? "探索家 Pro" : "旅记大师 Plus"} ${period === "yearly" ? "年度" : "月度"}订阅`;
+  const subject = `顽童日记 ${tier === "pro" ? "探索家 Pro" : "旅记大师 Plus"} ${period === "yearly" ? "年度" : "月度"}订阅`;
   const amountYuan = (amountCents / 100).toFixed(2);
 
   // ── Insert order record ───────────────────────────────────────────────────
