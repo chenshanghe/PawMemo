@@ -43,8 +43,8 @@ export default function Landing() {
 
       {/* Hero */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 shadow-sm">
-          <div className="text-4xl">🗺️</div>
+        <div className="w-20 h-20 rounded-2xl overflow-hidden mb-6 shadow-sm">
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="顽童日记" className="w-full h-full object-cover" />
         </div>
         <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground leading-tight mb-4">
           记录每一次<br className="md:hidden" />远行的故事
