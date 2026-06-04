@@ -319,16 +319,20 @@ export default function Me() {
     }
   };
 
-  const handleClearPrefs = async () => {
+  const flushAndSave = async (updated: UserPrefs) => {
     if (saveDebounceRef.current) {
       clearTimeout(saveDebounceRef.current);
       saveDebounceRef.current = null;
     }
     pendingSaveRef.current = null;
     setPrefsDebouncing(false);
+    await savePrefs(updated);
+  };
+
+  const handleClearPrefs = async () => {
     const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" };
     setPrefs(cleared);
-    await savePrefs(cleared);
+    await flushAndSave(cleared);
   };
 
   const updatePrefs = (patch: Partial<UserPrefs>) => {
