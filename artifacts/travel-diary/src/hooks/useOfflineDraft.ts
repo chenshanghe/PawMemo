@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
 
-const DRAFT_KEY = "hongshu_offline_draft";
+const DRAFT_KEY = "wantong_offline_draft";
 
 export interface DraftData {
   title: string;

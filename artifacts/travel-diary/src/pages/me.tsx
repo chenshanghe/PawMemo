@@ -741,7 +741,7 @@ export default function Me() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `hongshu-export-${new Date().toISOString().slice(0, 10)}.json`;
+                    a.download = `wantong-export-${new Date().toISOString().slice(0, 10)}.json`;
                     a.click();
                     URL.revokeObjectURL(url);
                   }
@@ -1908,7 +1908,7 @@ function ExportTab({
 
       <div className="hidden print:block">
         <div className="print-cover min-h-screen flex flex-col items-center justify-center text-center p-12">
-          <div className="text-8xl mb-6">🍠</div>
+          <div className="flex justify-center mb-6"><img src="/logo.png" alt="顽童日记" className="w-24 h-24 object-contain rounded-2xl" /></div>
           <h1 className="text-5xl font-bold mb-4">我的旅行日记</h1>
           <p className="text-xl opacity-80">{entries.length} 篇旅行故事</p>
           <p className="text-lg opacity-60 mt-2">共 {totalWords.toLocaleString()} 字</p>
