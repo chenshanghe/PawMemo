@@ -9,7 +9,7 @@ export const tagsTable = pgTable("tags", {
 
 export const diaryEntriesTable = pgTable("diary_entries", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull(),
+  userId: text("user_id"),
   title: text("title").notNull(),
   destination: text("destination").notNull(),
   content: text("content"),
