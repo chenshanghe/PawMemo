@@ -4,6 +4,8 @@ import { Camera, Upload, X, ImageIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 // ── Same fast settings as photo-uploader ────────────────────────────────────
 const SKIP_BYTES = 600 * 1024;
 
@@ -30,7 +32,7 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
   const [compressing, setCompressing] = useState(false);
 
   const { uploadFile, isUploading, progress, error } = useUpload({
-    basePath: "/api/storage",
+    basePath: `${BASE}/api/storage`,
     onSuccess: (res) => {
       onChange(`/api/storage${res.objectPath}`);
       setPreview(null);
