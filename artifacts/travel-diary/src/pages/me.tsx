@@ -16,6 +16,7 @@ import { zhCN } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -776,9 +777,12 @@ export default function Me() {
                     const data = await res.json();
                     setExportSummary(data);
                     setShowExportPreview(true);
+                  } else {
+                    toast({ title: "获取数据失败", description: "请稍后再试", variant: "destructive" });
                   }
-                } catch {}
-                finally { setExportSummaryLoading(false); }
+                } catch {
+                  toast({ title: "网络错误", description: "无法连接服务器，请检查网络后重试", variant: "destructive" });
+                } finally { setExportSummaryLoading(false); }
               }}
               className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group text-left border-t border-border/30 disabled:opacity-50"
             >
@@ -1079,12 +1083,18 @@ export default function Me() {
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <Download className="w-5 h-5 text-primary" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-foreground">导出我的数据</h3>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   导出为 JSON 格式，包含所有旅行数据
                 </p>
               </div>
+              <button
+                onClick={() => { setShowExportPreview(false); setExportSummary(null); }}
+                className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-muted/60 transition-colors shrink-0 -mt-0.5 -mr-0.5"
+              >
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
             </div>
             <div className="rounded-xl border border-border/40 bg-muted/30 divide-y divide-border/30">
               <div className="flex items-center justify-between px-4 py-3">
@@ -1131,9 +1141,13 @@ export default function Me() {
                       URL.revokeObjectURL(url);
                       setShowExportPreview(false);
                       setExportSummary(null);
+                      toast({ title: "导出成功", description: "旅行日记数据已下载到本地" });
+                    } else {
+                      toast({ title: "导出失败", description: "服务器错误，请稍后再试", variant: "destructive" });
                     }
-                  } catch {}
-                  finally { setExportPending(false); }
+                  } catch {
+                    toast({ title: "网络错误", description: "无法连接服务器，请检查网络后重试", variant: "destructive" });
+                  } finally { setExportPending(false); }
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
