@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/react";
 import { X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -43,6 +44,7 @@ function qrImageUrl(data: string): string {
 }
 
 export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) {
+  const { getToken } = useAuth();
   const [payType, setPayType]         = useState<PayType>("alipay");
   const [step, setStep]               = useState<Step>("qr");
   const [qrCodeUrl, setQrCodeUrl]     = useState<string | null>(null);
@@ -78,10 +80,14 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
     if (!mountedRef.current) return;
     setCreating(true);
     try {
+      const token = await getToken();
       const res = await fetch(`${BASE}/api/pay/hupi/create`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ tier, period, type }),
       });
       const data = await res.json();
@@ -108,7 +114,11 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
     pollRef.current = setInterval(async () => {
       if (!mountedRef.current || currentTradeRef.current !== tradeNo) return;
       try {
-        const res = await fetch(`${BASE}/api/pay/hupi/query/${tradeNo}`, { credentials: "include" });
+        const token = await getToken();
+        const res = await fetch(`${BASE}/api/pay/hupi/query/${tradeNo}`, {
+          credentials: "include",
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
         const data = await res.json();
         if (!mountedRef.current || currentTradeRef.current !== tradeNo) return;
         if (data.status === "paid") {
