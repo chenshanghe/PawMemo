@@ -172,8 +172,14 @@ function ProtectedRoute({ component: Component, ...props }: { component: React.C
 
 function SignInPage() {
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-4 gap-4">
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+      <p className="text-xs text-muted-foreground text-center max-w-xs pb-4">
+        登录即表示你已阅读并同意{" "}
+        <Link href="/terms" className="text-primary hover:underline">《用户服务协议》</Link>
+        {" "}和{" "}
+        <Link href="/privacy" className="text-primary hover:underline">《隐私政策》</Link>
+      </p>
     </div>
   );
 }
