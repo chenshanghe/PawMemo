@@ -1,5 +1,5 @@
 // Cache names — bump CACHE_VER to force refresh on deploy
-const CACHE_VER = "v4";
+const CACHE_VER = "v5";
 const SHELL_CACHE = `wantong-shell-${CACHE_VER}`;
 const API_CACHE   = `wantong-api-${CACHE_VER}`;
 
