@@ -6,7 +6,7 @@ import {
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
   Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, SlidersHorizontal, RotateCcw, MessageSquare,
-  AlertTriangle, Trash2, Shield, FileText,
+  AlertTriangle, Trash2, Shield, FileText, Zap,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { PayDialog } from "@/components/pay-dialog";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -195,6 +196,11 @@ export default function Me() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deletePending, setDeletePending] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Pay dialog
+  const [showPayDialog, setShowPayDialog] = useState(false);
+  const [payDialogTier, setPayDialogTier] = useState<"pro" | "plus">("pro");
+  const [payDialogPeriod, setPayDialogPeriod] = useState<"monthly" | "yearly">("monthly");
 
   // Data export
   const [exportPending, setExportPending] = useState(false);
@@ -677,6 +683,40 @@ export default function Me() {
             </div>
           )}
 
+          {/* ── Upgrade Banner (free users only) ───────────────────────── */}
+          {sub && sub.tier === "free" && (
+            <div className="mt-4 rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/8 via-primary/5 to-amber-50/60 dark:to-amber-900/10">
+              <div className="px-4 pt-4 pb-3">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl leading-none mt-0.5">✨</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">升级解锁更多旅行空间</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                      无限日记 · 更多照片 · 更多 AI 叙事次数
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => { setPayDialogTier("pro"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }}
+                    className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    Pro · ¥28/月
+                  </button>
+                  <button
+                    onClick={() => { setPayDialogTier("plus"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }}
+                    className="flex-1 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-500/90 transition-colors"
+                  >
+                    Plus · ¥68/月
+                  </button>
+                  <Link href="/pricing" className="flex items-center justify-center px-3 py-2 rounded-xl border border-border/50 text-xs text-muted-foreground hover:bg-muted/40 transition-colors whitespace-nowrap">
+                    对比套餐
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── Weekly Digest ──────────────────────────────────────────── */}
           <div className="mt-4 p-3 rounded-xl border border-border/40 bg-muted/20">
             <div className="flex items-center justify-between gap-3">
@@ -727,6 +767,20 @@ export default function Me() {
 
           {/* ── Quick Links ────────────────────────────────────────────── */}
           <div className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden divide-y divide-border/30">
+            {sub && sub.tier !== "free" && (
+              <Link href="/pricing">
+                <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer group">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Zap className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">管理套餐</p>
+                    <p className="text-[11px] text-muted-foreground">查看当前套餐与续费选项</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                </div>
+              </Link>
+            )}
             {([
               { href: "/notifications", Icon: Bell,      label: "消息",     desc: "互动通知与系统消息" },
               { href: "/achievements",  Icon: Award,     label: "旅行成就", desc: "解锁你的专属旅行勋章" },
@@ -1122,6 +1176,18 @@ export default function Me() {
       )}
 
       {/* ── Export preview modal ─────────────────────────────────────────── */}
+      {showPayDialog && (
+        <PayDialog
+          tier={payDialogTier}
+          period={payDialogPeriod}
+          onClose={() => setShowPayDialog(false)}
+          onSuccess={() => {
+            setShowPayDialog(false);
+            window.location.reload();
+          }}
+        />
+      )}
+
       {showExportPreview && exportSummary && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-2xl bg-background border border-border/40 shadow-xl p-5 space-y-4 animate-in slide-in-from-bottom-4 duration-200">
