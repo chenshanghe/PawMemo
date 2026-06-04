@@ -8,32 +8,33 @@ import crypto from "crypto";
 const router = Router();
 
 // ── Config ───────────────────────────────────────────────────────────────────
-// Set HUPI_APPID / HUPI_APPKEY from your 虎皮椒 merchant account.
-// Set HUPI_API_BASE to your payment provider's base URL.
-// Example: HUPI_API_BASE=https://api.xunhupay.com  (if you migrated to 迅虎支付)
-// The old api.hupi.io domain has been taken over by an unrelated Spanish company.
+// 虎皮椒已迁移至迅虎支付 (xunhupay.com)
+// HUPI_APPID  — 商户后台的 APPID
+// HUPI_APPKEY — 商户后台的 APPSECRET / KEY
+// HUPI_API_BASE — 支付网关地址，默认 https://api.xunhupay.com
+//                 备用平台: https://api.dpweixin.com
 const HUPI_APPID    = process.env.HUPI_APPID    ?? "";
 const HUPI_APPKEY   = process.env.HUPI_APPKEY   ?? "";
-const HUPI_API_BASE = (process.env.HUPI_API_BASE ?? "").replace(/\/$/, "");
+const HUPI_API_BASE = (process.env.HUPI_API_BASE ?? "https://api.xunhupay.com").replace(/\/$/, "");
 
 export function hupiConfigured(): boolean {
-  return !!(HUPI_APPID && HUPI_APPKEY && HUPI_API_BASE);
+  return !!(HUPI_APPID && HUPI_APPKEY);
 }
 
 // ── Debug: test endpoint (no auth) ───────────────────────────────────────────
 router.get("/debug-config", (_req: Request, res: Response) => {
   res.json({
     hupiConfigured: hupiConfigured(),
-    appidLen:    HUPI_APPID.length,
-    appkeyLen:   HUPI_APPKEY.length,
-    apiBase:     HUPI_API_BASE || "(未设置)",
+    appidLen:  HUPI_APPID.length,
+    appkeyLen: HUPI_APPKEY.length,
+    apiBase:   HUPI_API_BASE,
   });
 });
 
-// ── Price table (in fen, 1 yuan = 100 fen) ───────────────────────────────────
-const PRICE_TABLE: Record<string, Record<string, number>> = {
-  pro:  { monthly: 2800,  yearly: 19800 },
-  plus: { monthly: 6800,  yearly: 49800 },
+// ── Price table (in yuan, e.g. "28.00") ──────────────────────────────────────
+const PRICE_TABLE: Record<string, Record<string, string>> = {
+  pro:  { monthly: "28.00",  yearly: "198.00" },
+  plus: { monthly: "68.00",  yearly: "498.00" },
 };
 
 const DURATION_DAYS: Record<string, number> = {
@@ -41,16 +42,23 @@ const DURATION_DAYS: Record<string, number> = {
   yearly:  366,
 };
 
-// ── Signature (HMAC-MD5 compatible with 虎皮椒) ───────────────────────────────
-// Sort params alphabetically, concat key=value&..., append &key=APPKEY, MD5.
-function makeSign(params: Record<string, string | number>): string {
-  const keys = Object.keys(params).filter(k => k !== "sign").sort();
+// ── Signature (xunhupay: sorted params + &key=APPKEY, MD5 → "hash") ──────────
+// Same algorithm as old hupi.io but field name is "hash" not "sign".
+// Empty values are excluded from signing.
+function makeHash(params: Record<string, string | number>): string {
+  const keys = Object.keys(params)
+    .filter(k => k !== "hash" && params[k] !== "" && params[k] !== undefined && params[k] !== null)
+    .sort();
   const base = keys.map(k => `${k}=${params[k]}`).join("&") + `&key=${HUPI_APPKEY}`;
   return crypto.createHash("md5").update(base).digest("hex");
 }
 
-function makeOutTradeNo(): string {
-  return `hs-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+function makeTradeOrderId(): string {
+  return `hs${Date.now()}${crypto.randomBytes(4).toString("hex")}`;
+}
+
+function nonceStr(): string {
+  return crypto.randomBytes(16).toString("hex");
 }
 
 function addDays(d: Date, days: number): Date {
@@ -68,27 +76,27 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
     type?: "alipay" | "wechat";
   };
 
-  if (!["pro", "plus"].includes(tier)) { res.status(400).json({ error: "无效套餐" }); return; }
-  if (!["monthly", "yearly"].includes(period)) { res.status(400).json({ error: "无效周期" }); return; }
-  if (!["alipay", "wechat"].includes(type)) { res.status(400).json({ error: "无效支付方式" }); return; }
+  if (!["pro", "plus"].includes(tier))          { res.status(400).json({ error: "无效套餐" }); return; }
+  if (!["monthly", "yearly"].includes(period))   { res.status(400).json({ error: "无效周期" }); return; }
+  if (!["alipay", "wechat"].includes(type))      { res.status(400).json({ error: "无效支付方式" }); return; }
 
   if (!hupiConfigured()) {
     res.status(503).json({
       error: "支付服务未配置，请联系管理员",
-      _debug: { pid: process.pid, ts: Date.now(), appidLen: HUPI_APPID.length, appkeyLen: HUPI_APPKEY.length },
+      _debug: { pid: process.pid, ts: Date.now(), appidLen: HUPI_APPID.length, appkeyLen: HUPI_APPKEY.length, apiBase: HUPI_API_BASE },
     });
     return;
   }
 
-  const amountCents = PRICE_TABLE[tier]?.[period];
-  if (!amountCents) { res.status(400).json({ error: "价格配置错误" }); return; }
+  const totalFee = PRICE_TABLE[tier]?.[period];
+  if (!totalFee) { res.status(400).json({ error: "价格配置错误" }); return; }
 
-  const outTradeNo = makeOutTradeNo();
-  const subject = `顽童日记 ${tier === "pro" ? "探索家 Pro" : "旅记大师 Plus"} ${period === "yearly" ? "年度" : "月度"}订阅`;
-  const amountYuan = (amountCents / 100).toFixed(2);
+  const tradeOrderId = makeTradeOrderId();
+  const title = `顽童日记 ${tier === "pro" ? "探索家 Pro" : "旅记大师 Plus"} ${period === "yearly" ? "年度" : "月度"}订阅`;
+  const amountCents = Math.round(parseFloat(totalFee) * 100);
 
   await db.insert(subscriptionOrdersTable).values({
-    userId, outTradeNo, tier, period, amountCents, status: "pending",
+    userId, outTradeNo: tradeOrderId, tier, period, amountCents, status: "pending",
   });
 
   try {
@@ -96,20 +104,22 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
       (process.env.API_BASE_URL ?? `${req.protocol}://${req.get("host")}`) +
       "/api/pay/hupi/notify";
 
-    const timestamp = Math.floor(Date.now() / 1000);
+    const time = Math.floor(Date.now() / 1000);
 
     const params: Record<string, string | number> = {
-      appid:        HUPI_APPID,
-      body:         subject,
-      notify_url:   notifyUrl,
-      out_trade_no: outTradeNo,
-      timestamp,
-      total_fee:    amountCents,
-      type,
+      version:        "1.1",
+      appid:          HUPI_APPID,
+      trade_order_id: tradeOrderId,
+      total_fee:      totalFee,
+      title,
+      time,
+      notify_url:     notifyUrl,
+      nonce_str:      nonceStr(),
+      plugins:        "wantong-diary",
     };
-    params.sign = makeSign(params);
+    params.hash = makeHash(params);
 
-    const apiRes = await fetch(`${HUPI_API_BASE}/payment/native`, {
+    const apiRes = await fetch(`${HUPI_API_BASE}/payment/do.html`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
@@ -118,22 +128,22 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
 
     const apiData = await apiRes.json() as any;
 
-    if (apiData.code !== 1) {
+    if (apiData.errcode && apiData.errcode !== 0) {
       await db.delete(subscriptionOrdersTable)
-        .where(eq(subscriptionOrdersTable.outTradeNo, outTradeNo));
-      res.status(502).json({ error: apiData.msg ?? "虎皮椒下单失败" });
+        .where(eq(subscriptionOrdersTable.outTradeNo, tradeOrderId));
+      res.status(502).json({ error: apiData.errmsg ?? "虎皮椒下单失败" });
       return;
     }
 
-    const qrCodeUrl: string = apiData.data?.code_url ?? "";
+    const qrCodeUrl: string = apiData.url_qrcode ?? apiData.url ?? "";
     await db.update(subscriptionOrdersTable)
       .set({ qrCodeUrl, updatedAt: new Date() })
-      .where(eq(subscriptionOrdersTable.outTradeNo, outTradeNo));
+      .where(eq(subscriptionOrdersTable.outTradeNo, tradeOrderId));
 
-    res.json({ outTradeNo, qrCodeUrl, subject, amountYuan, type });
+    res.json({ outTradeNo: tradeOrderId, qrCodeUrl, subject: title, amountYuan: totalFee, type });
   } catch (e: any) {
     await db.delete(subscriptionOrdersTable)
-      .where(eq(subscriptionOrdersTable.outTradeNo, outTradeNo));
+      .where(eq(subscriptionOrdersTable.outTradeNo, tradeOrderId));
     res.status(502).json({ error: "请求虎皮椒失败：" + (e?.message ?? "网络错误") });
   }
 });
@@ -141,7 +151,7 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
 // ── GET /pay/hupi/query/:outTradeNo ──────────────────────────────────────────
 router.get("/query/:outTradeNo", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const userId = (req as unknown as AuthedRequest).userId;
-  const { outTradeNo } = req.params as { outTradeNo: string };
+  const outTradeNo = req.params.outTradeNo as string;
 
   const [order] = await db.select().from(subscriptionOrdersTable)
     .where(and(
@@ -158,15 +168,16 @@ router.get("/query/:outTradeNo", requireAuth, async (req: Request, res: Response
   if (!hupiConfigured()) { res.json({ status: "pending" }); return; }
 
   try {
-    const timestamp = Math.floor(Date.now() / 1000);
+    const time = Math.floor(Date.now() / 1000);
     const params: Record<string, string | number> = {
-      appid:        HUPI_APPID,
-      out_trade_no: outTradeNo,
-      timestamp,
+      appid:          HUPI_APPID,
+      trade_order_id: outTradeNo,
+      time,
+      nonce_str:      nonceStr(),
     };
-    params.sign = makeSign(params);
+    params.hash = makeHash(params);
 
-    const apiRes = await fetch(`${HUPI_API_BASE}/payment/query`, {
+    const apiRes = await fetch(`${HUPI_API_BASE}/payment/query.html`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
@@ -175,11 +186,15 @@ router.get("/query/:outTradeNo", requireAuth, async (req: Request, res: Response
 
     const apiData = await apiRes.json() as any;
 
-    if (apiData.code === 1 && (apiData.data?.trade_state === "SUCCESS" || apiData.data?.status === "paid")) {
+    const isPaid =
+      apiData.errcode === 0 &&
+      (apiData.data?.status === "OD" || apiData.data?.trade_state === "SUCCESS");
+
+    if (isPaid) {
       await fulfillOrder(outTradeNo, apiData.data?.transaction_id ?? apiData.data?.trade_no ?? "");
       res.json({ status: "paid", tier: order.tier });
     } else {
-      res.json({ status: "pending", tradeState: apiData.data?.trade_state });
+      res.json({ status: "pending", tradeState: apiData.data?.status ?? apiData.data?.trade_state });
     }
   } catch (e: any) {
     res.status(502).json({ error: "查询失败：" + (e?.message ?? "") });
@@ -190,23 +205,25 @@ router.get("/query/:outTradeNo", requireAuth, async (req: Request, res: Response
 router.post("/notify", async (req: Request, res: Response): Promise<void> => {
   try {
     const params = { ...(req.body as Record<string, string | number>) };
-    const receivedSign = params.sign as string;
-    delete params.sign;
+    const receivedHash = params.hash as string;
+    delete params.hash;
 
-    const expectedSign = makeSign(params);
-    if (receivedSign !== expectedSign) {
-      res.status(400).json({ code: 0, msg: "sign error" });
+    const expectedHash = makeHash(params);
+    if (receivedHash !== expectedHash) {
+      res.status(400).json({ code: 0, msg: "hash error" });
       return;
     }
 
+    // xunhupay: trade_status="OD" means paid
     const isPaid =
+      params.trade_status === "OD" ||
+      params.status === "OD" ||
       params.trade_state === "SUCCESS" ||
-      params.status === "paid" ||
       params.result_code === "SUCCESS";
 
     if (isPaid) {
       await fulfillOrder(
-        params.out_trade_no as string,
+        (params.trade_order_id ?? params.out_trade_no) as string,
         (params.transaction_id ?? params.trade_no ?? "") as string,
       );
     }
