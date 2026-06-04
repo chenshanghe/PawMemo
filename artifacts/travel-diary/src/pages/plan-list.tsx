@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Layout } from "@/components/layout";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal, ArrowUpDown, Pencil } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -123,20 +123,52 @@ function useToggleSet(initial: Set<string> = new Set()) {
 
 export default function PlanListPage() {
   const [, setLocation] = useLocation();
+  const searchStr = useSearch();
+
+  // Parse URL params once on mount to seed initial filter state
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const urlParams = useMemo(() => new URLSearchParams(searchStr), []);
+
   const [plans, setPlans] = useState<SavedPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("createdAt");
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
 
-  const [groupTypeFilter, setGroupTypeFilter] = useState<GroupTypeKey | null>(null);
-  const [budgetFilter, toggleBudget] = useToggleSet();
-  const [needsFilter, toggleNeeds] = useToggleSet();
-  const [modeFilter, toggleMode] = useToggleSet();
-  const [travelersFilter, toggleTravelers] = useToggleSet();
+  const [groupTypeFilter, setGroupTypeFilter] = useState<GroupTypeKey | null>(
+    (urlParams.get("groupType") as GroupTypeKey) || null
+  );
+  const [budgetFilter, toggleBudget] = useToggleSet(
+    new Set(urlParams.getAll("budget").flatMap(v => v ? v.split(",") : []))
+  );
+  const [needsFilter, toggleNeeds] = useToggleSet(
+    new Set(urlParams.getAll("needs").flatMap(v => v ? v.split(",") : []))
+  );
+  const [modeFilter, toggleMode] = useToggleSet(
+    new Set(urlParams.getAll("mode").flatMap(v => v ? v.split(",") : []))
+  );
+  const [travelersFilter, toggleTravelers] = useToggleSet(
+    new Set(urlParams.getAll("travelers").flatMap(v => v ? v.split(",") : []))
+  );
+
+  const hasInitialFilters =
+    urlParams.has("groupType") || urlParams.has("budget") ||
+    urlParams.has("needs") || urlParams.has("mode") || urlParams.has("travelers");
+  const [showFilters, setShowFilters] = useState(hasInitialFilters);
+
+  // Sync active filters back to the URL so they survive navigation
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (groupTypeFilter) params.set("groupType", groupTypeFilter);
+    if (budgetFilter.size > 0) params.set("budget", [...budgetFilter].join(","));
+    if (needsFilter.size > 0) params.set("needs", [...needsFilter].join(","));
+    if (modeFilter.size > 0) params.set("mode", [...modeFilter].join(","));
+    if (travelersFilter.size > 0) params.set("travelers", [...travelersFilter].join(","));
+    const qs = params.toString();
+    setLocation(`/plan/list${qs ? `?${qs}` : ""}`, { replace: true } as never);
+  }, [groupTypeFilter, budgetFilter, needsFilter, modeFilter, travelersFilter]); // eslint-disable-line
 
   useEffect(() => {
     apiFetch("/api/plan/saved")
