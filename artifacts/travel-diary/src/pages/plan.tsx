@@ -318,22 +318,15 @@ export default function PlanPage() {
     setGroupType("");
     setHasPrefs(false);
     setSavedPrefsSnapshot(null);
+    setClearedPrefs(true);
+    if (clearedTimer.current) clearTimeout(clearedTimer.current);
+    clearedTimer.current = setTimeout(() => setClearedPrefs(false), 2000);
     if (isSignedIn) {
       apiFetch("/api/prefs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" }),
-      }).then(r => {
-        if (r.ok) {
-          setClearedPrefs(true);
-          if (clearedTimer.current) clearTimeout(clearedTimer.current);
-          clearedTimer.current = setTimeout(() => setClearedPrefs(false), 2000);
-        }
       }).catch(() => {});
-    } else {
-      setClearedPrefs(true);
-      if (clearedTimer.current) clearTimeout(clearedTimer.current);
-      clearedTimer.current = setTimeout(() => setClearedPrefs(false), 2000);
     }
   };
 
