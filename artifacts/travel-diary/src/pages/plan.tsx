@@ -233,6 +233,10 @@ export default function PlanPage() {
 
   useEffect(() => { setSelectedPoi(null); }, [activeDay]);
 
+  useEffect(() => {
+    if (!hasPrefs) setConfirmClearPrefs(false);
+  }, [hasPrefs]);
+
   // Fetch server-side prefs when the user is signed in (overrides localStorage)
   useEffect(() => {
     if (!isSignedIn || serverPrefsFetched.current) return;
