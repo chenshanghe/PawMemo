@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useUpload } from "@workspace/object-storage-web";
 import { Camera, Upload, X, ImageIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -6,7 +6,6 @@ import imageCompression from "browser-image-compression";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-// ── Same fast settings as photo-uploader ────────────────────────────────────
 const SKIP_BYTES = 600 * 1024;
 
 const COMPRESS_OPTIONS = {
@@ -28,25 +27,49 @@ interface ImageUploaderProps {
 export function ImageUploader({ value, onChange, className, label = "上传图片" }: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  // Local blob URL used as preview while the entry hasn't been saved yet.
+  // We keep it alive until the user picks a new file, removes the image,
+  // or the component unmounts — avoids a 404 from the server ACL check
+  // (object not yet linked to any diary entry in the DB).
   const [preview, setPreview] = useState<string | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
   const [compressing, setCompressing] = useState(false);
+
+  // Revoke current blob URL and clear the ref
+  const revokeCurrent = () => {
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => () => revokeCurrent(), []);
 
   const { uploadFile, isUploading, progress, error } = useUpload({
     basePath: `${BASE}/api/storage`,
     onSuccess: (res) => {
+      // Notify parent of the server URL for saving, but keep showing the
+      // local blob preview — the server object isn't in the DB yet so it
+      // would 404 if we tried to display it directly.
       onChange(`/api/storage${res.objectPath}`);
+    },
+    onError: () => {
+      revokeCurrent();
       setPreview(null);
     },
-    onError: () => setPreview(null),
   });
 
   const handleFile = async (file: File) => {
+    // Revoke any previous blob before creating a new one
+    revokeCurrent();
+
     const localPreview = URL.createObjectURL(file);
+    blobUrlRef.current = localPreview;
     setPreview(localPreview);
 
     let toUpload: File;
     if (file.size <= SKIP_BYTES) {
-      // Small enough — upload directly without compression delay
       toUpload = file;
     } else {
       setCompressing(true);
@@ -57,11 +80,14 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
       }
     }
 
-    URL.revokeObjectURL(localPreview);
+    // Replace with compressed blob preview
+    revokeCurrent();
     const compressedPreview = URL.createObjectURL(toUpload);
+    blobUrlRef.current = compressedPreview;
     setPreview(compressedPreview);
+
     await uploadFile(toUpload);
-    URL.revokeObjectURL(compressedPreview);
+    // Keep compressedPreview alive — revokeCurrent() handles cleanup later
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,6 +100,12 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) handleFile(file);
+  };
+
+  const handleRemove = () => {
+    revokeCurrent();
+    setPreview(null);
+    onChange("");
   };
 
   const busy = compressing || isUploading;
@@ -113,7 +145,7 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
               <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-white/90 text-foreground px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-sm hover:bg-white">
                 <Upload className="w-3.5 h-3.5" />更换图片
               </button>
-              <button type="button" onClick={() => onChange("")} className="bg-white/90 text-destructive px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-sm hover:bg-white">
+              <button type="button" onClick={handleRemove} className="bg-white/90 text-destructive px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-sm hover:bg-white">
                 <X className="w-3.5 h-3.5" />移除
               </button>
             </div>
