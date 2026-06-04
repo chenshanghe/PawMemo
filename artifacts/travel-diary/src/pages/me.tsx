@@ -704,6 +704,34 @@ export default function Me() {
             </button>
           </div>
 
+          {/* ── About / Legal ──────────────────────────────────────────── */}
+          <div className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
+              <BookText className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">关于 / 法律信息</span>
+            </div>
+            <Link href="/terms" className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group">
+              <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">用户服务协议</p>
+                <p className="text-[11px] text-muted-foreground">查看服务条款与用户行为规范</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            </Link>
+            <Link href="/privacy" className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group border-t border-border/30">
+              <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+                <Shield className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">隐私政策</p>
+                <p className="text-[11px] text-muted-foreground">了解我们如何收集和使用您的数据</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            </Link>
+          </div>
+
           {/* ── Account & Privacy ──────────────────────────────────────── */}
           <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/5 overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-destructive/15">
