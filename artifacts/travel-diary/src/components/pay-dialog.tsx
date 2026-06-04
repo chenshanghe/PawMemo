@@ -21,7 +21,7 @@ const PERIOD_NAMES: Record<string, string> = {
   yearly:  "年度",
 };
 
-type PayType = "alipay" | "wechat";
+type PayType = "wechat";
 type Step = "qr" | "success" | "error";
 
 const PAY_TYPES: { id: PayType; label: string; bgColor: string; icon: string }[] = [

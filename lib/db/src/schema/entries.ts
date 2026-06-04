@@ -176,7 +176,7 @@ export const subscriptionOrdersTable = pgTable("subscription_orders", {
   period: text("period").notNull().default("monthly"),
   amountCents: integer("amount_cents").notNull(),
   status: text("status").notNull().default("pending"),
-  alipayTradeNo: text("alipay_trade_no"),
+  tradeNo: text("alipay_trade_no"),
   qrCodeUrl: text("qr_code_url"),
   paidAt: timestamp("paid_at"),
   expiresAt: timestamp("expires_at"),

@@ -72,15 +72,15 @@ function addDays(d: Date, days: number): Date {
 // ── POST /pay/hupi/create ────────────────────────────────────────────────────
 router.post("/create", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const userId = (req as unknown as AuthedRequest).userId;
-  const { tier, period = "monthly", type = "alipay" } = req.body as {
+  const { tier, period = "monthly", type = "wechat" } = req.body as {
     tier: string;
     period?: string;
-    type?: "alipay" | "wechat";
+    type?: "wechat";
   };
 
   if (!["pro", "plus"].includes(tier))          { res.status(400).json({ error: "无效套餐" }); return; }
   if (!["monthly", "yearly"].includes(period))   { res.status(400).json({ error: "无效周期" }); return; }
-  if (!["alipay", "wechat"].includes(type))      { res.status(400).json({ error: "无效支付方式" }); return; }
+  if (type !== "wechat")                         { res.status(400).json({ error: "无效支付方式" }); return; }
 
   if (!hupiConfigured()) {
     res.status(503).json({
@@ -245,7 +245,7 @@ async function fulfillOrder(outTradeNo: string, tradeNo: string) {
   const expiresAt = addDays(now, DURATION_DAYS[order.period] ?? 31);
 
   await db.update(subscriptionOrdersTable)
-    .set({ status: "paid", alipayTradeNo: tradeNo, paidAt: now, expiresAt, updatedAt: now })
+    .set({ status: "paid", tradeNo, paidAt: now, expiresAt, updatedAt: now })
     .where(eq(subscriptionOrdersTable.outTradeNo, outTradeNo));
 
   await db.update(userProfilesTable)
