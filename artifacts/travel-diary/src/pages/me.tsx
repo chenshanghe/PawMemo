@@ -29,6 +29,12 @@ const TRAVEL_MODES = [
   { value: "高铁", label: "🚄 高铁" },
   { value: "飞机", label: "✈️ 飞机" },
 ];
+const GROUP_TYPES = [
+  { value: "solo",    label: "🧍 独自",   color: "bg-violet-500 border-violet-500", hover: "hover:border-violet-300" },
+  { value: "couple",  label: "💑 情侣",   color: "bg-pink-500 border-pink-500",    hover: "hover:border-pink-300" },
+  { value: "family",  label: "👨‍👩‍👧 家庭",   color: "bg-amber-500 border-amber-500",  hover: "hover:border-amber-300" },
+  { value: "friends", label: "👫 朋友",   color: "bg-teal-500 border-teal-500",    hover: "hover:border-teal-300" },
+];
 const BUDGETS = [
   { value: "经济实惠（人均 300 元/天以内）", label: "💰 经济" },
   { value: "舒适中档（人均 300-800 元/天）", label: "💰💰 舒适" },
@@ -48,6 +54,7 @@ interface UserPrefs {
   fromCity: string;
   travelStyle: string;
   travelers: number;
+  groupType: string;
 }
 
 interface MyProfile {
@@ -269,9 +276,10 @@ export default function Me() {
             fromCity: data.fromCity ?? "",
             travelStyle: data.travelStyle ?? "",
             travelers: typeof data.travelers === "number" && data.travelers >= 1 ? data.travelers : 2,
+            groupType: data.groupType ?? "",
           });
         } else {
-          setPrefs({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 });
+          setPrefs({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" });
         }
       }
     } finally {
@@ -309,7 +317,7 @@ export default function Me() {
     }
     pendingSaveRef.current = null;
     setPrefsDebouncing(false);
-    const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 };
+    const cleared: UserPrefs = { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" };
     setPrefs(cleared);
     await savePrefs(cleared);
   };
@@ -318,7 +326,7 @@ export default function Me() {
     setPrefsSaveError(null);
     setPrefsDebouncing(true);
     setPrefs((prev) => {
-      const next = { ...(prev ?? { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 }), ...patch };
+      const next = { ...(prev ?? { travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" }), ...patch };
       if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
       pendingSaveRef.current = next;
       saveDebounceRef.current = setTimeout(() => {
@@ -841,6 +849,28 @@ export default function Me() {
                     >
                       ＋
                     </button>
+                  </div>
+                </div>
+                {/* Group type */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">🧭 出行类型 <span className="font-normal">（可选）</span></label>
+                  <div className="flex flex-wrap gap-2">
+                    {GROUP_TYPES.map((g) => {
+                      const selected = prefs?.groupType === g.value;
+                      return (
+                        <button
+                          key={g.value}
+                          onClick={() => updatePrefs({ groupType: selected ? "" : g.value })}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                            selected
+                              ? `${g.color} text-white`
+                              : `border-border/60 text-muted-foreground ${g.hover} hover:text-foreground`
+                          }`}
+                        >
+                          {g.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 {/* Travel mode */}

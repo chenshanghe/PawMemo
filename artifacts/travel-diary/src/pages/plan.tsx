@@ -34,6 +34,12 @@ function MapFit({ coords }: { coords: [number, number][] }) {
 }
 
 const STYLES = ["文化探索", "美食之旅", "自然风光", "亲子游", "休闲放松"] as const;
+const GROUP_TYPES = [
+  { value: "solo",    label: "🧍 独自",   color: "bg-violet-500 border-violet-500", hover: "hover:border-violet-300" },
+  { value: "couple",  label: "💑 情侣",   color: "bg-pink-500 border-pink-500",    hover: "hover:border-pink-300" },
+  { value: "family",  label: "👨‍👩‍👧 家庭",   color: "bg-amber-500 border-amber-500",  hover: "hover:border-amber-300" },
+  { value: "friends", label: "👫 朋友",   color: "bg-teal-500 border-teal-500",    hover: "hover:border-teal-300" },
+] as const;
 const TRAVEL_MODES = [
   { value: "自驾", label: "🚗 自驾" },
   { value: "跟团", label: "🚌 跟团" },
@@ -67,6 +73,7 @@ interface UserPrefs {
   fromCity: string;
   travelStyle: string;
   travelers: number;
+  groupType: string;
 }
 
 function loadPrefs(): UserPrefs | null {
@@ -193,6 +200,7 @@ export default function PlanPage() {
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(nextWeek);
   const [travelers, setTravelers] = useState(savedPrefs?.travelers ?? 2);
+  const [groupType, setGroupType] = useState<string>(savedPrefs?.groupType ?? "");
   const [style, setStyle] = useState(savedPrefs?.travelStyle || "文化探索");
   const [travelMode, setTravelMode] = useState<string>(savedPrefs?.travelMode ?? "");
   const [budget, setBudget] = useState<string>(savedPrefs?.budget ?? "");
@@ -241,9 +249,10 @@ export default function PlanPage() {
         if (prefs.fromCity) setFrom(prefs.fromCity);
         if (prefs.travelStyle) setStyle(prefs.travelStyle);
         if (typeof prefs.travelers === "number" && prefs.travelers >= 1) setTravelers(prefs.travelers);
+        if (prefs.groupType) setGroupType(prefs.groupType);
         const anySet = !!(prefs.travelMode || prefs.budget || (prefs.specialNeeds?.length ?? 0) > 0 || prefs.fromCity || prefs.travelStyle);
         setHasPrefs(anySet);
-        const snap: UserPrefs = { travelMode: prefs.travelMode ?? "", budget: prefs.budget ?? "", specialNeeds: prefs.specialNeeds ?? [], fromCity: prefs.fromCity ?? "", travelStyle: prefs.travelStyle ?? "", travelers: prefs.travelers ?? 2 };
+        const snap: UserPrefs = { travelMode: prefs.travelMode ?? "", budget: prefs.budget ?? "", specialNeeds: prefs.specialNeeds ?? [], fromCity: prefs.fromCity ?? "", travelStyle: prefs.travelStyle ?? "", travelers: prefs.travelers ?? 2, groupType: prefs.groupType ?? "" };
         if (anySet) { savePrefs(snap); setSavedPrefsSnapshot(snap); }
       })
       .catch(() => {});
@@ -261,13 +270,13 @@ export default function PlanPage() {
       isClearingPrefs.current = false;
       return;
     }
-    savePrefs({ travelMode, budget, specialNeeds, fromCity: from, travelStyle: style, travelers });
+    savePrefs({ travelMode, budget, specialNeeds, fromCity: from, travelStyle: style, travelers, groupType });
     setHasPrefs(true);
     if (isSignedIn) {
       apiFetch("/api/prefs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ travelMode, budget, specialNeeds, fromCity: from, travelStyle: style, travelers }),
+        body: JSON.stringify({ travelMode, budget, specialNeeds, fromCity: from, travelStyle: style, travelers, groupType }),
       }).then(r => {
         if (r.ok) {
           setSyncedToAccount(true);
@@ -276,7 +285,7 @@ export default function PlanPage() {
         }
       }).catch(() => {});
     }
-  }, [travelMode, budget, specialNeeds, from, style, travelers]);
+  }, [travelMode, budget, specialNeeds, from, style, travelers, groupType]);
 
   useEffect(() => {
     apiFetch("/api/plan/saved")
@@ -306,13 +315,14 @@ export default function PlanPage() {
     setFrom("");
     setStyle("文化探索");
     setTravelers(2);
+    setGroupType("");
     setHasPrefs(false);
     setSavedPrefsSnapshot(null);
     if (isSignedIn) {
       apiFetch("/api/prefs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2 }),
+        body: JSON.stringify({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" }),
       }).then(r => {
         if (r.ok) {
           setClearedPrefs(true);
@@ -337,7 +347,7 @@ export default function PlanPage() {
     setError(null);
     setSavedId(null);
     setState("generating");
-    const params = { from: from.trim(), destinations: filledDests, startDate, endDate, travelers, style, travelMode: travelMode || undefined, budget: budget || undefined, specialNeeds: specialNeeds.length ? specialNeeds : undefined };
+    const params = { from: from.trim(), destinations: filledDests, startDate, endDate, travelers, style, travelMode: travelMode || undefined, budget: budget || undefined, specialNeeds: specialNeeds.length ? specialNeeds : undefined, groupType: groupType || undefined };
     setCurrentPlanParams(params);
     try {
       const res = await apiFetch("/api/plan/generate", {
@@ -618,6 +628,19 @@ export default function PlanPage() {
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">出行人数：{travelers} 人</label>
                 <input type="range" min={1} max={10} value={travelers} onChange={e => setTravelers(Number(e.target.value))} className="w-full accent-primary" />
                 <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5"><span>1</span><span>10</span></div>
+              </div>
+
+              {/* Group type */}
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-2 block">出行类型 <span className="text-muted-foreground font-normal">（可选）</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {GROUP_TYPES.map(g => (
+                    <button key={g.value} onClick={() => setGroupType(v => v === g.value ? "" : g.value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${groupType === g.value ? `${g.color} text-white` : `border-border/60 text-muted-foreground ${g.hover} hover:text-foreground`}`}>
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Travel mode */}

@@ -24,6 +24,7 @@ router.get("/prefs", requireAuth, async (req, res) => {
       fromCity: row.fromCity,
       travelStyle: row.travelStyle,
       travelers: row.travelersCount,
+      groupType: row.groupType,
     });
   } catch (err: any) {
     console.error("[prefs/get] error:", err);
@@ -35,8 +36,10 @@ router.put("/prefs", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "未登录" }); return; }
 
-  const { travelMode, budget, specialNeeds, fromCity, travelStyle, travelers } = req.body ?? {};
+  const { travelMode, budget, specialNeeds, fromCity, travelStyle, travelers, groupType } = req.body ?? {};
   const travelersCount = typeof travelers === "number" && travelers >= 1 ? travelers : 2;
+  const validGroupTypes = ["solo", "couple", "family", "friends"];
+  const groupTypeVal = validGroupTypes.includes(groupType) ? groupType : "";
 
   try {
     await db
@@ -49,6 +52,7 @@ router.put("/prefs", requireAuth, async (req, res) => {
         fromCity: fromCity ?? "",
         travelStyle: travelStyle ?? "",
         travelersCount,
+        groupType: groupTypeVal,
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -60,6 +64,7 @@ router.put("/prefs", requireAuth, async (req, res) => {
           fromCity: fromCity ?? "",
           travelStyle: travelStyle ?? "",
           travelersCount,
+          groupType: groupTypeVal,
           updatedAt: new Date(),
         },
       });

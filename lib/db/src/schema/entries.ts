@@ -232,6 +232,7 @@ export const userPrefsTable = pgTable("user_prefs", {
   fromCity: text("from_city").notNull().default(""),
   travelStyle: text("travel_style").notNull().default(""),
   travelersCount: integer("travelers_count").notNull().default(2),
+  groupType: text("group_type").notNull().default(""),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

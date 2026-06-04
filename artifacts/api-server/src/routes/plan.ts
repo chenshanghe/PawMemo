@@ -88,8 +88,15 @@ function buildSpecialNeedsPrompt(needs: string[]): string {
   return lines.length ? `特殊需求：${lines.join("；")}。` : "";
 }
 
+const GROUP_TYPE_LABELS: Record<string, string> = {
+  solo: "独自旅行（请推荐适合独自出行的活动、安全提示和社交机会）",
+  couple: "情侣/夫妻出行（请推荐浪漫餐厅、适合情侣的景点和体验）",
+  family: "亲子家庭出行（请推荐家庭友好景点、儿童友好餐厅，注意安全和亲子互动）",
+  friends: "朋友结伴出行（请推荐适合群体活动、娱乐性强的体验和聚餐场所）",
+};
+
 router.post("/plan/generate", requireAuth, async (req, res) => {
-  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget, specialNeeds } = req.body ?? {};
+  const { from, destinations, startDate, endDate, travelers, style, travelMode, budget, specialNeeds, groupType } = req.body ?? {};
 
   if (!from || !Array.isArray(destinations) || !destinations.length || !startDate || !endDate) {
     res.status(400).json({ error: "缺少必要参数（出发地、目的地、日期）" });
@@ -104,6 +111,7 @@ router.post("/plan/generate", requireAuth, async (req, res) => {
   const budgetStr = budget ? `预算档次：${budget}（请在推荐餐厅、酒店和交通时体现此预算范围）。` : "";
   const needsArr: string[] = Array.isArray(specialNeeds) ? specialNeeds : [];
   const needsStr = needsArr.length ? buildSpecialNeedsPrompt(needsArr) : "";
+  const groupTypeStr = groupType && GROUP_TYPE_LABELS[groupType] ? `出行类型：${GROUP_TYPE_LABELS[groupType]}。` : "";
 
   const systemPrompt = `你是专业中国旅行规划师。请返回严格符合以下结构的 JSON（不含任何额外文字）：
 {
@@ -128,7 +136,7 @@ router.post("/plan/generate", requireAuth, async (req, res) => {
   "tips": ["贴士1", "贴士2", "贴士3"]
 }`;
 
-  const userPrompt = `出发地：${from}\n目的地：${destStr}\n出发日期：${startDate}\n结束日期：${endDate}\n天数：${days}天\n人数：${travelers ?? 2}人\n${styleStr}${modeStr}${budgetStr}${needsStr}请生成完整的 ${days} 天行程。`;
+  const userPrompt = `出发地：${from}\n目的地：${destStr}\n出发日期：${startDate}\n结束日期：${endDate}\n天数：${days}天\n人数：${travelers ?? 2}人\n${styleStr}${modeStr}${budgetStr}${needsStr}${groupTypeStr}请生成完整的 ${days} 天行程。`;
 
   try {
     const resp = await deepseek.chat.completions.create({
