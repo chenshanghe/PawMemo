@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Camera, Images, Loader2, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
+import { convertHeicToJpeg, isHeic } from "@/lib/heic-convert";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -254,15 +255,26 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   const processItem = useCallback(
     async (item: QueueItem) => {
       try {
-        // ── Step 1: compress (skip if already small) ──────────────────
+        // ── Step 1: HEIC → JPEG conversion (if needed) ───────────────
+        updateItem(item.id, { status: "compressing", progress: 5 });
+        let sourceFile = item.file;
+        if (isHeic(sourceFile)) {
+          sourceFile = await convertHeicToJpeg(sourceFile);
+          // Update the preview with a displayable JPEG blob URL
+          const jpegPreview = URL.createObjectURL(sourceFile);
+          blobUrlsRef.current.add(jpegPreview);
+          updateItem(item.id, { previewUrl: jpegPreview });
+        }
+
+        // ── Step 2: compress (skip if already small) ──────────────────
         updateItem(item.id, { status: "compressing", progress: 15 });
         const toUpload: File = await compressSem(async () => {
-          if (item.file.size <= SKIP_BYTES) return item.file;
-          return await compressImage(item.file);
+          if (sourceFile.size <= SKIP_BYTES) return sourceFile;
+          return await compressImage(sourceFile);
         });
         updateItem(item.id, { progress: 35 });
 
-        // ── Step 2: PUT to pre-assigned presigned URL ─────────────────
+        // ── Step 3: PUT to pre-assigned presigned URL ─────────────────
         // No per-photo presign round-trip — URL was fetched in batch upfront.
         const { uploadURL, objectPath } = item;
         if (!uploadURL || !objectPath) throw new Error("缺少上传地址");
@@ -336,9 +348,10 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
         credentials: "include",
         body: JSON.stringify({
           files: sliced.map((f) => ({
-            name: f.name,
+            // HEIC will be converted to JPEG before upload; presign as JPEG
+            name: isHeic(f) ? f.name.replace(/\.[^.]+$/, ".jpg") : f.name,
             size: f.size,
-            contentType: f.type || "image/jpeg",
+            contentType: isHeic(f) ? "image/jpeg" : (f.type || "image/jpeg"),
           })),
         }),
       });
@@ -386,8 +399,8 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
 
   return (
     <div className={cn("space-y-3", className)}>
-      <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleInputChange} />
-      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleInputChange} />
+      <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleInputChange} />
+      <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif" capture="environment" className="hidden" onChange={handleInputChange} />
 
       {/* Upload queue grid */}
       {queue.length > 0 && (
@@ -447,7 +460,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
           </span>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">支持同时选择多张 · 大图自动压缩，小图直接上传</p>
+      <p className="text-xs text-muted-foreground">支持同时选择多张，含 HEIC · 大图自动压缩，小图直接上传</p>
     </div>
   );
 }

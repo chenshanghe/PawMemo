@@ -3,6 +3,7 @@ import { useUpload } from "@workspace/object-storage-web";
 import { Camera, Upload, X, ImageIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
+import { convertHeicToJpeg } from "@/lib/heic-convert";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -64,17 +65,34 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
     // Revoke any previous blob before creating a new one
     revokeCurrent();
 
-    const localPreview = URL.createObjectURL(file);
-    blobUrlRef.current = localPreview;
-    setPreview(localPreview);
+    // For HEIC files, show a placeholder until conversion is done
+    // (raw HEIC blob URLs don't display in non-Safari browsers)
+    const initialPreview = URL.createObjectURL(file);
+    blobUrlRef.current = initialPreview;
+    setPreview(initialPreview);
+    setCompressing(true);
+
+    let converted: File;
+    try {
+      // Convert HEIC → JPEG first; no-op for other formats
+      converted = await convertHeicToJpeg(file);
+    } finally {
+      setCompressing(false);
+    }
+
+    // Update preview with the converted (displayable) blob
+    revokeCurrent();
+    const convertedPreview = URL.createObjectURL(converted);
+    blobUrlRef.current = convertedPreview;
+    setPreview(convertedPreview);
 
     let toUpload: File;
-    if (file.size <= SKIP_BYTES) {
-      toUpload = file;
+    if (converted.size <= SKIP_BYTES) {
+      toUpload = converted;
     } else {
       setCompressing(true);
       try {
-        toUpload = await imageCompression(file, COMPRESS_OPTIONS);
+        toUpload = await imageCompression(converted, COMPRESS_OPTIONS);
       } finally {
         setCompressing(false);
       }
@@ -119,8 +137,8 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
 
   return (
     <div className={cn("space-y-2", className)}>
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleInputChange} />
-      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleInputChange} />
+      <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleInputChange} />
+      <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif" capture="environment" className="hidden" onChange={handleInputChange} />
 
       {displaySrc ? (
         <div className="relative group rounded-xl overflow-hidden aspect-[3/1] bg-muted/30 shadow-sm">
