@@ -91,7 +91,7 @@ async function getFullEntry(entryId: number) {
 // POST /api/entries/:id/share  — create or return existing share token
 router.post("/entries/:id/share", requireAuth, async (req, res) => {
   const entryId = Number(req.params.id);
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [entry] = await db
@@ -118,7 +118,7 @@ router.post("/entries/:id/share", requireAuth, async (req, res) => {
 // DELETE /api/entries/:id/share  — revoke share link
 router.delete("/entries/:id/share", requireAuth, async (req, res) => {
   const entryId = Number(req.params.id);
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [entry] = await db
@@ -258,7 +258,7 @@ router.get("/entries/:id/likes", optionalAuth, async (req, res) => {
 // POST /api/entries/:id/likes — toggle like
 router.post("/entries/:id/likes", requireAuth, async (req, res) => {
   const entryId = Number(req.params.id);
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const shareToken = typeof req.query.shareToken === "string" ? req.query.shareToken : undefined;
@@ -340,7 +340,7 @@ router.get("/entries/:id/comments", optionalAuth, async (req, res) => {
 // POST /api/entries/:id/comments
 router.post("/entries/:id/comments", requireAuth, async (req, res) => {
   const entryId = Number(req.params.id);
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const shareToken = typeof req.query.shareToken === "string" ? req.query.shareToken : undefined;
@@ -392,7 +392,7 @@ router.post("/entries/:id/comments", requireAuth, async (req, res) => {
 // DELETE /api/comments/:commentId — only comment owner can delete
 router.delete("/comments/:commentId", requireAuth, async (req, res) => {
   const commentId = Number(req.params.commentId);
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   if (isNaN(commentId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [comment] = await db
@@ -511,7 +511,7 @@ router.get("/entries/:id/public", optionalAuth, async (req, res) => {
 // GET /api/entries/:id/share-status — check if share exists (for owner)
 router.get("/entries/:id/share-status", requireAuth, async (req, res) => {
   const entryId = Number(req.params.id);
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [entry] = await db
@@ -533,7 +533,7 @@ router.get("/entries/:id/share-status", requireAuth, async (req, res) => {
 // POST /api/me/profile  — upsert self profile. Client calls this on sign-in
 // so we can render author name/avatar without hitting Clerk on every read.
 router.post("/me/profile", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const { name, avatar, bio, email } = req.body ?? {};
   if (typeof name !== "string" || !name.trim()) {
     res.status(400).json({ error: "name required" });
@@ -576,7 +576,7 @@ router.post("/me/profile", requireAuth, async (req, res) => {
 // GET /api/me/profile  — returns own profile + stats. Synthesizes a stub
 // profile if the row isn't synced yet, so the page never 404s.
 router.get("/me/profile", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const [row] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId));
   const profile = row ?? { userId, name: "旅行者", avatar: null, bio: null, updatedAt: null };
 
@@ -629,7 +629,7 @@ router.get("/me/profile", requireAuth, async (req, res) => {
 
 // PATCH /api/me/profile — edit name, bio, and custom avatar
 router.patch("/me/profile", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const { name, bio, avatar, weeklyDigest } = req.body ?? {};
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (typeof name === "string" && name.trim()) updates.name = name.trim();
@@ -719,8 +719,8 @@ router.get("/users/:userId", optionalAuth, async (req, res) => {
 
 // POST /api/users/:userId/follow — toggle follow
 router.post("/users/:userId/follow", requireAuth, async (req, res) => {
-  const followerId = (req as AuthedRequest).userId;
-  const followeeId = req.params.userId;
+  const followerId = (req as unknown as AuthedRequest).userId;
+  const followeeId = req.params.userId as string;
   if (followerId === followeeId) { res.status(400).json({ error: "不能关注自己" }); return; }
 
   const [existing] = await db
@@ -764,7 +764,7 @@ router.post("/users/:userId/follow", requireAuth, async (req, res) => {
 // Uses LEFT JOIN so users whose profile hasn't been synced yet still appear
 // (with a fallback "旅行者" name) instead of vanishing from the list.
 router.get("/me/following", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const rows = await db
     .select({
       userId: userFollowsTable.followeeId,
@@ -781,7 +781,7 @@ router.get("/me/following", requireAuth, async (req, res) => {
 
 // GET /api/me/followers — list profiles that follow the viewer
 router.get("/me/followers", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const rows = await db
     .select({
       userId: userFollowsTable.followerId,
@@ -800,7 +800,7 @@ router.get("/me/followers", requireAuth, async (req, res) => {
 
 // POST /api/entries/:id/favorite — toggle
 router.post("/entries/:id/favorite", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const entryId = Number(req.params.id);
   if (isNaN(entryId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
@@ -928,7 +928,7 @@ async function hydrateEntries(
 
 // GET /api/me/favorites — paginated list of favorited (still-public) entries
 router.get("/me/favorites", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(40, Number(req.query.limit) || 20);
   const offset = (page - 1) * limit;
@@ -967,7 +967,7 @@ router.get("/me/favorites", requireAuth, async (req, res) => {
 
 // GET /api/me/photos — paginated photos across all user entries
 router.get("/me/photos", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(100, Number(req.query.limit) || 60);
   const offset = (page - 1) * limit;
@@ -1006,7 +1006,7 @@ router.get("/me/photos", requireAuth, async (req, res) => {
 
 // GET /api/me/feed — paginated public entries from followed users
 router.get("/me/feed", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(40, Number(req.query.limit) || 20);
   const offset = (page - 1) * limit;
@@ -1054,7 +1054,7 @@ router.get("/me/feed", requireAuth, async (req, res) => {
 
 // GET /api/me/compose-styles
 router.get("/me/compose-styles", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const rows = await db
     .select()
     .from(composeStylesTable)
@@ -1065,7 +1065,7 @@ router.get("/me/compose-styles", requireAuth, async (req, res) => {
 
 // POST /api/me/compose-styles
 router.post("/me/compose-styles", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const { name, style } = req.body ?? {};
   if (typeof name !== "string" || !name.trim() || typeof style !== "string" || !style.trim()) {
     res.status(400).json({ error: "name and style are required" });
@@ -1092,7 +1092,7 @@ router.post("/me/compose-styles", requireAuth, async (req, res) => {
 
 // GET /api/me/subscription
 router.get("/me/subscription", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const { tier } = await getUserTier(userId);
   const [compose, enhance] = await Promise.all([
     getAiComposeUsage(userId),
@@ -1115,7 +1115,7 @@ router.get("/me/subscription", requireAuth, async (req, res) => {
 
 // DELETE /api/me/compose-styles/:id
 router.delete("/me/compose-styles/:id", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db

@@ -19,7 +19,7 @@ async function geocode(name: string, city: string): Promise<{ lat: number; lng: 
     const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&accept-language=zh`;
     const res = await fetch(url, { headers: { "User-Agent": "HongshuTravelDiary/1.0" } });
     if (!res.ok) return null;
-    const data: any[] = await res.json();
+    const data = (await res.json()) as any[];
     if (!data.length) return null;
     return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
   } catch {
@@ -259,7 +259,7 @@ router.get("/plan/saved/:id", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "未登录" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "无效 ID" }); return; }
 
   try {
@@ -279,7 +279,7 @@ router.delete("/plan/saved/:id", requireAuth, async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "未登录" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "无效 ID" }); return; }
 
   try {

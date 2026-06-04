@@ -50,7 +50,7 @@ router.get("/weather", async (req, res) => {
       res.status(502).json({ error: "Weather service unavailable" });
       return;
     }
-    const data = await r.json();
+    const data = await r.json() as { daily?: { weathercode?: number[]; temperature_2m_max?: number[]; temperature_2m_min?: number[] } };
     const code: number | undefined = data.daily?.weathercode?.[0];
     const tempMax: number | undefined = data.daily?.temperature_2m_max?.[0];
     const tempMin: number | undefined = data.daily?.temperature_2m_min?.[0];

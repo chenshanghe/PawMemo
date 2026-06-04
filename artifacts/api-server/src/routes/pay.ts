@@ -45,7 +45,6 @@ function makeSdk(): AlipaySdk | null {
     gateway: SANDBOX
       ? "https://openapi-sandbox.dl.alipaydev.com/gateway.do"
       : "https://openapi.alipay.com/gateway.do",
-    sandbox: SANDBOX,
   });
 }
 
@@ -61,7 +60,7 @@ function addDays(d: Date, days: number): Date {
 
 // ── POST /api/pay/alipay/create ──────────────────────────────────────────────
 router.post("/alipay/create", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const { tier, period = "monthly" } = req.body as { tier: string; period?: string };
 
   if (!["pro", "plus"].includes(tier)) {
@@ -139,8 +138,8 @@ router.post("/alipay/create", requireAuth, async (req: Request, res: Response): 
 
 // ── GET /api/pay/alipay/query/:outTradeNo ────────────────────────────────────
 router.get("/alipay/query/:outTradeNo", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const userId = (req as AuthedRequest).userId;
-  const { outTradeNo } = req.params;
+  const userId = (req as unknown as AuthedRequest).userId;
+  const outTradeNo = req.params.outTradeNo as string;
 
   const [order] = await db.select().from(subscriptionOrdersTable)
     .where(and(
@@ -191,7 +190,7 @@ router.post("/alipay/mock-complete", requireAuth, async (req: Request, res: Resp
     return;
   }
 
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const { outTradeNo } = req.body as { outTradeNo: string };
 
   const [order] = await db.select().from(subscriptionOrdersTable)

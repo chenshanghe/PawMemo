@@ -709,7 +709,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
 // ── 图文混排 for narrative entries ──────────────────────────────────────────────
 interface NarrativeContentProps {
   content: string;
-  photos: { id: number; url: string; caption: string | null }[];
+  photos: { id: number; url: string; caption?: string | null }[];
   lightboxIndex: number | null;
   onPhotoClick: (idx: number) => void;
   onDeletePhoto: (id: number) => void;
@@ -735,7 +735,7 @@ function NarrativeContent({ content, photos, onPhotoClick, onDeletePhoto, entryI
   const photosBySection = new Map<number, typeof photos>();
   const untagged: typeof photos = [];
   photos.forEach((p) => {
-    const { sectionIdx } = parseSectionCaption(p.caption);
+    const { sectionIdx } = parseSectionCaption(p.caption ?? null);
     if (sectionIdx >= 0) {
       const arr = photosBySection.get(sectionIdx) ?? [];
       arr.push(p);
@@ -764,7 +764,7 @@ function NarrativeContent({ content, photos, onPhotoClick, onDeletePhoto, entryI
     return (
       <div className="py-3 space-y-2">
         {sectionPhotos.map((photo, i) => {
-          const { displayCaption } = parseSectionCaption(photo.caption);
+          const { displayCaption } = parseSectionCaption(photo.caption ?? null);
           const globalIdx = allPhotosOrdered.findIndex((p) => p.id === photo.id);
           return (
             <div key={photo.id} className="group relative rounded-2xl overflow-hidden shadow-md bg-muted/20">

@@ -78,7 +78,7 @@ export async function generateShareCard(opts: ShareCardOptions): Promise<Blob> {
   // ── Title ────────────────────────────────────────────────────────────────────
   ctx.font = "bold 72px 'Noto Serif SC', serif";
   ctx.fillStyle = "#ffffff";
-  const lines = wrapText(ctx, opts.title || "旅行日记", W - 120);
+  const lines = wrapText(ctx, opts.title || "旅行日记", W - 120, 84);
   const titleY = H - 200;
   const visibleLines = lines.slice(0, 3);
   visibleLines.forEach((line, i) => {

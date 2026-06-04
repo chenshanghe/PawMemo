@@ -75,7 +75,7 @@ async function syncEntryTags(entryId: number, tagIds: number[]) {
 
 // GET /entries
 router.get("/", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const parsed = ListEntriesQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid query params" });
@@ -137,7 +137,7 @@ router.get("/", async (req, res) => {
 
 // POST /entries
 router.post("/", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const parsed = CreateEntryBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid body", details: parsed.error });
@@ -160,27 +160,28 @@ router.post("/", async (req, res) => {
     }
   }
 
+  const entryInsert = {
+    userId,
+    title: data.title,
+    destination: data.destination,
+    content: data.content ?? null,
+    coverImage: data.coverImage ?? null,
+    mood: data.mood ?? null,
+    companions: data.companions ?? null,
+    visibility: data.visibility ?? "private",
+    rating: data.rating ?? null,
+    startDate: data.startDate instanceof Date ? data.startDate.toISOString().split("T")[0] : data.startDate,
+    endDate: data.endDate instanceof Date ? data.endDate.toISOString().split("T")[0] : (data.endDate ?? null),
+    entryType: typeof entryType === "string" ? entryType : "note",
+    sourceEntryIds: (Array.isArray(sourceEntryIds) ? sourceEntryIds : null) as number[] | null,
+    lat: typeof data.lat === "number" ? data.lat : null,
+    lng: typeof data.lng === "number" ? data.lng : null,
+    weather: (data.weather ?? null) as Record<string, unknown> | null,
+    videoUrl: typeof data.videoUrl === "string" ? data.videoUrl : null,
+  };
   const [entry] = await db
     .insert(diaryEntriesTable)
-    .values({
-      userId,
-      title: data.title,
-      destination: data.destination,
-      content: data.content ?? null,
-      coverImage: data.coverImage ?? null,
-      mood: data.mood ?? null,
-      companions: data.companions ?? null,
-      visibility: data.visibility ?? "private",
-      rating: data.rating ?? null,
-      startDate: data.startDate,
-      endDate: data.endDate ?? null,
-      entryType: typeof entryType === "string" ? entryType : "note",
-      sourceEntryIds: Array.isArray(sourceEntryIds) ? sourceEntryIds : null,
-      lat: typeof data.lat === "number" ? data.lat : null,
-      lng: typeof data.lng === "number" ? data.lng : null,
-      weather: data.weather ?? null,
-      videoUrl: typeof data.videoUrl === "string" ? data.videoUrl : null,
-    })
+    .values(entryInsert)
     .returning();
 
   const nameIds = await upsertTags(tagNames);
@@ -193,7 +194,7 @@ router.post("/", async (req, res) => {
 
 // GET /entries/:id
 router.get("/:id", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const parsed = GetEntryParams.safeParse({ id: Number(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -217,7 +218,7 @@ router.get("/:id", async (req, res) => {
 
 // PATCH /entries/:id
 router.patch("/:id", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const paramsParsed = UpdateEntryParams.safeParse({ id: Number(req.params.id) });
   if (!paramsParsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -272,7 +273,7 @@ router.patch("/:id", async (req, res) => {
 
 // DELETE /entries/:id
 router.delete("/:id", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const parsed = DeleteEntryParams.safeParse({ id: Number(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -286,7 +287,7 @@ router.delete("/:id", async (req, res) => {
 
 // GET /entries/:id/photos
 router.get("/:id/photos", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const parsed = ListEntryPhotosParams.safeParse({ id: Number(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -310,7 +311,7 @@ router.get("/:id/photos", async (req, res) => {
 
 // POST /entries/:id/photos
 router.post("/:id/photos", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const paramsParsed = AddEntryPhotoParams.safeParse({ id: Number(req.params.id) });
   if (!paramsParsed.success) {
     res.status(400).json({ error: "Invalid id" });
@@ -353,7 +354,7 @@ router.post("/:id/photos", async (req, res) => {
 // POST /entries/:id/photos/batch
 // Accepts { photos: [{url, caption?}][] } OR legacy { urls: string[] }
 router.post("/:id/photos/batch", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const paramsParsed = AddEntryPhotoParams.safeParse({ id: Number(req.params.id) });
   if (!paramsParsed.success) {
     res.status(400).json({ error: "Invalid id" });

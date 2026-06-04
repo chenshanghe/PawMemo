@@ -19,7 +19,7 @@ const router = Router();
 // POST /api/users/:userId/block — toggle block; also unfollow on block
 router.post("/users/:userId/block", requireAuth, async (req, res) => {
   const blockerId = (req as any).userId as string;
-  const blockedId = req.params.userId;
+  const blockedId = req.params.userId as string;
 
   if (blockerId === blockedId) {
     res.status(400).json({ error: "Cannot block yourself" });
@@ -54,7 +54,7 @@ router.post("/users/:userId/block", requireAuth, async (req, res) => {
 // GET /api/users/:userId/block-status
 router.get("/users/:userId/block-status", requireAuth, async (req, res) => {
   const viewerId = (req as any).userId as string;
-  const targetId = req.params.userId;
+  const targetId = req.params.userId as string;
   const [row] = await db
     .select()
     .from(userBlocksTable)

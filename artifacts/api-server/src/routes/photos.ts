@@ -11,7 +11,7 @@ router.use(requireAuth);
 
 // DELETE /photos/:photoId
 router.delete("/:photoId", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const parsed = DeletePhotoParams.safeParse({ photoId: Number(req.params.photoId) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid photoId" });

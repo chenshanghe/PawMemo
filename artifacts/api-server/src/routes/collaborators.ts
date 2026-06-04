@@ -10,7 +10,7 @@ router.use(requireAuth);
 
 // GET /entries/:id/collaborators
 router.get("/:id/collaborators", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const entryId = Number(req.params.id);
   try {
     const [entry] = await db.select().from(diaryEntriesTable)
@@ -27,7 +27,7 @@ router.get("/:id/collaborators", async (req, res) => {
 
 // POST /entries/:id/collaborators/invite
 router.post("/:id/collaborators/invite", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const entryId = Number(req.params.id);
   const { inviteeName } = req.body ?? {};
   try {
@@ -54,7 +54,7 @@ router.post("/:id/collaborators/invite", async (req, res) => {
 
 // GET /collab/:token — accept invite (sets userId + status=accepted)
 router.get("/collab/:token", async (req, res) => {
-  const acceptorId = (req as AuthedRequest).userId;
+  const acceptorId = (req as unknown as AuthedRequest).userId;
   const { token } = req.params;
   try {
     const [collab] = await db.select().from(entryCollaboratorsTable)
@@ -74,7 +74,7 @@ router.get("/collab/:token", async (req, res) => {
 
 // DELETE /entries/:id/collaborators/:collabId
 router.delete("/:id/collaborators/:collabId", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const entryId = Number(req.params.id);
   const collabId = Number(req.params.collabId);
   try {

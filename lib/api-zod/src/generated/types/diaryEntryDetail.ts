@@ -10,6 +10,7 @@ import type { Tag } from './tag';
 
 export interface DiaryEntryDetail {
   id: number;
+  userId: string;
   title: string;
   destination: string;
   /** @nullable */
@@ -20,6 +21,16 @@ export interface DiaryEntryDetail {
   mood?: string | null;
   /** @nullable */
   rating?: number | null;
+  /** @nullable */
+  companions?: string | null;
+  visibility?: 'private' | 'public' | 'shared';
+  /** @nullable */
+  lat?: number | null;
+  /** @nullable */
+  lng?: number | null;
+  weather?: unknown;
+  /** @nullable */
+  videoUrl?: string | null;
   startDate: Date;
   /** @nullable */
   endDate?: Date | null;

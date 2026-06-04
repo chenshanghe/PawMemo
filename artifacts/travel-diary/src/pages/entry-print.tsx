@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useRoute } from "wouter";
-import { useGetEntry } from "@workspace/api-client-react";
+import { useGetEntry, getGetEntryQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 
@@ -18,7 +18,7 @@ function parseSectionCaption(caption: string | null): { sectionIdx: number; disp
 export function EntryPrintPage() {
   const [, params] = useRoute("/entries/:id/print");
   const id = Number(params?.id);
-  const { data: entry, isLoading } = useGetEntry(id, { enabled: !!id });
+  const { data: entry, isLoading } = useGetEntry(id, { query: { enabled: !!id, queryKey: getGetEntryQueryKey(id) } });
 
   useEffect(() => {
     if (!entry) return;

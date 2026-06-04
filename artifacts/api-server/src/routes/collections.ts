@@ -9,7 +9,7 @@ router.use(requireAuth);
 
 // GET /collections
 router.get("/", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   try {
     const cols = await db
       .select()
@@ -34,7 +34,7 @@ router.get("/", async (req, res) => {
 
 // POST /collections
 router.post("/", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const { title, description, visibility } = req.body ?? {};
   if (!title?.trim()) { res.status(400).json({ error: "title required" }); return; }
   try {
@@ -52,7 +52,7 @@ router.post("/", async (req, res) => {
 
 // GET /collections/:id
 router.get("/:id", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const id = Number(req.params.id);
   try {
     const [col] = await db.select().from(collectionsTable)
@@ -71,9 +71,9 @@ router.get("/:id", async (req, res) => {
           id: diaryEntriesTable.id,
           title: diaryEntriesTable.title,
           destination: diaryEntriesTable.destination,
-          date: diaryEntriesTable.date,
+          startDate: diaryEntriesTable.startDate,
           mood: diaryEntriesTable.mood,
-          coverPhoto: diaryEntriesTable.coverPhoto,
+          coverImage: diaryEntriesTable.coverImage,
         }).from(diaryEntriesTable).where(inArray(diaryEntriesTable.id, entryIds))
       : [];
 
@@ -86,7 +86,7 @@ router.get("/:id", async (req, res) => {
 
 // PATCH /collections/:id
 router.patch("/:id", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const id = Number(req.params.id);
   const { title, description, visibility } = req.body ?? {};
   try {
@@ -108,7 +108,7 @@ router.patch("/:id", async (req, res) => {
 
 // DELETE /collections/:id
 router.delete("/:id", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const id = Number(req.params.id);
   try {
     await db.delete(collectionEntriesTable).where(eq(collectionEntriesTable.collectionId, id));
@@ -122,7 +122,7 @@ router.delete("/:id", async (req, res) => {
 
 // POST /collections/:id/entries
 router.post("/:id/entries", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const collectionId = Number(req.params.id);
   const { entryId } = req.body ?? {};
   if (!entryId) { res.status(400).json({ error: "entryId required" }); return; }
@@ -152,7 +152,7 @@ router.post("/:id/entries", async (req, res) => {
 
 // DELETE /collections/:id/entries/:entryId
 router.delete("/:id/entries/:entryId", async (req, res) => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const collectionId = Number(req.params.id);
   const entryId = Number(req.params.entryId);
   try {

@@ -47,7 +47,7 @@ function addDays(d: Date, days: number): Date {
 
 // ── POST /pay/hupi/create ────────────────────────────────────────────────────
 router.post("/create", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const userId = (req as AuthedRequest).userId;
+  const userId = (req as unknown as AuthedRequest).userId;
   const { tier, period = "monthly", type = "alipay" } = req.body as {
     tier: string;
     period?: string;
@@ -123,8 +123,8 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
 
 // ── GET /pay/hupi/query/:outTradeNo ──────────────────────────────────────────
 router.get("/query/:outTradeNo", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const userId = (req as AuthedRequest).userId;
-  const { outTradeNo } = req.params;
+  const userId = (req as unknown as AuthedRequest).userId;
+  const { outTradeNo } = req.params as { outTradeNo: string };
 
   const [order] = await db.select().from(subscriptionOrdersTable)
     .where(and(
