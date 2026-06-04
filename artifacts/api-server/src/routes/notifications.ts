@@ -5,10 +5,9 @@ import { eq, and, desc } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 
 const router = Router();
-router.use(requireAuth);
 
 // GET /notifications — list latest 50 for current user
-router.get("/notifications", async (req, res) => {
+router.get("/notifications", requireAuth, async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
   const rows = await db
     .select()
@@ -20,7 +19,7 @@ router.get("/notifications", async (req, res) => {
 });
 
 // GET /notifications/unread-count
-router.get("/notifications/unread-count", async (req, res) => {
+router.get("/notifications/unread-count", requireAuth, async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
   const rows = await db
     .select()
@@ -30,7 +29,7 @@ router.get("/notifications/unread-count", async (req, res) => {
 });
 
 // PATCH /notifications/:id/read — mark one read
-router.patch("/notifications/:id/read", async (req, res) => {
+router.patch("/notifications/:id/read", requireAuth, async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
@@ -42,7 +41,7 @@ router.patch("/notifications/:id/read", async (req, res) => {
 });
 
 // POST /notifications/read-all — mark all read
-router.post("/notifications/read-all", async (req, res) => {
+router.post("/notifications/read-all", requireAuth, async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
   await db
     .update(notificationsTable)

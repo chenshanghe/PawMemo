@@ -16,6 +16,15 @@ export function hupiConfigured(): boolean {
   return !!(HUPI_APPID && HUPI_APPKEY);
 }
 
+// ── Debug: test endpoint (no auth) ───────────────────────────────────────────
+router.get("/debug-config", (_req: Request, res: Response) => {
+  res.json({
+    hupiConfigured: hupiConfigured(),
+    appidLen: HUPI_APPID.length,
+    appkeyLen: HUPI_APPKEY.length,
+  });
+});
+
 // ── Price table (in fen, 1 yuan = 100 fen) ───────────────────────────────────
 const PRICE_TABLE: Record<string, Record<string, number>> = {
   pro:  { monthly: 2800,  yearly: 19800 },
