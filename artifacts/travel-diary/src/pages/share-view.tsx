@@ -3,6 +3,14 @@ import { Helmet } from "react-helmet-async";
 import { generateShareCard } from "@/lib/shareCard";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function withToken(url: string | null | undefined, token: string): string {
+  if (!url) return "";
+  if (!url.startsWith("/api/storage/objects/") && !url.includes("/api/storage/objects/")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}shareToken=${encodeURIComponent(token)}`;
+}
+
 import { useUser } from "@clerk/react";
 import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Download } from "lucide-react";
 import { format } from "date-fns";
@@ -148,7 +156,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
         destination: entry.destination,
         date: entry.startDate ? format(new Date(entry.startDate), "yyyy年M月d日") : null,
         rating: entry.rating ?? null,
-        coverUrl: entry.photos?.[0]?.url ?? entry.coverImage ?? null,
+        coverUrl: withToken(entry.photos?.[0]?.url ?? entry.coverImage, token) || null,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -203,7 +211,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
   const ogDesc = entry.destination
     ? `📍 ${entry.destination}${entry.content ? " · " + entry.content.slice(0, 80) : ""}`
     : entry.content?.slice(0, 100) ?? "旅行日记";
-  const ogImage = photos[0]?.url ?? entry.coverImage ?? "";
+  const ogImage = withToken(photos[0]?.url ?? entry.coverImage, token);
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -221,7 +229,11 @@ export default function ShareView({ params }: { params: { token: string } }) {
       </Helmet>
 
       {lightboxIndex !== null && (
-        <Lightbox photos={photos} index={lightboxIndex} onClose={() => setLightboxIndex(null)} />
+        <Lightbox
+          photos={photos.map(p => ({ ...p, url: withToken(p.url, token) }))}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
       )}
 
       {/* Top bar */}
@@ -248,7 +260,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
         {/* Cover */}
         {entry.coverImage && (
           <div className="rounded-2xl overflow-hidden aspect-[21/9] shadow-lg">
-            <img src={entry.coverImage} alt={entry.title} loading="lazy" className="w-full h-full object-cover" />
+            <img src={withToken(entry.coverImage, token)} alt={entry.title} loading="lazy" className="w-full h-full object-cover" />
           </div>
         )}
 
@@ -301,7 +313,7 @@ export default function ShareView({ params }: { params: { token: string } }) {
             <div className="grid grid-cols-3 gap-2">
               {photos.map((photo, idx) => (
                 <div key={photo.id} className="aspect-square overflow-hidden rounded-xl shadow-sm bg-muted/30 cursor-pointer" onClick={() => setLightboxIndex(idx)}>
-                  <img src={photo.url} alt={photo.caption ?? "旅途照片"} loading="lazy" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                  <img src={withToken(photo.url, token)} alt={photo.caption ?? "旅途照片"} loading="lazy" className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
                 </div>
               ))}
             </div>
