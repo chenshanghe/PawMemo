@@ -10,8 +10,9 @@ import {
   notificationsTable,
   entryLikesTable,
   entryCommentsTable,
+  photosTable,
 } from "@workspace/db";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, count, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
@@ -99,6 +100,47 @@ router.post("/reports", requireAuth, async (req, res) => {
   });
 
   res.json({ ok: true });
+});
+
+// GET /api/me/export/summary — return counts for the export preview dialog
+router.get("/me/export/summary", requireAuth, async (req, res) => {
+  const userId = (req as any).userId as string;
+
+  const [profile] = await db
+    .select()
+    .from(userProfilesTable)
+    .where(eq(userProfilesTable.userId, userId));
+
+  const [{ entryCount }] = await db
+    .select({ entryCount: count() })
+    .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.userId, userId));
+
+  const userEntryIds = await db
+    .select({ id: diaryEntriesTable.id })
+    .from(diaryEntriesTable)
+    .where(eq(diaryEntriesTable.userId, userId));
+
+  let photoCount = 0;
+  if (userEntryIds.length > 0) {
+    const [{ photoCount: pc }] = await db
+      .select({ photoCount: count() })
+      .from(photosTable)
+      .where(inArray(photosTable.entryId, userEntryIds.map((e) => e.id)));
+    photoCount = pc;
+  }
+
+  const [{ favoriteCount }] = await db
+    .select({ favoriteCount: count() })
+    .from(entryFavoritesTable)
+    .where(eq(entryFavoritesTable.userId, userId));
+
+  res.json({
+    entryCount,
+    photoCount,
+    favoriteCount,
+    accountCreatedAt: profile?.createdAt ?? null,
+  });
 });
 
 // GET /api/me/export — export all user data as JSON download

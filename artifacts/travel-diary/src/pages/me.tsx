@@ -196,6 +196,14 @@ export default function Me() {
 
   // Data export
   const [exportPending, setExportPending] = useState(false);
+  const [showExportPreview, setShowExportPreview] = useState(false);
+  const [exportSummary, setExportSummary] = useState<{
+    entryCount: number;
+    photoCount: number;
+    favoriteCount: number;
+    accountCreatedAt: string | null;
+  } | null>(null);
+  const [exportSummaryLoading, setExportSummaryLoading] = useState(false);
 
   const handleSelectAvatar = async (url: string) => {
     setAvatarSaving(true);
@@ -759,27 +767,23 @@ export default function Me() {
               <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
             </Link>
             <button
-              disabled={exportPending}
+              disabled={exportSummaryLoading}
               onClick={async () => {
-                setExportPending(true);
+                setExportSummaryLoading(true);
                 try {
-                  const res = await fetch(`${BASE}/api/me/export`, { credentials: "include" });
+                  const res = await fetch(`${BASE}/api/me/export/summary`, { credentials: "include" });
                   if (res.ok) {
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `wantong-export-${new Date().toISOString().slice(0, 10)}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    const data = await res.json();
+                    setExportSummary(data);
+                    setShowExportPreview(true);
                   }
                 } catch {}
-                finally { setExportPending(false); }
+                finally { setExportSummaryLoading(false); }
               }}
               className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group text-left border-t border-border/30 disabled:opacity-50"
             >
               <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
-                {exportPending ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" /> : <Download className="w-4 h-4 text-muted-foreground" />}
+                {exportSummaryLoading ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" /> : <Download className="w-4 h-4 text-muted-foreground" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground">导出我的数据</p>
@@ -1067,7 +1071,79 @@ export default function Me() {
         <FeedbackModal onClose={() => setShowFeedback(false)} />
       )}
 
-      {/* ── Account deletion modal ──────────────────────────────────────── */}
+      {/* ── Export preview modal ─────────────────────────────────────────── */}
+      {showExportPreview && exportSummary && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl bg-background border border-border/40 shadow-xl p-5 space-y-4 animate-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Download className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">导出我的数据</h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  导出为 JSON 格式，包含所有旅行数据
+                </p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border/40 bg-muted/30 divide-y divide-border/30">
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-muted-foreground">旅行日记</span>
+                <span className="text-sm font-semibold text-foreground">{exportSummary.entryCount} 篇</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-muted-foreground">照片</span>
+                <span className="text-sm font-semibold text-foreground">{exportSummary.photoCount} 张</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-muted-foreground">收藏</span>
+                <span className="text-sm font-semibold text-foreground">{exportSummary.favoriteCount} 篇</span>
+              </div>
+              {exportSummary.accountCreatedAt && (
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm text-muted-foreground">账号创建时间</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {format(new Date(exportSummary.accountCreatedAt), "yyyy 年 M 月 d 日", { locale: zhCN })}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowExportPreview(false); setExportSummary(null); }}
+                className="flex-1 py-2.5 rounded-xl border border-border/50 text-sm text-muted-foreground hover:bg-muted/50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                disabled={exportPending}
+                onClick={async () => {
+                  setExportPending(true);
+                  try {
+                    const res = await fetch(`${BASE}/api/me/export`, { credentials: "include" });
+                    if (res.ok) {
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `hongshu-export-${new Date().toISOString().slice(0, 10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      setShowExportPreview(false);
+                      setExportSummary(null);
+                    }
+                  } catch {}
+                  finally { setExportPending(false); }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              >
+                {exportPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />导出中…</> : <><Download className="w-3.5 h-3.5" />确认导出</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDeleteAccount && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-2xl bg-background border border-destructive/30 shadow-xl p-5 space-y-4 animate-in slide-in-from-bottom-4 duration-200">
