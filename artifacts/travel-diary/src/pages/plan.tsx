@@ -115,8 +115,16 @@ interface SavedPlan {
   id: number; title: string; summary: string | null; from: string;
   destinations: string[]; startDate: string; endDate: string;
   travelers: number; style: string | null; travelMode: string | null; budget: string | null;
+  groupType: string | null;
   createdAt: string;
 }
+
+const GROUP_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
+  solo:    { label: "🧍 独自",  cls: "bg-violet-50 text-violet-600" },
+  couple:  { label: "💑 情侣",  cls: "bg-pink-50 text-pink-600" },
+  family:  { label: "👨‍👩‍👧 家庭", cls: "bg-amber-50 text-amber-600" },
+  friends: { label: "👫 朋友",  cls: "bg-teal-50 text-teal-600" },
+};
 
 function LinkButton({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -216,6 +224,11 @@ function SavedPlanCard({ plan, onLoad, onDelete, onRename }: { plan: SavedPlan; 
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <span className="text-[10px] text-muted-foreground/70">{plan.startDate.slice(0, 7)}</span>
           {plan.travelers > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600">👥 {plan.travelers}人</span>}
+          {plan.groupType && GROUP_TYPE_BADGE[plan.groupType] && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${GROUP_TYPE_BADGE[plan.groupType].cls}`}>
+              {GROUP_TYPE_BADGE[plan.groupType].label}
+            </span>
+          )}
           {plan.travelMode && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600">{plan.travelMode}</span>}
           {plan.budget && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">{plan.budget.split("（")[0]}</span>}
           {plan.style && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{plan.style}</span>}

@@ -22,9 +22,17 @@ interface SavedPlan {
   travelMode: string | null;
   budget: string | null;
   specialNeeds: string[] | null;
+  groupType: string | null;
   createdAt: string;
   lastViewedAt: string | null;
 }
+
+const GROUP_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
+  solo:    { label: "🧍 独自",  cls: "bg-violet-50 text-violet-600" },
+  couple:  { label: "💑 情侣",  cls: "bg-pink-50 text-pink-600" },
+  family:  { label: "👨‍👩‍👧 家庭", cls: "bg-amber-50 text-amber-600" },
+  friends: { label: "👫 朋友",  cls: "bg-teal-50 text-teal-600" },
+};
 
 type SortKey = "createdAt" | "lastViewedAt";
 
@@ -410,6 +418,11 @@ export default function PlanListPage() {
                         </div>
 
                         <div className="flex flex-wrap gap-1.5 mt-2">
+                          {plan.groupType && GROUP_TYPE_BADGE[plan.groupType] && (
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${GROUP_TYPE_BADGE[plan.groupType].cls}`}>
+                              {GROUP_TYPE_BADGE[plan.groupType].label}
+                            </span>
+                          )}
                           {plan.style && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/8 text-primary font-medium">
                               {plan.style}
