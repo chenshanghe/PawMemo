@@ -666,6 +666,11 @@ export default function PlanPage() {
                 )
               )}
             </p>
+            {state === "result" && currentPlanParams?.groupType && GROUP_TYPE_BADGE[currentPlanParams.groupType] && (
+              <span className={`inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[11px] font-medium border border-current/10 ${GROUP_TYPE_BADGE[currentPlanParams.groupType].cls}`}>
+                {GROUP_TYPE_BADGE[currentPlanParams.groupType].label}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {/* My plans list link */}
