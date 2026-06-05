@@ -125,7 +125,7 @@ export default function MyFeed() {
             {following.map((u) => (
               <div key={u.userId} className="flex flex-col items-center gap-1.5 shrink-0 w-14">
                 <div className="w-12 h-12 rounded-full bg-primary/15 overflow-hidden flex items-center justify-center text-base font-semibold text-primary ring-2 ring-background shadow-sm">
-                  {u.avatar ? <img src={u.avatar} alt="" className="w-full h-full object-cover" /> : u.name[0]}
+                  {u.avatar ? <img src={u.avatar} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" /> : u.name[0]}
                 </div>
                 <span className="text-[10px] text-muted-foreground truncate max-w-full">{u.name}</span>
               </div>
@@ -160,7 +160,7 @@ export default function MyFeed() {
                   <div className="group rounded-2xl border border-border/50 bg-card overflow-hidden cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5 flex flex-col">
                     <div className="relative h-44 bg-muted/30 overflow-hidden shrink-0">
                       {entry.coverPhotoUrl ? (
-                        <img src={entry.coverPhotoUrl} alt={entry.destination} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img src={entry.coverPhotoUrl} alt={entry.destination} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <ImageIcon className="w-10 h-10 text-muted-foreground/20" />
@@ -195,7 +195,7 @@ export default function MyFeed() {
                       {entry.author && (
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <div className="w-4 h-4 rounded-full bg-primary/15 overflow-hidden shrink-0 flex items-center justify-center text-[8px] font-semibold text-primary">
-                            {entry.author.avatar ? <img src={entry.author.avatar} alt="" className="w-full h-full object-cover" /> : entry.author.name[0]}
+                            {entry.author.avatar ? <img src={entry.author.avatar} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" /> : entry.author.name[0]}
                           </div>
                           <span className="truncate">{entry.author.name}</span>
                         </div>

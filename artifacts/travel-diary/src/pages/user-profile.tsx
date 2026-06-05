@@ -184,7 +184,7 @@ export default function UserProfile({ params }: { params: { userId: string } }) 
         <div className="relative h-44 md:h-56 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/50 via-orange-300 to-amber-200" />
           {profile.avatar && (
-            <img src={profile.avatar} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110" />
+            <img src={profile.avatar} alt="" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
         </div>
@@ -194,7 +194,7 @@ export default function UserProfile({ params }: { params: { userId: string } }) 
           <div className="flex items-end justify-between gap-3">
             <div className="w-24 h-24 rounded-full ring-4 ring-background bg-primary/20 overflow-hidden shrink-0 flex items-center justify-center text-3xl font-serif font-bold text-primary shadow-md">
               {profile.avatar ? (
-                <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
+                <img src={profile.avatar} alt="" decoding="async" className="w-full h-full object-cover" />
               ) : (
                 profile.name[0]
               )}
@@ -299,7 +299,7 @@ export default function UserProfile({ params }: { params: { userId: string } }) 
                     <div className="rounded-xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all group cursor-pointer">
                       <div className="relative aspect-[4/5] bg-muted/30 overflow-hidden">
                         {e.coverPhotoUrl ? (
-                          <img src={e.coverPhotoUrl} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <img src={e.coverPhotoUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <ImageIcon className="w-8 h-8 text-muted-foreground/20" />

@@ -376,7 +376,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         {/* Cover */}
         {entry.coverImage && (
           <div className="rounded-2xl overflow-hidden aspect-[21/9] shadow-lg">
-            <img src={entry.coverImage} alt={entry.title} loading="lazy" className="w-full h-full object-cover" />
+            <img src={entry.coverImage} alt={entry.title} decoding="async" className="w-full h-full object-cover" />
           </div>
         )}
 
@@ -539,6 +539,8 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                       <img
                         src={photo.url}
                         alt={photo.caption ?? "旅途照片"}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
                         onClick={() => setLightboxIndex(idx)}
                       />
@@ -788,6 +790,8 @@ function NarrativeContent({ content, photos, onPhotoClick, onDeletePhoto, entryI
               <img
                 src={photo.url}
                 alt={displayCaption ?? "旅途照片"}
+                loading="lazy"
+                decoding="async"
                 className="w-full object-cover max-h-[500px] cursor-pointer transition-transform duration-500 group-hover:scale-[1.01]"
                 onClick={() => onPhotoClick(globalIdx >= 0 ? globalIdx : baseIdx + i)}
               />

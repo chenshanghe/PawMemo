@@ -620,7 +620,7 @@ export default function Me() {
         <div className="relative h-28 md:h-36 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/60 via-orange-300 to-amber-200" />
           {profile.avatar && (
-            <img src={profile.avatar} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110" />
+            <img src={profile.avatar} alt="" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
           <button
@@ -638,7 +638,7 @@ export default function Me() {
             <div className="relative shrink-0 group">
               <div className="w-24 h-24 rounded-full ring-4 ring-background bg-primary/20 overflow-hidden flex items-center justify-center text-3xl font-serif font-bold text-primary shadow-md">
                 {profile.avatar ? (
-                  <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
+                  <img src={profile.avatar} alt="" decoding="async" className="w-full h-full object-cover" />
                 ) : (
                   profile.name[0]
                 )}
@@ -1579,7 +1579,7 @@ function NotesGrid({ notes, loaded }: { notes: MyEntry[]; loaded: boolean }) {
           <div className="rounded-xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all group cursor-pointer">
             <div className="relative aspect-[4/5] bg-muted/30 overflow-hidden">
               {n.coverImage ? (
-                <img src={n.coverImage} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <img src={n.coverImage} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <ImageIcon className="w-8 h-8 text-muted-foreground/20" />
@@ -1626,7 +1626,7 @@ function FavoritesGrid({ favs, loaded }: { favs: FavEntry[]; loaded: boolean }) 
             <div className="rounded-xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all group cursor-pointer">
               <div className="relative aspect-[4/5] bg-muted/30 overflow-hidden">
                 {f.coverPhotoUrl ? (
-                  <img src={f.coverPhotoUrl} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <img src={f.coverPhotoUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ImageIcon className="w-8 h-8 text-muted-foreground/20" />
@@ -1681,7 +1681,7 @@ function UsersList({ users, loaded, emptyHint, ctaHref, ctaLabel }: {
         <Link key={u.userId} href={`/users/${u.userId}`}>
           <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card/40 hover:bg-card/80 transition-colors cursor-pointer">
             <div className="w-11 h-11 rounded-full bg-primary/15 overflow-hidden shrink-0 flex items-center justify-center text-base font-semibold text-primary">
-              {u.avatar ? <img src={u.avatar} alt="" className="w-full h-full object-cover" /> : u.name[0]}
+              {u.avatar ? <img src={u.avatar} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" /> : u.name[0]}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">{u.name}</p>
@@ -1862,7 +1862,7 @@ function AvatarPickerModal({
                     currentAvatar === p.url ? "border-primary shadow-md" : "border-transparent hover:border-primary/40"
                   )}
                 >
-                  <img src={p.url} alt="" className="w-full h-full object-contain p-1" />
+                  <img src={p.url} alt="" loading="lazy" decoding="async" className="w-full h-full object-contain p-1" />
                   {currentAvatar === p.url && (
                     <div className="absolute inset-0 flex items-center justify-center bg-primary/20">
                       <Check className="w-5 h-5 text-primary" />
@@ -1964,7 +1964,7 @@ function ReportTab({
   return (
     <div className="space-y-5 pb-6">
       <div className="text-center pt-4 space-y-0.5">
-        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" className="w-10 h-10 object-contain mx-auto mb-1" />
+        <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" decoding="async" className="w-10 h-10 object-contain mx-auto mb-1" />
         <h2 className="text-lg font-bold">{year} 旅行报告</h2>
         <p className="text-xs text-muted-foreground">你的全部旅行足迹一览</p>
       </div>
@@ -2205,7 +2205,7 @@ function ExportTab({
             {entries.slice(0, 5).map(e => (
               <div key={e.id} className="bg-card border border-border/40 rounded-2xl p-3.5 flex gap-3.5 shadow-sm">
                 {e.coverPhoto && (
-                  <img src={e.coverPhoto} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                  <img src={e.coverPhoto} alt="" loading="lazy" decoding="async" className="w-14 h-14 rounded-xl object-cover shrink-0" />
                 )}
                 <div className="min-w-0">
                   <div className="font-medium text-sm truncate">{e.title}</div>
@@ -2245,7 +2245,7 @@ function ExportTab({
               </div>
             </div>
             {e.coverPhoto && (
-              <img src={e.coverPhoto} alt="" className="w-full max-h-64 object-cover rounded-xl mb-6" />
+              <img src={e.coverPhoto} alt="" loading="lazy" decoding="async" className="w-full max-h-64 object-cover rounded-xl mb-6" />
             )}
             <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-base">
               {e.content ?? "（无正文）"}
