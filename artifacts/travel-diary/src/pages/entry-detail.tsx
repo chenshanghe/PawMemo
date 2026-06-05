@@ -346,6 +346,42 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
+            {/* Photo column picker — only for narratives with photos */}
+            {(entry as any).entryType === "narrative" && photos.length > 0 && (
+              <div className="flex items-center rounded-xl border border-border/60 overflow-hidden" title="切换图片排版列数">
+                {([1, 2, 3] as const).map((col) => (
+                  <button
+                    key={col}
+                    onClick={() => setPhotoColumns(col)}
+                    title={`${col} 列`}
+                    className={cn(
+                      "px-2 py-1.5 transition-colors",
+                      col > 1 && "border-l border-border/60",
+                      photoColumns === col ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {col === 1 && (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                        <rect x="1" y="1" width="12" height="12" rx="1.5"/>
+                      </svg>
+                    )}
+                    {col === 2 && (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                        <rect x="1" y="1" width="5" height="12" rx="1.5"/>
+                        <rect x="8" y="1" width="5" height="12" rx="1.5"/>
+                      </svg>
+                    )}
+                    {col === 3 && (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                        <rect x="1" y="1" width="3.3" height="12" rx="1"/>
+                        <rect x="5.35" y="1" width="3.3" height="12" rx="1"/>
+                        <rect x="9.7" y="1" width="3.3" height="12" rx="1"/>
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -532,26 +568,6 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         {/* Content — narrative entries get 图文混排, regular entries get photo grid + plain text */}
         {(entry as any).entryType === "narrative" && entry.content ? (
           <>
-            {photos.length > 0 && (
-              <div className="flex items-center justify-end gap-1 -mb-2">
-                <span className="text-xs text-muted-foreground mr-1">排版</span>
-                {([1, 2, 3] as const).map((col) => (
-                  <button
-                    key={col}
-                    onClick={() => setPhotoColumns(col)}
-                    className={cn(
-                      "w-7 h-7 rounded-md text-xs font-medium transition-colors",
-                      photoColumns === col
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted/60 text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    {col}
-                  </button>
-                ))}
-                <span className="text-xs text-muted-foreground ml-0.5">列</span>
-              </div>
-            )}
             <NarrativeContent
               content={entry.content}
               photos={photos}
