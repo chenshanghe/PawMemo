@@ -126,6 +126,8 @@ export default function Pricing() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {PLANS.map((plan) => {
             const isCurrent = sub?.tier === plan.tier;
+            const TIER_RANK: Record<string, number> = { free: 0, pro: 1, plus: 2 };
+            const isBelowCurrent = TIER_RANK[plan.tier] < TIER_RANK[sub?.tier ?? "free"];
             return (
               <div
                 key={plan.tier}
@@ -167,7 +169,7 @@ export default function Pricing() {
                 </div>
 
                 {/* Period toggle for paid plans */}
-                {plan.tier !== "free" && !isCurrent && (
+                {plan.tier !== "free" && !isCurrent && !isBelowCurrent && (
                   <div className="px-5 pb-3">
                     <div className="flex rounded-xl overflow-hidden border border-border/40 text-[11px] font-medium">
                       <button
@@ -191,6 +193,10 @@ export default function Pricing() {
                   {isCurrent ? (
                     <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
                       当前套餐 ✓
+                    </div>
+                  ) : isBelowCurrent ? (
+                    <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
+                      已超出此套餐
                     </div>
                   ) : plan.ctaDisabled ? (
                     <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
