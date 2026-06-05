@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useUser } from "@clerk/react";
-import { Heart, MessageCircle, Share2, Trash2, X, Loader2, Link2, Check } from "lucide-react";
+import { Heart, MessageCircle, Share2, Trash2, X, Loader2, Link2, Check, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { EntryComment, LikesStatus } from "@workspace/api-client-react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -17,6 +18,14 @@ interface SocialPanelProps {
 
 export function SocialPanel({ entryId, isOwner, visibility = "private" }: SocialPanelProps) {
   const { user, isSignedIn } = useUser();
+  const isOnline = useOnlineStatus();
+
+  // ── Offline action toast ────────────────────────────────────────────────────
+  const [offlineToast, setOfflineToast] = useState(false);
+  const showOfflineHint = () => {
+    setOfflineToast(true);
+    setTimeout(() => setOfflineToast(false), 3000);
+  };
 
   // ── Likes ──────────────────────────────────────────────────────────────────
   const [likes, setLikes] = useState<LikesStatus>({ count: 0, viewerLiked: false });
@@ -33,6 +42,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
 
   const handleToggleLike = async () => {
     if (!isSignedIn || likePending) return;
+    if (!isOnline) { showOfflineHint(); return; }
     setLikePending(true);
     try {
       const res = await fetch(`${BASE}/api/entries/${entryId}/likes`, {
@@ -64,6 +74,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
 
   const handleSubmitComment = async () => {
     if (!commentText.trim() || commentPending || !isSignedIn) return;
+    if (!isOnline) { showOfflineHint(); return; }
     setCommentPending(true);
     try {
       const res = await fetch(`${BASE}/api/entries/${entryId}/comments`, {
@@ -136,6 +147,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
 
   const ensureShareToken = async (): Promise<string | null> => {
     if (shareToken) return shareToken;
+    if (!isOnline) { showOfflineHint(); return null; }
     setShareLoading(true);
     try {
       const res = await fetch(`${BASE}/api/entries/${entryId}/share`, {
@@ -154,6 +166,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
   };
 
   const handleRevokeShare = async () => {
+    if (!isOnline) { showOfflineHint(); return; }
     setShareLoading(true);
     try {
       const res = await fetch(`${BASE}/api/entries/${entryId}/share`, {
@@ -215,18 +228,27 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
 
   return (
     <div className="border-t border-border/40 pt-6 space-y-4">
+      {/* Offline action toast */}
+      {offlineToast && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[12px] text-amber-800 animate-in fade-in duration-150">
+          <WifiOff className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+          <span>当前离线，此操作需要网络连接</span>
+        </div>
+      )}
+
       {/* Action bar */}
       <div className="flex items-center gap-3 flex-wrap">
         {/* Like */}
         <button
           onClick={handleToggleLike}
           disabled={!isSignedIn || likePending}
+          title={!isOnline ? "离线时无法点赞" : undefined}
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
             likes.viewerLiked
               ? "bg-red-50 text-red-500 border border-red-200 hover:bg-red-100"
               : "bg-muted/40 text-muted-foreground border border-border/50 hover:bg-muted/70 hover:text-foreground",
-            !isSignedIn && "cursor-default opacity-60"
+            (!isSignedIn || !isOnline) && "cursor-default opacity-60"
           )}
         >
           <Heart className={cn("w-4 h-4 transition-all", likes.viewerLiked && "fill-red-500")} />
@@ -253,6 +275,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
             <button
               onClick={handleDirectShare}
               disabled={shareLoading}
+              title={!isOnline ? "离线时无法分享" : undefined}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
                 showDesktopPanel
@@ -395,7 +418,12 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
             </div>
           )}
 
-          {isSignedIn ? (
+          {!isOnline ? (
+            <div className="flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-50/60 border border-amber-100 text-xs text-amber-700">
+              <WifiOff className="w-3.5 h-3.5 shrink-0" />
+              <span>恢复网络后即可发表评论</span>
+            </div>
+          ) : isSignedIn ? (
             <div className="flex gap-2">
               <img
                 src={user?.imageUrl}
