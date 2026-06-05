@@ -540,7 +540,10 @@ export default function Me() {
   useEffect(() => {
     if (tab === "notes" && !notesLoaded) {
       fetch(`${BASE}/api/entries`, { credentials: "include" }).then(async (r) => {
-        if (r.ok) setNotes(await r.json());
+        if (r.ok) {
+          const all = await r.json();
+          setNotes(Array.isArray(all) ? all.filter((e: any) => !e.entryType || e.entryType === "note") : []);
+        }
         setNotesLoaded(true);
       });
     }

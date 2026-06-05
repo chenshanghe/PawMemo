@@ -421,8 +421,8 @@ router.get("/square", optionalAuth, async (req, res) => {
 
   // Build WHERE condition — optionally scoped to a tag, excluding blocked users
   const viewerUserId: string | null = (req as any).userId;
-  const publicOnly = eq(diaryEntriesTable.visibility, "public");
-  let whereCondition: any = publicOnly;
+  const publicNoteOnly = and(eq(diaryEntriesTable.visibility, "public"), eq(diaryEntriesTable.entryType, "note"));
+  let whereCondition: any = publicNoteOnly;
 
   // Gather blocked user IDs (when logged in) to hide their content
   let blockedUserIds: string[] = [];
@@ -441,7 +441,7 @@ router.get("/square", optionalAuth, async (req, res) => {
       .innerJoin(tagsTable, eq(entryTagsTable.tagId, tagsTable.id))
       .where(eq(tagsTable.name, tagName));
     whereCondition = and(
-      publicOnly,
+      publicNoteOnly,
       inArray(diaryEntriesTable.id, taggedIds),
       notInArray(diaryEntriesTable.userId, blockedUserIds),
     );
@@ -451,9 +451,9 @@ router.get("/square", optionalAuth, async (req, res) => {
       .from(entryTagsTable)
       .innerJoin(tagsTable, eq(entryTagsTable.tagId, tagsTable.id))
       .where(eq(tagsTable.name, tagName));
-    whereCondition = and(publicOnly, inArray(diaryEntriesTable.id, taggedIds));
+    whereCondition = and(publicNoteOnly, inArray(diaryEntriesTable.id, taggedIds));
   } else if (blockedUserIds.length > 0) {
-    whereCondition = and(publicOnly, notInArray(diaryEntriesTable.userId, blockedUserIds));
+    whereCondition = and(publicNoteOnly, notInArray(diaryEntriesTable.userId, blockedUserIds));
   }
 
   const baseEntries = await db
@@ -669,7 +669,7 @@ router.get("/users/:userId/entries", optionalAuth, async (req, res) => {
   const baseEntries = await db
     .select()
     .from(diaryEntriesTable)
-    .where(and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.visibility, "public")))
+    .where(and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.visibility, "public"), eq(diaryEntriesTable.entryType, "note")))
     .orderBy(desc(diaryEntriesTable.createdAt))
     .limit(limit)
     .offset(offset);
@@ -679,7 +679,7 @@ router.get("/users/:userId/entries", optionalAuth, async (req, res) => {
   const [{ total }] = await db
     .select({ total: sql<number>`count(*)::int` })
     .from(diaryEntriesTable)
-    .where(and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.visibility, "public")));
+    .where(and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.visibility, "public"), eq(diaryEntriesTable.entryType, "note")));
 
   res.json({ entries, total, page, limit });
 });
@@ -1030,6 +1030,7 @@ router.get("/me/feed", requireAuth, async (req, res) => {
     .where(
       and(
         eq(diaryEntriesTable.visibility, "public"),
+        eq(diaryEntriesTable.entryType, "note"),
         inArray(diaryEntriesTable.userId, followeeIds),
       ),
     )
@@ -1045,6 +1046,7 @@ router.get("/me/feed", requireAuth, async (req, res) => {
     .where(
       and(
         eq(diaryEntriesTable.visibility, "public"),
+        eq(diaryEntriesTable.entryType, "note"),
         inArray(diaryEntriesTable.userId, followeeIds),
       ),
     );
