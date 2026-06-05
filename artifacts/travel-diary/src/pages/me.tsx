@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useUser, useClerk } from "@clerk/react";
 import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
@@ -168,6 +168,7 @@ const TIER_BADGE: Record<string, { label: string; cls: string }> = {
 export default function Me() {
   const { user } = useUser();
   const { signOut } = useClerk();
+  const [, navigate] = useLocation();
 
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [stats, setStats] = useState<SummaryStats | null>(null);
@@ -192,6 +193,7 @@ export default function Me() {
   const pendingSaveRef = useRef<UserPrefs | null>(null);
   const latestPrefsRef = useRef<UserPrefs | null>(null);
   const prefsPanelRef = useRef<HTMLDivElement>(null);
+  const flushAndSaveRef = useRef<(updated: UserPrefs) => Promise<boolean>>(() => Promise.resolve(true));
 
   // Account deletion
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
@@ -315,7 +317,7 @@ export default function Me() {
     }
   }, []);
 
-  const savePrefs = async (updated: UserPrefs) => {
+  const savePrefs = async (updated: UserPrefs): Promise<boolean> => {
     setPrefsDebouncing(false);
     setPrefsSaving(true);
     setPrefsSaved(false);
@@ -331,23 +333,26 @@ export default function Me() {
       if (!res.ok) throw new Error("save_failed");
       setPrefsSaved(true);
       setTimeout(() => setPrefsSaved(false), 2500);
+      return true;
     } catch {
       setPrefsSaveError(navigator.onLine ? "保存失败，请重试" : "网络不可用");
       setTimeout(() => setPrefsSaveError(null), 4000);
+      return false;
     } finally {
       setPrefsSaving(false);
     }
   };
 
-  const flushAndSave = async (updated: UserPrefs) => {
+  const flushAndSave = async (updated: UserPrefs): Promise<boolean> => {
     if (saveDebounceRef.current) {
       clearTimeout(saveDebounceRef.current);
       saveDebounceRef.current = null;
     }
     pendingSaveRef.current = null;
     setPrefsDebouncing(false);
-    await savePrefs(updated);
+    return savePrefs(updated);
   };
+  flushAndSaveRef.current = flushAndSave;
 
   const handleClearPrefs = () => {
     const snapshot = prefs;
@@ -405,8 +410,19 @@ export default function Me() {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) {
-          setPrefsSaved(false);
-          setPrefsDebouncing(false);
+          if (pendingSaveRef.current) {
+            if (saveDebounceRef.current) {
+              clearTimeout(saveDebounceRef.current);
+              saveDebounceRef.current = null;
+            }
+            const toSave = pendingSaveRef.current;
+            pendingSaveRef.current = null;
+            setPrefsDebouncing(false);
+            savePrefs(toSave);
+          } else {
+            setPrefsSaved(false);
+            setPrefsDebouncing(false);
+          }
         }
       },
       { threshold: 0 },
@@ -417,19 +433,69 @@ export default function Me() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
   useEffect(() => { fetchPrefs(); }, [fetchPrefs]);
-  useEffect(() => () => {
-    if (saveDebounceRef.current) {
-      clearTimeout(saveDebounceRef.current);
-      saveDebounceRef.current = null;
+
+  // Browser-level navigation (close tab, hard refresh, external link): use keepalive fetch
+  // which the browser guarantees to complete even after the page starts unloading.
+  useEffect(() => {
+    const handleBeforeUnload = () => {
       if (pendingSaveRef.current) {
+        if (saveDebounceRef.current) {
+          clearTimeout(saveDebounceRef.current);
+          saveDebounceRef.current = null;
+        }
+        const toSave = pendingSaveRef.current;
+        pendingSaveRef.current = null;
         fetch(`${BASE}/api/prefs`, {
           method: "PUT",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(pendingSaveRef.current),
+          body: JSON.stringify(toSave),
+          keepalive: true,
         }).catch(() => {});
-        pendingSaveRef.current = null;
       }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
+  // SPA navigation (wouter <Link> clicks): intercept internal link clicks in capture
+  // phase, flush pending saves with visible feedback while the component is still
+  // mounted, then navigate only on success — keeping the user on the page to see
+  // and retry when the save fails. Modified clicks and new-tab links are passed through.
+  useEffect(() => {
+    const handleLinkClick = (e: MouseEvent) => {
+      if (!pendingSaveRef.current) return;
+      // Skip modified clicks (ctrl/cmd/shift/alt open new tabs or have other behaviours)
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      const link = (e.target as HTMLElement).closest("a[href]") as HTMLAnchorElement | null;
+      if (!link) return;
+      // Skip new-tab links
+      if (link.target === "_blank") return;
+      const href = link.getAttribute("href") ?? "";
+      // Only intercept internal paths (starts with /)
+      if (!href.startsWith("/")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      flushAndSaveRef.current(latestPrefsRef.current!).then((ok) => {
+        // Navigate only when save succeeded; on failure the error UI stays visible
+        // so the user can see and retry before leaving.
+        if (ok) navigate(href);
+      });
+    };
+    document.addEventListener("click", handleLinkClick, true);
+    return () => document.removeEventListener("click", handleLinkClick, true);
+  }, [navigate]);
+
+  // Unmount fallback: if something navigated without going through a link click
+  // (e.g. programmatic navigation), flushAndSave handles it. State updates are
+  // no-ops on an unmounted component in React 18 but the save request completes.
+  useEffect(() => () => {
+    if (saveDebounceRef.current) {
+      clearTimeout(saveDebounceRef.current);
+      saveDebounceRef.current = null;
+    }
+    if (pendingSaveRef.current) {
+      flushAndSaveRef.current(latestPrefsRef.current!);
     }
   }, []);
 
