@@ -142,7 +142,7 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
             </div>
           )}
           {!busy && (
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 [@media(hover:none)]:bg-black/30 transition-all flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
               <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-white/90 text-foreground px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-sm hover:bg-white">
                 <Upload className="w-3.5 h-3.5" />更换图片
               </button>

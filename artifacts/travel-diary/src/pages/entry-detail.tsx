@@ -540,13 +540,13 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                         onClick={() => setLightboxIndex(idx)}
                       />
                       {photo.caption && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
                           <p className="text-white text-xs">{photo.caption}</p>
                         </div>
                       )}
                       <button
                         onClick={() => handleDeletePhoto(photo.id)}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity hover:bg-red-500"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -781,7 +781,7 @@ function NarrativeContent({ content, photos, onPhotoClick, onDeletePhoto, entryI
               )}
               <button
                 onClick={() => onDeletePhoto(photo.id)}
-                className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity hover:bg-red-500"
               >
                 <X className="w-3 h-3" />
               </button>
