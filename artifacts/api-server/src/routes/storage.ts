@@ -30,6 +30,48 @@ function parseBatchUploadBody(body: unknown):
   return { files: out };
 }
 
+// ── ACL result cache ─────────────────────────────────────────────────────────
+// Caches the ACL decision (allow / deny / not_found) for each
+// (storedUrl, callerId, shareToken) triple to avoid 2+ DB queries per image
+// request on hot pages. TTL 60 s — permission changes propagate within one
+// minute. Only "allow" and "not_found" are cached; "deny" is also cached so
+// repeated probing doesn't hammer the DB. Cache is process-local (single
+// instance), which is fine for the current single-server deployment.
+const ACL_CACHE_TTL_MS = 60_000;
+type AclDecision = "allow" | "deny" | "not_found";
+
+const aclCache = new Map<string, { decision: AclDecision; expiresAt: number }>();
+
+function aclCacheKey(
+  storedUrl: string,
+  callerId: string | null,
+  shareToken: string | null,
+): string {
+  return `${storedUrl}|${callerId ?? ""}|${shareToken ?? ""}`;
+}
+
+function aclCacheLookup(key: string): AclDecision | null {
+  const entry = aclCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    aclCache.delete(key);
+    return null;
+  }
+  return entry.decision;
+}
+
+function aclCacheSet(key: string, decision: AclDecision): void {
+  aclCache.set(key, { decision, expiresAt: Date.now() + ACL_CACHE_TTL_MS });
+}
+
+// Periodically evict expired entries to prevent unbounded growth.
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of aclCache) {
+    if (now > entry.expiresAt) aclCache.delete(key);
+  }
+}, 120_000);
+
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
@@ -116,6 +158,8 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
 
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
+    // Public assets are immutable (content-addressed paths); cache aggressively.
+    res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=86400");
 
     if (response.body) {
       const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
@@ -146,85 +190,107 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     // The URL stored in the database is `/api/storage/objects/<wildcardPath>`.
     const storedUrl = `/api/storage/objects/${wildcardPath}`;
 
-    // Collect ALL entries that reference this object URL (photos table + cover
-    // image column). Using all matching rows rather than limit(1) prevents a
-    // policy-bypass if the same URL is somehow stored on multiple entries.
-    const [photoRows, coverRows] = await Promise.all([
-      db.select({ entryId: photosTable.entryId })
-        .from(photosTable)
-        .where(eq(photosTable.url, storedUrl)),
-      db.select({ id: diaryEntriesTable.id })
-        .from(diaryEntriesTable)
-        .where(eq(diaryEntriesTable.coverImage, storedUrl)),
-    ]);
+    // Determine caller identity once (needed for cache key and ACL check).
+    const auth = getAuth(req);
+    const callerId = (auth?.sessionClaims?.userId as string) || auth?.userId || null;
+    const rawShareToken = req.query.shareToken;
+    const shareToken = typeof rawShareToken === "string"
+      ? rawShareToken
+      : Array.isArray(rawShareToken) && typeof rawShareToken[0] === "string"
+        ? rawShareToken[0]
+        : null;
 
-    const entryIds = Array.from(new Set([
-      ...photoRows.map(r => r.entryId),
-      ...coverRows.map(r => r.id),
-    ]));
+    const cacheKey = aclCacheKey(storedUrl, callerId, shareToken);
+    const cached = aclCacheLookup(cacheKey);
 
-    if (entryIds.length === 0) {
-      // Object not in any diary entry — check if it is a user profile avatar.
-      // Avatars are public (shown on author cards, square feed, etc.) so any
-      // match here serves the file without further auth checks.
-      const [avatarRow] = await db
-        .select({ userId: userProfilesTable.userId })
-        .from(userProfilesTable)
-        .where(eq(userProfilesTable.avatar, storedUrl))
-        .limit(1);
+    if (cached === "not_found") {
+      res.status(404).json({ error: "Object not found" });
+      return;
+    }
+    if (cached === "deny") {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
 
-      if (!avatarRow) {
-        // Not referenced by any known entity — deny (fail closed).
-        res.status(404).json({ error: "Object not found" });
-        return;
-      }
-      // Avatar found — fall through to serve it below.
-    } else {
-      // Object belongs to one or more diary entries: enforce diary visibility.
-      const owningEntries = await db
-        .select({ id: diaryEntriesTable.id, visibility: diaryEntriesTable.visibility, userId: diaryEntriesTable.userId })
-        .from(diaryEntriesTable)
-        .where(inArray(diaryEntriesTable.id, entryIds));
+    if (cached !== "allow") {
+      // Cache miss — run the full ACL check.
 
-      if (owningEntries.length === 0) {
-        res.status(404).json({ error: "Object not found" });
-        return;
-      }
+      // Collect ALL entries that reference this object URL (photos table + cover
+      // image column). Using all matching rows rather than limit(1) prevents a
+      // policy-bypass if the same URL is somehow stored on multiple entries.
+      const [photoRows, coverRows] = await Promise.all([
+        db.select({ entryId: photosTable.entryId })
+          .from(photosTable)
+          .where(eq(photosTable.url, storedUrl)),
+        db.select({ id: diaryEntriesTable.id })
+          .from(diaryEntriesTable)
+          .where(eq(diaryEntriesTable.coverImage, storedUrl)),
+      ]);
 
-      // Determine caller identity once.
-      const auth = getAuth(req);
-      const callerId = (auth?.sessionClaims?.userId as string) || auth?.userId || null;
-      const rawShareToken = req.query.shareToken;
-      const shareToken = typeof rawShareToken === "string"
-        ? rawShareToken
-        : Array.isArray(rawShareToken) && typeof rawShareToken[0] === "string"
-          ? rawShareToken[0]
-          : null;
+      const entryIds = Array.from(new Set([
+        ...photoRows.map(r => r.entryId),
+        ...coverRows.map(r => r.id),
+      ]));
 
-      // The caller must satisfy the access policy for EVERY owning entry
-      // (most-restrictive wins). Policy per entry:
-      //   owner         → allowed
-      //   public        → allowed
-      //   share         → allowed (entry is intentionally shared; image URLs
-      //                   are opaque UUIDs and the share token gates the page)
-      //   share + valid token → also allowed (legacy / extra check)
-      //   otherwise     → 403
-      for (const owningEntry of owningEntries) {
-        if (callerId && callerId === owningEntry.userId) continue;
-        if (owningEntry.visibility === "public") continue;
-        if (owningEntry.visibility === "share") continue;
-        if (shareToken) {
-          const [shareRecord] = await db
-            .select({ id: entrySharesTable.id })
-            .from(entrySharesTable)
-            .where(and(
-              eq(entrySharesTable.token, shareToken),
-              eq(entrySharesTable.entryId, owningEntry.id),
-            ));
-          if (shareRecord) continue;
+      if (entryIds.length === 0) {
+        // Object not in any diary entry — check if it is a user profile avatar.
+        // Avatars are public (shown on author cards, square feed, etc.) so any
+        // match here serves the file without further auth checks.
+        const [avatarRow] = await db
+          .select({ userId: userProfilesTable.userId })
+          .from(userProfilesTable)
+          .where(eq(userProfilesTable.avatar, storedUrl))
+          .limit(1);
+
+        if (!avatarRow) {
+          // Not referenced by any known entity — deny (fail closed).
+          aclCacheSet(cacheKey, "not_found");
+          res.status(404).json({ error: "Object not found" });
+          return;
         }
-        res.status(403).json({ error: "Forbidden" });
-        return;
+        // Avatar found — allow unconditionally.
+        aclCacheSet(cacheKey, "allow");
+      } else {
+        // Object belongs to one or more diary entries: enforce diary visibility.
+        const owningEntries = await db
+          .select({ id: diaryEntriesTable.id, visibility: diaryEntriesTable.visibility, userId: diaryEntriesTable.userId })
+          .from(diaryEntriesTable)
+          .where(inArray(diaryEntriesTable.id, entryIds));
+
+        if (owningEntries.length === 0) {
+          aclCacheSet(cacheKey, "not_found");
+          res.status(404).json({ error: "Object not found" });
+          return;
+        }
+
+        // The caller must satisfy the access policy for EVERY owning entry
+        // (most-restrictive wins). Policy per entry:
+        //   owner         → allowed
+        //   public        → allowed
+        //   share         → allowed (entry is intentionally shared; image URLs
+        //                   are opaque UUIDs and the share token gates the page)
+        //   share + valid token → also allowed (legacy / extra check)
+        //   otherwise     → 403
+        for (const owningEntry of owningEntries) {
+          if (callerId && callerId === owningEntry.userId) continue;
+          if (owningEntry.visibility === "public") continue;
+          if (owningEntry.visibility === "share") continue;
+          if (shareToken) {
+            const [shareRecord] = await db
+              .select({ id: entrySharesTable.id })
+              .from(entrySharesTable)
+              .where(and(
+                eq(entrySharesTable.token, shareToken),
+                eq(entrySharesTable.entryId, owningEntry.id),
+              ));
+            if (shareRecord) continue;
+          }
+          aclCacheSet(cacheKey, "deny");
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+
+        aclCacheSet(cacheKey, "allow");
       }
     }
 
@@ -233,6 +299,11 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
 
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
+    // Private objects are user-specific; allow browser to cache for 1 hour.
+    // The path contains a UUID so there is no risk of stale content after edits
+    // (new uploads get new paths). The ACL cache TTL (60 s) is shorter than
+    // this, so a revoked-access user gets a 403 on any re-fetch after 60 s.
+    res.setHeader("Cache-Control", "private, max-age=3600");
 
     if (response.body) {
       const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
