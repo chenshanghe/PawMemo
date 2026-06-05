@@ -169,8 +169,8 @@ export default function PlanListPage() {
   const [flashRenamedId, setFlashRenamedId] = useState<number | null>(null);
   const [flashRenameErrorId, setFlashRenameErrorId] = useState<number | null>(null);
 
-  const [groupTypeFilter, setGroupTypeFilter] = useState<GroupTypeKey | null>(
-    (urlParams.get("groupType") as GroupTypeKey) || null
+  const [groupTypeFilter, toggleGroupType] = useToggleSet(
+    new Set<string>(urlParams.getAll("groupType").flatMap(v => v ? v.split(",") : []))
   );
   const [budgetFilter, toggleBudget] = useToggleSet(
     new Set(urlParams.getAll("budget").flatMap(v => v ? v.split(",") : []))
@@ -193,7 +193,7 @@ export default function PlanListPage() {
   // Sync active filters back to the URL so they survive navigation
   useEffect(() => {
     const params = new URLSearchParams();
-    if (groupTypeFilter) params.set("groupType", groupTypeFilter);
+    if (groupTypeFilter.size > 0) params.set("groupType", [...groupTypeFilter].join(","));
     if (budgetFilter.size > 0) params.set("budget", [...budgetFilter].join(","));
     if (needsFilter.size > 0) params.set("needs", [...needsFilter].join(","));
     if (modeFilter.size > 0) params.set("mode", [...modeFilter].join(","));
@@ -213,10 +213,10 @@ export default function PlanListPage() {
       .catch(() => { setError("加载失败，请刷新重试"); setLoading(false); });
   }, []);
 
-  const activeFilterCount = (groupTypeFilter ? 1 : 0) + budgetFilter.size + needsFilter.size + modeFilter.size + travelersFilter.size;
+  const activeFilterCount = groupTypeFilter.size + budgetFilter.size + needsFilter.size + modeFilter.size + travelersFilter.size;
 
   const clearAllFilters = () => {
-    setGroupTypeFilter(null);
+    [...groupTypeFilter].forEach(v => toggleGroupType(v));
     [...budgetFilter].forEach(v => toggleBudget(v));
     [...needsFilter].forEach(v => toggleNeeds(v));
     [...modeFilter].forEach(v => toggleMode(v));
@@ -227,19 +227,19 @@ export default function PlanListPage() {
   const matchesPlan = useMemo(() => (
     p: SavedPlan,
     opts: {
-      groupType?: GroupTypeKey | null;
+      groupType?: Set<string>;
       budget?: Set<string>;
       needs?: Set<string>;
       mode?: Set<string>;
       travelers?: Set<string>;
     }
   ) => {
-    const gt = "groupType" in opts ? opts.groupType : groupTypeFilter;
+    const gt = opts.groupType ?? groupTypeFilter;
     const bd = opts.budget ?? budgetFilter;
     const nd = opts.needs ?? needsFilter;
     const md = opts.mode ?? modeFilter;
     const tv = opts.travelers ?? travelersFilter;
-    if (gt && p.groupType !== gt) return false;
+    if (gt.size > 0 && (!p.groupType || !gt.has(p.groupType))) return false;
     if (bd.size > 0) {
       const lbl = budgetLabel(p.budget);
       if (!lbl || !bd.has(lbl)) return false;
@@ -273,10 +273,11 @@ export default function PlanListPage() {
   const groupTypeCounts = useMemo(() => {
     const map = new Map<string, number>();
     for (const { key } of GROUP_TYPE_CHIPS) {
-      map.set(key, plans.filter(p => matchesPlan(p, { groupType: key })).length);
+      const testSet = new Set([...groupTypeFilter, key]);
+      map.set(key, plans.filter(p => matchesPlan(p, { groupType: testSet })).length);
     }
     return map;
-  }, [plans, matchesPlan]);
+  }, [plans, matchesPlan, groupTypeFilter]);
 
   const budgetCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -427,9 +428,9 @@ export default function PlanListPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-semibold text-muted-foreground shrink-0">出行类型</span>
               <button
-                onClick={() => setGroupTypeFilter(null)}
+                onClick={() => [...groupTypeFilter].forEach(v => toggleGroupType(v))}
                 className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
-                  groupTypeFilter === null
+                  groupTypeFilter.size === 0
                     ? "bg-primary text-primary-foreground border-primary shadow-sm"
                     : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
                 }`}
@@ -438,12 +439,12 @@ export default function PlanListPage() {
               </button>
               {GROUP_TYPE_CHIPS.map(({ key, label, activeCls, inactiveCls }) => {
                 const count = groupTypeCounts.get(key) ?? 0;
-                const isActive = groupTypeFilter === key;
+                const isActive = groupTypeFilter.has(key);
                 const isZero = count === 0 && !isActive;
                 return (
                   <button
                     key={key}
-                    onClick={() => { if (!isZero) setGroupTypeFilter(prev => prev === key ? null : key); }}
+                    onClick={() => { if (!isZero) toggleGroupType(key); }}
                     disabled={isZero}
                     className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
                       isActive ? activeCls : isZero ? "opacity-40 cursor-not-allowed " + inactiveCls : inactiveCls
