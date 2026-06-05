@@ -1,5 +1,6 @@
-// Cache names — bump CACHE_VER to force refresh on deploy
-const CACHE_VER = "v5";
+// Cache names — version is injected at build time by the Vite stampSW plugin.
+// In dev the literal placeholder string is used (harmless).
+const CACHE_VER = "__SW_BUILD_TS__";
 const SHELL_CACHE = `wantong-shell-${CACHE_VER}`;
 const API_CACHE   = `wantong-api-${CACHE_VER}`;
 
@@ -26,7 +27,7 @@ self.addEventListener("install", (e) => {
   );
 });
 
-// ── Activate — delete old caches ───────────────────────────────────────────────
+// ── Activate — delete old caches, then notify all clients to reload ────────────
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
@@ -36,6 +37,14 @@ self.addEventListener("activate", (e) => {
           .map((k) => caches.delete(k))
       )
     ).then(() => self.clients.claim())
+      .then(() => {
+        // Tell every open tab that a new version is active
+        return self.clients.matchAll({ type: "window" }).then((clients) => {
+          clients.forEach((client) =>
+            client.postMessage({ type: "SW_UPDATED", version: CACHE_VER })
+          );
+        });
+      })
   );
 });
 

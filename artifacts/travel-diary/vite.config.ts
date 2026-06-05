@@ -2,7 +2,24 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import fs from "fs";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+
+// Stamps the built sw.js with the current epoch so every deploy produces a
+// unique file — the browser then detects a new SW and triggers an update.
+function stampSW(): import("vite").Plugin {
+  return {
+    name: "stamp-sw",
+    apply: "build",
+    closeBundle() {
+      const swPath = path.resolve(import.meta.dirname, "dist/public/sw.js");
+      if (!fs.existsSync(swPath)) return;
+      const code = fs.readFileSync(swPath, "utf-8");
+      const stamped = code.replace(/__SW_BUILD_TS__/g, String(Date.now()));
+      fs.writeFileSync(swPath, stamped);
+    },
+  };
+}
 
 const rawPort = process.env.PORT;
 
@@ -32,6 +49,7 @@ export default defineConfig({
     react(),
     tailwindcss({ optimize: false }),
     runtimeErrorOverlay(),
+    stampSW(),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [
