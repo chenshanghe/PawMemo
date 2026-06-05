@@ -24,6 +24,7 @@ interface SourceEntry {
   endDate: string | null;
   content: string | null;
   mood: string | null;
+  coverImage?: string | null;
 }
 
 interface SourcePhoto {
@@ -31,6 +32,7 @@ interface SourcePhoto {
   entryId: number;
   url: string;
   caption: string | null;
+  isVirtual?: boolean;
 }
 
 interface StylePreset {
@@ -114,6 +116,14 @@ export default function ComposeNarrative() {
       )
     ).then((all) => {
       const flat: SourcePhoto[] = all.flat();
+      const existingUrls = new Set(flat.map((p) => p.url));
+      // Add each source entry's coverImage as a virtual photo if not already present
+      sources.forEach((e) => {
+        if (e.coverImage && !existingUrls.has(e.coverImage)) {
+          flat.push({ id: -(e.id), entryId: e.id, url: e.coverImage, caption: null, isVirtual: true });
+          existingUrls.add(e.coverImage);
+        }
+      });
       setSourcePhotos(flat);
       setSelectedPhotoIds(new Set(flat.map((p) => p.id)));
       setPhotosLoaded(true);
@@ -237,6 +247,10 @@ export default function ComposeNarrative() {
     const endDate = sorted[sorted.length - 1].endDate ?? sorted[sorted.length - 1].startDate;
     const destinations = [...new Set(sorted.map((e) => e.destination))];
 
+    // Determine best cover image: first selected photo URL, or first source coverImage
+    const firstSelectedPhoto = sourcePhotos.find((p) => selectedPhotoIds.has(p.id));
+    const coverImage = firstSelectedPhoto?.url ?? sorted.find((e) => e.coverImage)?.coverImage ?? null;
+
     try {
       const res = await fetch(`${BASE}/api/entries`, {
         method: "POST",
@@ -251,6 +265,7 @@ export default function ComposeNarrative() {
           visibility: "private",
           entryType: "narrative",
           sourceEntryIds: ids,
+          ...(coverImage ? { coverImage } : {}),
         }),
       });
       if (!res.ok) return;
