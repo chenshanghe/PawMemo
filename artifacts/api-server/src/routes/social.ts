@@ -919,7 +919,7 @@ async function hydrateEntries(
     ...e,
     likeCount: likeMap.get(e.id) ?? 0,
     commentCount: commentMap.get(e.id) ?? 0,
-    coverPhotoUrl: coverMap.get(e.id) ?? null,
+    coverPhotoUrl: coverMap.get(e.id) ?? e.coverImage ?? null,
     tags: tagMap.get(e.id) ?? [],
     viewerLiked: likedSet.has(e.id),
     viewerFavorited: favSet.has(e.id),
