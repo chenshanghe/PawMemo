@@ -293,6 +293,9 @@ export default function PlanPage() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [savedId, setSavedId] = useState<number | null>(null);
   const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState("");
+  const editTitleRef = useRef<HTMLInputElement>(null);
   const [syncedToAccount, setSyncedToAccount] = useState(false);
   const syncedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [clearedPrefs, setClearedPrefs] = useState(false);
@@ -528,6 +531,7 @@ export default function PlanPage() {
   const handleRenameSaved = async (id: number, newTitle: string): Promise<boolean> => {
     const oldTitle = savedPlans.find(p => p.id === id)?.title ?? "";
     setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p));
+    if (savedId === id) setResult(prev => prev ? { ...prev, title: newTitle } : prev);
     try {
       const res = await apiFetch(`/api/plan/saved/${id}`, {
         method: "PATCH",
@@ -536,11 +540,13 @@ export default function PlanPage() {
       });
       if (!res.ok) {
         setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+        if (savedId === id) setResult(prev => prev ? { ...prev, title: oldTitle } : prev);
         return false;
       }
       return true;
     } catch {
       setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+      if (savedId === id) setResult(prev => prev ? { ...prev, title: oldTitle } : prev);
       return false;
     }
   };
@@ -587,7 +593,50 @@ export default function PlanPage() {
             <p className="text-xs text-muted-foreground mt-0.5">
               {state === "form" && "AI 智能规划行程，一键直达携程/去哪儿预订"}
               {state === "generating" && "AI 正在生成你的专属行程…"}
-              {state === "result" && result && `${result.title} · ${result.days.length} 天`}
+              {state === "result" && result && (
+                savedId !== null && isEditingTitle ? (
+                  <span className="inline-flex items-center gap-1">
+                    <input
+                      ref={editTitleRef}
+                      value={editTitleValue}
+                      onChange={e => setEditTitleValue(e.target.value)}
+                      onBlur={() => {
+                        const trimmed = editTitleValue.trim();
+                        if (trimmed && trimmed !== result.title && savedId !== null) {
+                          handleRenameSaved(savedId, trimmed);
+                        }
+                        setIsEditingTitle(false);
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") {
+                          e.currentTarget.blur();
+                        } else if (e.key === "Escape") {
+                          setIsEditingTitle(false);
+                        }
+                      }}
+                      className="bg-transparent border-b border-primary/60 outline-none text-xs text-muted-foreground w-40 leading-none pb-0.5"
+                      autoFocus
+                    />
+                    <span className="text-muted-foreground/60">· {result.days.length} 天</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 group">
+                    <span>{result.title} · {result.days.length} 天</span>
+                    {savedId !== null && (
+                      <button
+                        onClick={() => {
+                          setEditTitleValue(result.title);
+                          setIsEditingTitle(true);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5 text-muted-foreground/60 hover:text-muted-foreground"
+                        title="重命名"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+                  </span>
+                )
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2">
