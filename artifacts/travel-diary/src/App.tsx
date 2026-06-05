@@ -33,6 +33,7 @@ import AchievementsPage from "@/pages/achievements";
 import PlanListPage from "@/pages/plan-list";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
+import LegalBottomSheet from "@/components/LegalBottomSheet";
 import { Onboarding } from "@/components/onboarding";
 
 const queryClient = new QueryClient();
@@ -216,16 +217,42 @@ function ProtectedRoute({ component: Component, ...props }: { component: React.C
   );
 }
 
+function LegalLinks({ prefix }: { prefix: string }) {
+  const [legalDoc, setLegalDoc] = useState<"terms" | "privacy" | null>(null);
+  return (
+    <>
+      <p className="text-xs text-muted-foreground text-center max-w-xs pb-4">
+        {prefix}即表示你已阅读并同意{" "}
+        <button
+          type="button"
+          onClick={() => setLegalDoc("terms")}
+          className="text-primary hover:underline"
+        >
+          《用户服务协议》
+        </button>
+        {" "}和{" "}
+        <button
+          type="button"
+          onClick={() => setLegalDoc("privacy")}
+          className="text-primary hover:underline"
+        >
+          《隐私政策》
+        </button>
+      </p>
+      <LegalBottomSheet
+        open={legalDoc !== null}
+        doc={legalDoc}
+        onClose={() => setLegalDoc(null)}
+      />
+    </>
+  );
+}
+
 function SignInPage() {
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-4 gap-4">
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-      <p className="text-xs text-muted-foreground text-center max-w-xs pb-4">
-        登录即表示你已阅读并同意{" "}
-        <Link href="/terms" className="text-primary hover:underline">《用户服务协议》</Link>
-        {" "}和{" "}
-        <Link href="/privacy" className="text-primary hover:underline">《隐私政策》</Link>
-      </p>
+      <LegalLinks prefix="登录" />
     </div>
   );
 }
@@ -234,12 +261,7 @@ function SignUpPage() {
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background px-4 gap-4">
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
-      <p className="text-xs text-muted-foreground text-center max-w-xs pb-4">
-        注册即表示你已阅读并同意{" "}
-        <Link href="/terms" className="text-primary hover:underline">《用户服务协议》</Link>
-        {" "}和{" "}
-        <Link href="/privacy" className="text-primary hover:underline">《隐私政策》</Link>
-      </p>
+      <LegalLinks prefix="注册" />
     </div>
   );
 }
