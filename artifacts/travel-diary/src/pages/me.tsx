@@ -617,7 +617,7 @@ export default function Me() {
     <Layout>
       <div className="-mt-4 md:-mt-8 -mx-4 md:-mx-8 animate-in fade-in duration-300">
         {/* ── Cover ─────────────────────────────────────────────────────── */}
-        <div className="relative h-44 md:h-56 overflow-hidden">
+        <div className="relative h-28 md:h-36 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/60 via-orange-300 to-amber-200" />
           {profile.avatar && (
             <img src={profile.avatar} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110" />
@@ -679,10 +679,10 @@ export default function Me() {
             )}
             {/* AI 叙事用量进度 + 套餐管理 */}
             {sub && (
-              <div className="mt-3 p-2.5 rounded-xl bg-muted/40 border border-border/30 space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-muted-foreground">✨ AI 叙事本月用量</span>
-                  <span className="text-[11px] font-semibold text-foreground">
+              <div className="mt-3 p-3 rounded-xl bg-muted/40 border border-border/30 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">✨ AI 叙事本月用量</span>
+                  <span className="text-xs font-semibold text-foreground">
                     {sub.aiComposedThisMonth} / {sub.aiComposeLimit === 999999 ? "无限" : sub.aiComposeLimit}
                   </span>
                 </div>
@@ -694,9 +694,9 @@ export default function Me() {
                     />
                   </div>
                 )}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-muted-foreground">✍️ AI 优化本月用量</span>
-                  <span className="text-[11px] font-semibold text-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">✍️ AI 优化本月用量</span>
+                  <span className="text-xs font-semibold text-foreground">
                     {sub.aiEnhancedThisMonth} / {sub.aiEnhanceLimit === 999999 ? "无限" : sub.aiEnhanceLimit}
                   </span>
                 </div>
@@ -709,15 +709,15 @@ export default function Me() {
                   </div>
                 )}
                 {sub.tier !== "free" && sub.expiresAt && (
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     套餐到期：{format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}
                   </p>
                 )}
                 <div className="flex items-center justify-between pt-0.5">
                   {sub.tier === "free" ? (
-                    <a href="/pricing" className="text-[10px] text-primary hover:underline">升级以获得更多次数 →</a>
+                    <a href="/pricing" className="text-xs font-semibold text-primary hover:underline">升级以获得更多次数 →</a>
                   ) : (
-                    <a href="/pricing" className="text-[10px] text-muted-foreground hover:text-primary transition-colors">管理套餐 →</a>
+                    <a href="/pricing" className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">管理套餐 →</a>
                   )}
                 </div>
               </div>
