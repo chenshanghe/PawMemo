@@ -102,6 +102,8 @@ function ChipGroup({
             key={opt}
             onClick={() => { if (!isZero) onToggle(opt); }}
             disabled={isZero}
+            title={isZero ? "没有符合条件的规划" : undefined}
+            aria-label={isZero ? `${opt}（没有符合条件的规划）` : undefined}
             className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
               active
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
@@ -477,6 +479,8 @@ export default function PlanListPage() {
                     key={key}
                     onClick={() => { if (!isZero) toggleGroupType(key); }}
                     disabled={isZero}
+                    title={isZero ? "没有符合条件的规划" : undefined}
+                    aria-label={isZero ? `${label}（没有符合条件的规划）` : undefined}
                     className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
                       isActive ? activeCls : isZero ? "opacity-40 cursor-not-allowed " + inactiveCls : inactiveCls
                     }`}
