@@ -983,6 +983,24 @@ export default function Me() {
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
             </Link>
+            <div className="flex items-center gap-3 px-4 py-3.5 border-t border-border/30">
+              <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+                <Zap className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">当前版本</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {(() => {
+                    try {
+                      const d = new Date(__BUILD_TIME__);
+                      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+                    } catch {
+                      return "—";
+                    }
+                  })()}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* ── Account & Privacy ──────────────────────────────────────── */}
