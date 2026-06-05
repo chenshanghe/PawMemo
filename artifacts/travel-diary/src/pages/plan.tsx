@@ -300,6 +300,7 @@ export default function PlanPage() {
   const [savedId, setSavedId] = useState<number | null>(null);
   const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
   const [isReplanMode, setIsReplanMode] = useState(false);
+  const [replanBannerDismissed, setReplanBannerDismissed] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
   const editTitleRef = useRef<HTMLInputElement>(null);
@@ -701,7 +702,7 @@ export default function PlanPage() {
               </button>
             )}
             {state === "result" && (
-              <button onClick={() => { setIsReplanMode(savedId !== null); setState("form"); setSavedId(null); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => { setIsReplanMode(savedId !== null); setReplanBannerDismissed(false); setState("form"); setSavedId(null); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
                 <RotateCcw className="w-3.5 h-3.5" />重新规划
               </button>
             )}
@@ -740,9 +741,22 @@ export default function PlanPage() {
         {/* ── Form ── */}
         {state === "form" && (
           <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-            <div className={`px-5 py-4 ${isReplanMode ? "bg-gradient-to-r from-amber-500 to-orange-400" : "bg-gradient-to-r from-primary/90 to-orange-400"}`}>
-              <p className="text-sm font-semibold text-white">{isReplanMode ? "✏️ 正在修改已保存行程" : "✈️ 告诉我你的旅行计划"}</p>
-              <p className="text-xs text-white/70 mt-0.5">{isReplanMode ? "已从上次行程恢复出行偏好，修改后重新生成" : "支持国内及出境路线，AI 推荐中国特色平台预订"}</p>
+            <div className={`px-5 py-4 ${isReplanMode && !replanBannerDismissed ? "bg-gradient-to-r from-amber-500 to-orange-400" : "bg-gradient-to-r from-primary/90 to-orange-400"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-white">{isReplanMode && !replanBannerDismissed ? "✏️ 正在修改已保存行程" : "✈️ 告诉我你的旅行计划"}</p>
+                  <p className="text-xs text-white/70 mt-0.5">{isReplanMode && !replanBannerDismissed ? "已从上次行程恢复出行偏好，修改后重新生成" : "支持国内及出境路线，AI 推荐中国特色平台预订"}</p>
+                </div>
+                {isReplanMode && !replanBannerDismissed && (
+                  <button
+                    onClick={() => setReplanBannerDismissed(true)}
+                    className="shrink-0 text-white/70 hover:text-white transition-colors mt-0.5"
+                    aria-label="关闭提示"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="p-5 space-y-4">
               {hasPrefs && (
