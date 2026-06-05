@@ -505,11 +505,16 @@ export default function PlanPage() {
       const plan = await res.json();
       if (!res.ok) throw new Error(plan.error);
       setResult(plan.planData);
+      const loadedStart = plan.startDate ?? today;
+      const loadedEnd = plan.endDate ?? nextWeek;
+      const datesAreStale = loadedStart < today;
+      const effectiveStart = datesAreStale ? today : loadedStart;
+      const effectiveEnd = datesAreStale ? nextWeek : loadedEnd;
       setCurrentPlanParams({
         from: plan.from,
         destinations: plan.destinations,
-        startDate: plan.startDate,
-        endDate: plan.endDate,
+        startDate: effectiveStart,
+        endDate: effectiveEnd,
         travelers: plan.travelers,
         style: plan.style,
         travelMode: plan.travelMode,
@@ -519,8 +524,8 @@ export default function PlanPage() {
       });
       setFrom(plan.from ?? "");
       setDestinations(Array.isArray(plan.destinations) && plan.destinations.length ? plan.destinations : [""]);
-      setStartDate(plan.startDate ?? today);
-      setEndDate(plan.endDate ?? nextWeek);
+      setStartDate(effectiveStart);
+      setEndDate(effectiveEnd);
       setTravelers(plan.travelers ?? 2);
       setStyle(plan.style ?? "文化探索");
       setTravelMode(plan.travelMode ?? "");
