@@ -185,6 +185,15 @@ export default function ComposeNarrative() {
           } catch {}
         }
       }
+      // Extract title from first line if AI produced 【标题】xxx
+      setNarrative((prev) => {
+        const match = prev.match(/^【标题】(.+)/);
+        if (match) {
+          setTitle(match[1].trim());
+          return prev.replace(/^【标题】.+\n*/, "").replace(/^\n+/, "");
+        }
+        return prev;
+      });
       setDone(true);
     } catch (e: any) {
       setNarrative(`[网络错误] ${e.message}`);
