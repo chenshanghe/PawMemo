@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useUser } from "@clerk/react";
-import { Heart, MessageCircle, Share2, Trash2, X, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, Trash2, X, Loader2, Link2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -100,6 +100,21 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
+  const [showDesktopPanel, setShowDesktopPanel] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const shareRef = useRef<HTMLDivElement>(null);
+
+  // Close desktop panel on outside click
+  useEffect(() => {
+    if (!showDesktopPanel) return;
+    const handler = (e: MouseEvent) => {
+      if (shareRef.current && !shareRef.current.contains(e.target as Node)) {
+        setShowDesktopPanel(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showDesktopPanel]);
 
   const showToast = (msg: string) => {
     setShareToast(msg);
@@ -154,25 +169,55 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
   const makeShareUrl = (token: string) =>
     `${window.location.origin}${import.meta.env.BASE_URL}share/${token}`;
 
-  // One-tap share: generates token then opens the system share sheet directly.
-  // Falls back to clipboard copy on desktop / browsers without Web Share API.
+  // Detect if this is a real touch device (mobile / tablet).
+  // On touch devices the OS share sheet includes WeChat/SMS/etc;
+  // on desktop it only shows system apps, so we show our own panel instead.
+  const isTouchDevice =
+    typeof navigator !== "undefined" &&
+    (navigator.maxTouchPoints > 0 || "ontouchstart" in window);
+
+  // One-tap share: generates token then opens the system share sheet on mobile,
+  // or shows a custom panel with share options on desktop.
   const handleDirectShare = async () => {
     const token = await ensureShareToken();
     if (!token) return;
-    const url = makeShareUrl(token);
-    const title = document.title.replace(" - 顽童日记", "").trim() || "旅行日记";
-    const text = `分享我的旅行日记：${title}`;
 
-    if (navigator.share) {
+    if (isTouchDevice && navigator.share) {
+      const url = makeShareUrl(token);
+      const title = document.title.replace(" - 顽童日记", "").trim() || "旅行日记";
       try {
-        await navigator.share({ title, text, url });
-      } catch (e: any) {
-        // AbortError = user cancelled — that's fine, no feedback needed
+        await navigator.share({ title, text: `分享我的旅行日记：${title}`, url });
+      } catch {
+        // AbortError = user cancelled — fine
       }
     } else {
-      await navigator.clipboard.writeText(url);
-      showToast("链接已复制");
+      // Desktop: toggle the custom share panel
+      setShowDesktopPanel((v) => !v);
     }
+  };
+
+  const handleCopyLink = async () => {
+    const token = await ensureShareToken();
+    if (!token) return;
+    try {
+      await navigator.clipboard.writeText(makeShareUrl(token));
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      showToast("复制失败，请手动复制");
+    }
+  };
+
+  // Build share URLs for each platform (requires a valid token)
+  const buildPlatformUrl = (platform: "weibo" | "qq", token: string) => {
+    const shareUrl = encodeURIComponent(makeShareUrl(token));
+    const title = encodeURIComponent(
+      (document.title.replace(" - 顽童日记", "").trim() || "旅行日记") + " — 顽童日记"
+    );
+    if (platform === "weibo") {
+      return `https://service.weibo.com/share/share.php?url=${shareUrl}&title=${title}`;
+    }
+    return `https://connect.qq.com/widget/shareqq/index.html?url=${shareUrl}&title=${title}`;
   };
 
   return (
@@ -211,16 +256,88 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
 
         {/* Share (owner only) */}
         {isOwner && (
-          <button
-            onClick={handleDirectShare}
-            disabled={shareLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all bg-muted/40 text-muted-foreground border border-border/50 hover:bg-muted/70 hover:text-foreground disabled:opacity-50"
-          >
-            {shareLoading
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <Share2 className="w-4 h-4" />}
-            分享
-          </button>
+          <div ref={shareRef} className="relative">
+            <button
+              onClick={handleDirectShare}
+              disabled={shareLoading}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
+                showDesktopPanel
+                  ? "bg-primary/10 text-primary border-primary/20"
+                  : "bg-muted/40 text-muted-foreground border-border/50 hover:bg-muted/70 hover:text-foreground",
+                "disabled:opacity-50"
+              )}
+            >
+              {shareLoading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Share2 className="w-4 h-4" />}
+              分享
+            </button>
+
+            {/* Desktop share panel */}
+            {showDesktopPanel && shareToken && (
+              <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-56 rounded-2xl bg-popover border border-border/60 shadow-lg overflow-hidden">
+                <div className="px-3 py-2 border-b border-border/40">
+                  <p className="text-xs text-muted-foreground">分享到</p>
+                </div>
+
+                {/* Copy link */}
+                <button
+                  onClick={handleCopyLink}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors text-left"
+                >
+                  {linkCopied
+                    ? <Check className="w-4 h-4 text-green-500 shrink-0" />
+                    : <Link2 className="w-4 h-4 text-muted-foreground shrink-0" />}
+                  <span className={linkCopied ? "text-green-600 font-medium" : ""}>
+                    {linkCopied ? "链接已复制！" : "复制链接"}
+                  </span>
+                </button>
+
+                {/* WeChat hint */}
+                <button
+                  onClick={handleCopyLink}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors text-left"
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="#07c160">
+                    <path d="M8.5 3C4.36 3 1 5.9 1 9.5c0 2.01 1.05 3.81 2.7 5l-.6 2.1 2.4-1.2c.78.22 1.62.34 2.5.34.23 0 .46-.01.68-.03A5.96 5.96 0 008 14c0-3.31 3.13-6 7-6h.26C14.44 5.62 11.74 3 8.5 3zM6 7.5a1 1 0 110 2 1 1 0 010-2zm5 0a1 1 0 110 2 1 1 0 010-2z"/>
+                    <path d="M15 10c-3.31 0-6 2.24-6 5s2.69 5 6 5c.72 0 1.4-.12 2.03-.33l1.97 1-.5-1.74A4.97 4.97 0 0021 15c0-2.76-2.69-5-6-5zm-2 4a1 1 0 110-2 1 1 0 010 2zm4 0a1 1 0 110-2 1 1 0 010 2z"/>
+                  </svg>
+                  <span className="text-foreground/80">微信 / 朋友圈</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">复制链接粘贴</span>
+                </button>
+
+                {/* Weibo */}
+                <a
+                  href={buildPlatformUrl("weibo", shareToken)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowDesktopPanel(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors"
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="#e6162d">
+                    <path d="M10.13 12.01c-2.53.27-4.45 2.12-4.28 4.14.17 2.03 2.36 3.44 4.9 3.17 2.53-.27 4.45-2.12 4.28-4.14-.17-2.03-2.37-3.44-4.9-3.17zm2.28 5.4c-.57.72-1.43 1.07-2.15.89-.71-.18-1.01-.87-.68-1.55.32-.66 1.12-1.03 1.83-.87.71.18 1.1.8.9 1.38l.1.15zm.94-1.97c-.16.23-.46.3-.67.17-.21-.13-.25-.43-.1-.65.16-.23.46-.3.67-.17.21.13.25.42.1.65z"/>
+                    <path d="M20.2 7.81c-.35-.11-.59-.18-.41-.65.4-1.02.44-1.9.01-2.52-.8-1.17-2.65-1.11-4.87-.11 0 0-.7.3-.52-.25.35-1.12.3-2.05-.24-2.59-.12-.12-1.35-1.12-4.46 1.47C7.46 5.09 5.39 7.68 5.39 9.97c0 4.44 4.93 7.14 9.76 7.14 6.32 0 10.52-4 10.52-7.17 0-1.91-1.39-2.99-5.47-2.13zm.45 5.26c-.7 1.93-2.92 3.28-5.47 3.28-2.55 0-4.52-1.38-4.38-3.09.14-1.71 2.38-3.07 4.93-3.01 2.55.06 4.63 1.54 4.92 2.82z"/>
+                  </svg>
+                  <span>微博</span>
+                </a>
+
+                {/* QQ */}
+                <a
+                  href={buildPlatformUrl("qq", shareToken)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowDesktopPanel(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors"
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="#1d7ed8">
+                    <path d="M12 2C6.48 2 2 6.34 2 11.68c0 2.86 1.27 5.43 3.29 7.22-.1.63-.48 2.29-1.29 3.1 0 0 2.49-.62 4.32-2.06.99.27 2.04.43 3.12.43v-.01c.07 0 .14.01.21.01 5.52 0 10-4.34 10-9.68S17.52 2 12 2zm-1.5 13.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V11c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v4.5zm5 0c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V11c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v4.5z"/>
+                  </svg>
+                  <span>QQ</span>
+                </a>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Revoke chip — appears only when a share link is active */}
