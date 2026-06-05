@@ -48,6 +48,7 @@ const BUDGET_OPTIONS = ["经济实惠", "舒适中档", "豪华品质"];
 const SPECIAL_NEEDS_OPTIONS = ["素食友好", "宠物友好", "无障碍设施"];
 const TRAVEL_MODE_OPTIONS = ["自驾", "跟团", "背包", "高铁", "飞机"];
 const TRAVELER_OPTIONS = ["1人", "2人", "3-5人", "6+人"];
+const STYLE_OPTIONS = ["文化探索", "美食之旅", "自然风光", "亲子游", "休闲放松"];
 
 function travelerBucket(n: number): string {
   if (n === 1) return "1人";
@@ -194,10 +195,14 @@ export default function PlanListPage() {
   const [travelersFilter, toggleTravelers] = useToggleSet(
     new Set(urlParams.getAll("travelers").flatMap(v => v ? v.split(",") : []))
   );
+  const [styleFilter, toggleStyle] = useToggleSet(
+    new Set(urlParams.getAll("style").flatMap(v => v ? v.split(",") : []))
+  );
 
   const hasInitialFilters =
     urlParams.has("groupType") || urlParams.has("budget") ||
-    urlParams.has("needs") || urlParams.has("mode") || urlParams.has("travelers");
+    urlParams.has("needs") || urlParams.has("mode") || urlParams.has("travelers") ||
+    urlParams.has("style");
   const [showFilters, setShowFilters] = useState(() => {
     if (hasInitialFilters) return true;
     try {
@@ -215,9 +220,10 @@ export default function PlanListPage() {
     if (needsFilter.size > 0) params.set("needs", [...needsFilter].join(","));
     if (modeFilter.size > 0) params.set("mode", [...modeFilter].join(","));
     if (travelersFilter.size > 0) params.set("travelers", [...travelersFilter].join(","));
+    if (styleFilter.size > 0) params.set("style", [...styleFilter].join(","));
     const qs = params.toString();
     setLocation(`/plan/list${qs ? `?${qs}` : ""}`, { replace: true } as never);
-  }, [groupTypeFilter, budgetFilter, needsFilter, modeFilter, travelersFilter]); // eslint-disable-line
+  }, [groupTypeFilter, budgetFilter, needsFilter, modeFilter, travelersFilter, styleFilter]); // eslint-disable-line
 
   useEffect(() => {
     try { localStorage.setItem("planListSortBy", sortBy); } catch { /* ignore */ }
@@ -234,7 +240,7 @@ export default function PlanListPage() {
       .catch(() => { setError("加载失败，请刷新重试"); setLoading(false); });
   }, []);
 
-  const activeFilterCount = groupTypeFilter.size + budgetFilter.size + needsFilter.size + modeFilter.size + travelersFilter.size;
+  const activeFilterCount = groupTypeFilter.size + budgetFilter.size + needsFilter.size + modeFilter.size + travelersFilter.size + styleFilter.size;
 
   const clearAllFilters = () => {
     [...groupTypeFilter].forEach(v => toggleGroupType(v));
@@ -242,6 +248,7 @@ export default function PlanListPage() {
     [...needsFilter].forEach(v => toggleNeeds(v));
     [...modeFilter].forEach(v => toggleMode(v));
     [...travelersFilter].forEach(v => toggleTravelers(v));
+    [...styleFilter].forEach(v => toggleStyle(v));
     setShowFilters(false);
     try { localStorage.removeItem("planListFilterOpen"); } catch { /* ignore */ }
   };
@@ -265,6 +272,7 @@ export default function PlanListPage() {
       needs?: Set<string>;
       mode?: Set<string>;
       travelers?: Set<string>;
+      style?: Set<string>;
     }
   ) => {
     const gt = opts.groupType ?? groupTypeFilter;
@@ -272,6 +280,7 @@ export default function PlanListPage() {
     const nd = opts.needs ?? needsFilter;
     const md = opts.mode ?? modeFilter;
     const tv = opts.travelers ?? travelersFilter;
+    const st = opts.style ?? styleFilter;
     if (gt.size > 0 && (!p.groupType || !gt.has(p.groupType))) return false;
     if (bd.size > 0) {
       const lbl = budgetLabel(p.budget);
@@ -287,8 +296,11 @@ export default function PlanListPage() {
     if (tv.size > 0) {
       if (!tv.has(travelerBucket(p.travelers))) return false;
     }
+    if (st.size > 0) {
+      if (!p.style || !st.has(p.style)) return false;
+    }
     return true;
-  }, [groupTypeFilter, budgetFilter, needsFilter, modeFilter, travelersFilter]);
+  }, [groupTypeFilter, budgetFilter, needsFilter, modeFilter, travelersFilter, styleFilter]);
 
   const filteredPlans = useMemo(() => {
     const filtered = plans.filter(p => matchesPlan(p, {}));
@@ -349,6 +361,15 @@ export default function PlanListPage() {
     for (const opt of TRAVELER_OPTIONS) {
       const testSet = new Set([opt]);
       map.set(opt, plans.filter(p => matchesPlan(p, { travelers: testSet })).length);
+    }
+    return map;
+  }, [plans, matchesPlan]);
+
+  const styleCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const opt of STYLE_OPTIONS) {
+      const testSet = new Set([opt]);
+      map.set(opt, plans.filter(p => matchesPlan(p, { style: testSet })).length);
     }
     return map;
   }, [plans, matchesPlan]);
@@ -538,6 +559,13 @@ export default function PlanListPage() {
               selected={travelersFilter}
               onToggle={toggleTravelers}
               counts={travelerCounts}
+            />
+            <ChipGroup
+              label="出行风格"
+              options={STYLE_OPTIONS}
+              selected={styleFilter}
+              onToggle={toggleStyle}
+              counts={styleCounts}
             />
             {activeFilterCount > 0 && (
               <div className="flex items-center gap-3">
