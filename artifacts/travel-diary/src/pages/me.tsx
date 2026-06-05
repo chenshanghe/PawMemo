@@ -194,6 +194,8 @@ export default function Me() {
   const latestPrefsRef = useRef<UserPrefs | null>(null);
   const prefsPanelRef = useRef<HTMLDivElement>(null);
   const flushAndSaveRef = useRef<(updated: UserPrefs) => Promise<boolean>>(() => Promise.resolve(true));
+  const prefsSavingRef = useRef(false);
+  const pendingNavRef = useRef<string | null>(null);
 
   // Account deletion
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
@@ -320,9 +322,11 @@ export default function Me() {
   const savePrefs = async (updated: UserPrefs): Promise<boolean> => {
     setPrefsDebouncing(false);
     setPrefsSaving(true);
+    prefsSavingRef.current = true;
     setPrefsSaved(false);
     setPrefsCleared(false);
     setPrefsSaveError(null);
+    let ok = false;
     try {
       const res = await fetch(`${BASE}/api/prefs`, {
         method: "PUT",
@@ -333,6 +337,7 @@ export default function Me() {
       if (!res.ok) throw new Error("save_failed");
       setPrefsSaved(true);
       setTimeout(() => setPrefsSaved(false), 2500);
+      ok = true;
       return true;
     } catch {
       setPrefsSaveError(navigator.onLine ? "保存失败，请重试" : "网络不可用");
@@ -340,6 +345,15 @@ export default function Me() {
       return false;
     } finally {
       setPrefsSaving(false);
+      prefsSavingRef.current = false;
+      // Execute queued navigation (only on success; on failure keep user on page to see error)
+      if (ok && pendingNavRef.current) {
+        const href = pendingNavRef.current;
+        pendingNavRef.current = null;
+        navigate(href);
+      } else {
+        pendingNavRef.current = null;
+      }
     }
   };
 
@@ -434,10 +448,20 @@ export default function Me() {
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
   useEffect(() => { fetchPrefs(); }, [fetchPrefs]);
 
-  // Browser-level navigation (close tab, hard refresh, external link): use keepalive fetch
-  // which the browser guarantees to complete even after the page starts unloading.
+  // Browser-level navigation (close tab, hard refresh, external link).
+  // • If a save is in-flight, show the browser's native "are you sure?" dialog so the
+  //   user knows the request is still running.
+  // • If a save is only pending in the debounce queue, fire a keepalive fetch (the
+  //   browser guarantees it completes even after the page starts unloading) and let
+  //   navigation proceed without a dialog.
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (prefsSavingRef.current) {
+        // In-flight request: block with native dialog
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
       if (pendingSaveRef.current) {
         if (saveDebounceRef.current) {
           clearTimeout(saveDebounceRef.current);
@@ -459,12 +483,18 @@ export default function Me() {
   }, []);
 
   // SPA navigation (wouter <Link> clicks): intercept internal link clicks in capture
-  // phase, flush pending saves with visible feedback while the component is still
-  // mounted, then navigate only on success — keeping the user on the page to see
-  // and retry when the save fails. Modified clicks and new-tab links are passed through.
+  // phase. Two cases:
+  //   1. Save is in-flight (prefsSavingRef): queue the destination and show a toast;
+  //      savePrefs() will navigate automatically when it finishes.
+  //   2. Save is pending in the debounce queue (pendingSaveRef): flush immediately and
+  //      navigate only on success — keeping the user on the page to see and retry when
+  //      the save fails.
+  // Modified clicks and new-tab links are always passed through.
   useEffect(() => {
     const handleLinkClick = (e: MouseEvent) => {
-      if (!pendingSaveRef.current) return;
+      const hasPending = !!pendingSaveRef.current;
+      const isSaving = prefsSavingRef.current;
+      if (!hasPending && !isSaving) return;
       // Skip modified clicks (ctrl/cmd/shift/alt open new tabs or have other behaviours)
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
       const link = (e.target as HTMLElement).closest("a[href]") as HTMLAnchorElement | null;
@@ -476,11 +506,18 @@ export default function Me() {
       if (!href.startsWith("/")) return;
       e.preventDefault();
       e.stopPropagation();
-      flushAndSaveRef.current(latestPrefsRef.current!).then((ok) => {
-        // Navigate only when save succeeded; on failure the error UI stays visible
-        // so the user can see and retry before leaving.
-        if (ok) navigate(href);
-      });
+      if (isSaving) {
+        // Save already in-flight — queue navigation and show a non-blocking toast
+        pendingNavRef.current = href;
+        toast({ title: "保存中，请稍候…", duration: 2000 });
+      } else {
+        // Debounce pending — flush and navigate on success
+        flushAndSaveRef.current(latestPrefsRef.current!).then((ok) => {
+          // Navigate only when save succeeded; on failure the error UI stays visible
+          // so the user can see and retry before leaving.
+          if (ok) navigate(href);
+        });
+      }
     };
     document.addEventListener("click", handleLinkClick, true);
     return () => document.removeEventListener("click", handleLinkClick, true);
