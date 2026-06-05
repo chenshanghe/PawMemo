@@ -613,48 +613,50 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                   className="bg-background border-border/60 resize-none font-serif text-base leading-relaxed"
                 />
 
-                {/* AI Enhancement Panel */}
-                <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-2.5">
-                  <div className="flex gap-2 items-stretch">
-                    <Textarea
-                      placeholder="描述优化要求（留空则自动润色语法和文笔）"
-                      value={aiInstruction}
-                      onChange={(e) => setAiInstruction(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleAiEnhance(); }
-                      }}
-                      disabled={aiLoading}
-                      rows={5}
-                      className="bg-background border-border/60 text-sm min-h-[120px] resize-y flex-1"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={aiLoading ? () => abortRef.current?.abort() : handleAiEnhance}
-                      disabled={!form.content.trim()}
-                      className="shrink-0 gap-1.5 self-stretch h-auto"
-                      variant={aiLoading ? "outline" : "default"}
-                    >
-                      {aiLoading ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          停止
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5" />
-                          AI 优化
-                        </>
-                      )}
-                    </Button>
+                {/* AI Enhancement Panel — only visible when editing an existing entry */}
+                {isEditing && (
+                  <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-2.5">
+                    <div className="flex gap-2 items-stretch">
+                      <Textarea
+                        placeholder="描述优化要求（留空则自动润色语法和文笔）"
+                        value={aiInstruction}
+                        onChange={(e) => setAiInstruction(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleAiEnhance(); }
+                        }}
+                        disabled={aiLoading}
+                        rows={5}
+                        className="bg-background border-border/60 text-sm min-h-[120px] resize-y flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={aiLoading ? () => abortRef.current?.abort() : handleAiEnhance}
+                        disabled={!form.content.trim()}
+                        className="shrink-0 gap-1.5 self-stretch h-auto"
+                        variant={aiLoading ? "outline" : "default"}
+                      >
+                        {aiLoading ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            停止
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" />
+                            AI 优化
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {aiError && (
+                      <p className="text-xs text-destructive">{aiError}</p>
+                    )}
+                    {aiLoading && (
+                      <p className="text-xs text-muted-foreground animate-pulse">正在优化中，内容实时更新...</p>
+                    )}
                   </div>
-                  {aiError && (
-                    <p className="text-xs text-destructive">{aiError}</p>
-                  )}
-                  {aiLoading && (
-                    <p className="text-xs text-muted-foreground animate-pulse">正在优化中，内容实时更新...</p>
-                  )}
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -169,20 +169,13 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
   const makeShareUrl = (token: string) =>
     `${window.location.origin}${import.meta.env.BASE_URL}share/${token}`;
 
-  // Detect if this is a real touch device (mobile / tablet).
-  // On touch devices the OS share sheet includes WeChat/SMS/etc;
-  // on desktop it only shows system apps, so we show our own panel instead.
-  const isTouchDevice =
-    typeof navigator !== "undefined" &&
-    (navigator.maxTouchPoints > 0 || "ontouchstart" in window);
-
-  // One-tap share: generates token then opens the system share sheet on mobile,
-  // or shows a custom panel with share options on desktop.
+  // One-tap share: generates token then opens the system share sheet if available,
+  // or falls back to a custom panel with manual copy / platform links.
   const handleDirectShare = async () => {
     const token = await ensureShareToken();
     if (!token) return;
 
-    if (isTouchDevice && navigator.share) {
+    if (navigator.share) {
       const url = makeShareUrl(token);
       const title = document.title.replace(" - 顽童日记", "").trim() || "旅行日记";
       try {
@@ -191,7 +184,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
         // AbortError = user cancelled — fine
       }
     } else {
-      // Desktop: toggle the custom share panel
+      // Fallback: toggle the custom share panel
       setShowDesktopPanel((v) => !v);
     }
   };
