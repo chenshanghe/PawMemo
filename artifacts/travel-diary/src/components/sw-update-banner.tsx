@@ -6,12 +6,13 @@ export function SwUpdateBanner() {
   const { updateReady, reload } = useSwUpdate();
   const [dismissed, setDismissed] = useState(false);
 
-  // Auto-reload after 10 s so the user always gets the latest code
+  // Auto-dismiss after 10 s — the SW is already active; the user will
+  // get the new code on their next natural page load.
   useEffect(() => {
     if (!updateReady || dismissed) return;
-    const t = setTimeout(reload, 10_000);
+    const t = setTimeout(() => setDismissed(true), 10_000);
     return () => clearTimeout(t);
-  }, [updateReady, dismissed, reload]);
+  }, [updateReady, dismissed]);
 
   if (!updateReady || dismissed) return null;
 
