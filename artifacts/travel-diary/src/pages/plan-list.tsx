@@ -437,12 +437,9 @@ export default function PlanListPage() {
                   }`}
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5" />
-                  筛选
-                  {activeFilterCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                      {activeFilterCount}
-                    </span>
-                  )}
+                  {activeFilterCount > 0
+                    ? <>筛选 <span className="opacity-60">·</span> {filteredPlans.length} 份</>
+                    : "筛选"}
                 </button>
               </>
             )}
