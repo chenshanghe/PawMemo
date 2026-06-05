@@ -177,18 +177,30 @@ function MealCard({ data, icon }: { data: PlaceCard; icon: string }) {
   );
 }
 
-function SavedPlanCard({ plan, onLoad, onDelete, onRename }: { plan: SavedPlan; onLoad: (id: number) => void; onDelete: (id: number) => void; onRename: (id: number, title: string) => void }) {
+function SavedPlanCard({ plan, onLoad, onDelete, onRename }: { plan: SavedPlan; onLoad: (id: number) => void; onDelete: (id: number) => void; onRename: (id: number, title: string) => Promise<boolean> }) {
   const nights = Math.round((new Date(plan.endDate).getTime() - new Date(plan.startDate).getTime()) / 86400000);
   const [editing, setEditing] = React.useState(false);
   const [editTitle, setEditTitle] = React.useState(plan.title);
+  const [flashOk, setFlashOk] = React.useState(false);
+  const [flashErr, setFlashErr] = React.useState(false);
+  const flashTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => { setEditTitle(plan.title); }, [plan.title]);
+  React.useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); }, []);
 
-  const commitRename = () => {
+  const commitRename = async () => {
     const trimmed = editTitle.trim();
     setEditing(false);
     if (!trimmed || trimmed === plan.title) { setEditTitle(plan.title); return; }
-    onRename(plan.id, trimmed);
+    const ok = await onRename(plan.id, trimmed);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    if (ok) {
+      setFlashOk(true);
+      flashTimer.current = setTimeout(() => setFlashOk(false), 1000);
+    } else {
+      setFlashErr(true);
+      flashTimer.current = setTimeout(() => setFlashErr(false), 1500);
+    }
   };
 
   return (
@@ -212,7 +224,13 @@ function SavedPlanCard({ plan, onLoad, onDelete, onRename }: { plan: SavedPlan; 
           ) : (
             <>
               <p
-                className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-text"
+                className={`text-sm font-semibold truncate cursor-text transition-all rounded px-0.5 ${
+                  flashOk
+                    ? "text-green-700 bg-green-50 ring-1 ring-green-300"
+                    : flashErr
+                      ? "text-red-600 bg-red-50 ring-1 ring-red-300"
+                      : "text-foreground group-hover:text-primary"
+                }`}
                 title="点击重命名"
                 onClick={e => { e.stopPropagation(); setEditing(true); }}
               >{plan.title}</p>
@@ -507,7 +525,7 @@ export default function PlanPage() {
     } catch {}
   };
 
-  const handleRenameSaved = async (id: number, newTitle: string) => {
+  const handleRenameSaved = async (id: number, newTitle: string): Promise<boolean> => {
     const oldTitle = savedPlans.find(p => p.id === id)?.title ?? "";
     setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: newTitle } : p));
     try {
@@ -516,9 +534,14 @@ export default function PlanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newTitle }),
       });
-      if (!res.ok) setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+      if (!res.ok) {
+        setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+        return false;
+      }
+      return true;
     } catch {
       setSavedPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+      return false;
     }
   };
 

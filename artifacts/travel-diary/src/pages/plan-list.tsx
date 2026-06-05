@@ -150,6 +150,8 @@ export default function PlanListPage() {
   });
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
+  const [flashRenamedId, setFlashRenamedId] = useState<number | null>(null);
+  const [flashRenameErrorId, setFlashRenameErrorId] = useState<number | null>(null);
 
   const [groupTypeFilter, setGroupTypeFilter] = useState<GroupTypeKey | null>(
     (urlParams.get("groupType") as GroupTypeKey) || null
@@ -300,6 +302,7 @@ export default function PlanListPage() {
     const trimmed = renameTitle.trim();
     if (!trimmed) { setRenamingId(null); setRenameTitle(""); return; }
     const oldTitle = plans.find(p => p.id === id)?.title ?? "";
+    if (trimmed === oldTitle) { setRenamingId(null); setRenameTitle(""); return; }
     setPlans(prev => prev.map(p => p.id === id ? { ...p, title: trimmed } : p));
     setRenamingId(null);
     setRenameTitle("");
@@ -309,9 +312,18 @@ export default function PlanListPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: trimmed }),
       });
-      if (!res.ok) setPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+      if (res.ok) {
+        setFlashRenamedId(id);
+        setTimeout(() => setFlashRenamedId(null), 1000);
+      } else {
+        setPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+        setFlashRenameErrorId(id);
+        setTimeout(() => setFlashRenameErrorId(null), 1500);
+      }
     } catch {
       setPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
+      setFlashRenameErrorId(id);
+      setTimeout(() => setFlashRenameErrorId(null), 1500);
     }
   };
 
@@ -536,7 +548,13 @@ export default function PlanListPage() {
                             ) : (
                               <>
                                 <h3
-                                  className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug truncate cursor-text"
+                                  className={`text-sm font-semibold leading-snug truncate cursor-text transition-all rounded px-0.5 ${
+                                    flashRenamedId === plan.id
+                                      ? "text-green-700 bg-green-50 ring-1 ring-green-300"
+                                      : flashRenameErrorId === plan.id
+                                        ? "text-red-600 bg-red-50 ring-1 ring-red-300"
+                                        : "text-foreground group-hover:text-primary"
+                                  }`}
                                   title="点击重命名"
                                   onClick={e => { e.stopPropagation(); e.preventDefault(); setRenamingId(plan.id); setRenameTitle(plan.title); }}
                                 >
