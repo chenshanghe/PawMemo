@@ -194,7 +194,7 @@ export default function Pricing() {
                     </div>
                   ) : plan.ctaDisabled ? (
                     <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
-                      {plan.cta}
+                      {plan.tier === "free" && sub && sub.tier !== "free" ? "免费套餐" : plan.cta}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -204,7 +204,7 @@ export default function Pricing() {
                       >
                         {plan.cta}
                       </button>
-                      <p className="text-[10px] text-center text-muted-foreground/70">微信支付 · 随时可取消</p>
+                      <p className="text-[10px] text-center text-muted-foreground/70">微信支付</p>
                     </div>
                   )}
                 </div>
