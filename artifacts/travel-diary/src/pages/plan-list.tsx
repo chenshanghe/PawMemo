@@ -34,7 +34,7 @@ const GROUP_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   friends: { label: "👫 朋友",  cls: "bg-teal-50 text-teal-600" },
 };
 
-type SortKey = "createdAt" | "lastViewedAt";
+type SortKey = "createdAt" | "lastViewedAt" | "leastViewed";
 type GroupTypeKey = "solo" | "couple" | "family" | "friends";
 
 const GROUP_TYPE_CHIPS: { key: GroupTypeKey; label: string; activeCls: string; inactiveCls: string }[] = [
@@ -123,7 +123,10 @@ function ChipGroup({
 function groupByMonth(plans: SavedPlan[], sortKey: SortKey): { label: string; items: SavedPlan[] }[] {
   const map = new Map<string, SavedPlan[]>();
   for (const p of plans) {
-    const dateStr = sortKey === "lastViewedAt" && p.lastViewedAt ? p.lastViewedAt : p.createdAt;
+    const dateStr =
+      (sortKey === "lastViewedAt" || sortKey === "leastViewed") && p.lastViewedAt
+        ? p.lastViewedAt
+        : p.createdAt;
     const key = dateStr.slice(0, 7);
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(p);
@@ -161,7 +164,9 @@ export default function PlanListPage() {
   const [sortBy, setSortBy] = useState<SortKey>(() => {
     try {
       const stored = localStorage.getItem("planListSortBy");
-      return stored === "lastViewedAt" ? "lastViewedAt" : "createdAt";
+      if (stored === "lastViewedAt") return "lastViewedAt";
+      if (stored === "leastViewed") return "leastViewed";
+      return "createdAt";
     } catch {
       return "createdAt";
     }
@@ -291,6 +296,11 @@ export default function PlanListPage() {
         const bDate = b.lastViewedAt ?? b.createdAt;
         return bDate.localeCompare(aDate);
       }
+      if (sortBy === "leastViewed") {
+        const aDate = a.lastViewedAt ?? a.createdAt;
+        const bDate = b.lastViewedAt ?? b.createdAt;
+        return aDate.localeCompare(bDate);
+      }
       return b.createdAt.localeCompare(a.createdAt);
     });
   }, [plans, matchesPlan, sortBy]);
@@ -417,16 +427,23 @@ export default function PlanListPage() {
             {!loading && plans.length > 0 && (
               <>
                 <button
-                  onClick={() => setSortBy(v => v === "createdAt" ? "lastViewedAt" : "createdAt")}
+                  onClick={() => setSortBy(v =>
+                    v === "createdAt" ? "lastViewedAt" :
+                    v === "lastViewedAt" ? "leastViewed" : "createdAt"
+                  )}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
-                    sortBy === "lastViewedAt"
+                    sortBy !== "createdAt"
                       ? "bg-primary/8 border-primary/30 text-primary"
                       : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
                   }`}
-                  title={sortBy === "createdAt" ? "当前：最新保存" : "当前：最近查看"}
+                  title={
+                    sortBy === "createdAt" ? "当前：最新保存" :
+                    sortBy === "lastViewedAt" ? "当前：最近查看" : "当前：最久未看"
+                  }
                 >
                   <ArrowUpDown className="w-3.5 h-3.5" />
-                  {sortBy === "createdAt" ? "最新保存" : "最近查看"}
+                  {sortBy === "createdAt" ? "最新保存" :
+                   sortBy === "lastViewedAt" ? "最近查看" : "最久未看"}
                 </button>
                 <button
                   onClick={() => setShowFilters(v => !v)}
