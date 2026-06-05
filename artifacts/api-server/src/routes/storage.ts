@@ -275,18 +275,21 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
             return "not_found";
           }
 
-          // The caller must satisfy the access policy for EVERY owning entry
-          // (most-restrictive wins). Policy per entry:
-          //   owner         → allowed
-          //   public        → allowed
-          //   share         → allowed (opaque UUID image URLs; share token gates
-          //                   the page itself)
-          //   share + valid token → also allowed (legacy / extra check)
-          //   otherwise     → deny
+          // The caller needs the access policy satisfied for AT LEAST ONE owning
+          // entry (most-permissive wins). This handles the common case where a
+          // photo URL is shared between a public source note and a private
+          // narrative — the public entry's policy should allow access for everyone.
+          // Policy per entry (first match wins for that entry):
+          //   owner         → this entry allows
+          //   public        → this entry allows
+          //   share         → this entry allows
+          //   share + valid token → this entry allows
+          //   otherwise     → this entry does not allow (try next)
+          let allowed = false;
           for (const owningEntry of owningEntries) {
-            if (callerId && callerId === owningEntry.userId) continue;
-            if (owningEntry.visibility === "public") continue;
-            if (owningEntry.visibility === "share") continue;
+            if (callerId && callerId === owningEntry.userId) { allowed = true; break; }
+            if (owningEntry.visibility === "public") { allowed = true; break; }
+            if (owningEntry.visibility === "share") { allowed = true; break; }
             if (shareToken) {
               const [shareRecord] = await db
                 .select({ id: entrySharesTable.id })
@@ -295,8 +298,11 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
                   eq(entrySharesTable.token, shareToken),
                   eq(entrySharesTable.entryId, owningEntry.id),
                 ));
-              if (shareRecord) continue;
+              if (shareRecord) { allowed = true; break; }
             }
+          }
+
+          if (!allowed) {
             aclCacheSet(cacheKey, "deny");
             return "deny";
           }
