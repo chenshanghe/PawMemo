@@ -161,6 +161,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
   };
 
   // AI state
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiInstruction, setAiInstruction] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -273,6 +274,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
           queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(id) });
           setAiDraft(null);
           setAiInstruction("");
+          setAiPanelOpen(false);
         },
       }
     );
@@ -282,6 +284,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
     abortRef.current?.abort();
     setAiDraft(null);
     setAiError(null);
+    setAiPanelOpen(false);
   };
 
   if (isLoading) {
@@ -567,8 +570,22 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                   </CardContent>
                 </Card>
 
+                {/* AI Enhancement toggle button */}
+                <button
+                  onClick={() => setAiPanelOpen((v) => !v)}
+                  className={cn(
+                    "flex items-center gap-1.5 self-start px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                    aiPanelOpen
+                      ? "bg-primary/10 text-primary border-primary/20"
+                      : "bg-muted/40 text-muted-foreground border-border/50 hover:bg-muted/70 hover:text-foreground"
+                  )}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  AI 优化
+                </button>
+
                 {/* AI Enhancement Panel */}
-                {enhanceUsed !== null && enhanceLimit < 999999 && enhanceUsed >= enhanceLimit ? (
+                {aiPanelOpen && (enhanceUsed !== null && enhanceLimit < 999999 && enhanceUsed >= enhanceLimit ? (
                   <div className="rounded-xl border border-border/50 bg-muted/10 p-4 flex items-start gap-3">
                     <span className="text-2xl">✨</span>
                     <div className="flex-1 min-w-0">
@@ -696,7 +713,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                     </div>
                   )}
                 </div>
-                )}
+                ))}
               </div>
             )}
           </>
