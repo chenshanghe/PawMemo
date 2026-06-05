@@ -78,6 +78,8 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
     type?: "wechat";
   };
 
+  console.log(`[pay-hupi] create received body=${JSON.stringify(req.body)} → tier=${tier} period=${period} type=${type}`);
+
   if (!["pro", "plus"].includes(tier))          { res.status(400).json({ error: "无效套餐" }); return; }
   if (!["monthly", "yearly"].includes(period))   { res.status(400).json({ error: "无效周期" }); return; }
   if (type !== "wechat")                         { res.status(400).json({ error: "无效支付方式" }); return; }
@@ -130,10 +132,16 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
 
     const apiData = await apiRes.json() as any;
 
+    console.log(`[pay-hupi] create response tier=${tier} fee=${totalFee}`, JSON.stringify(apiData));
+
     if (apiData.errcode && apiData.errcode !== 0) {
       await db.delete(subscriptionOrdersTable)
         .where(eq(subscriptionOrdersTable.outTradeNo, tradeOrderId));
-      res.status(502).json({ error: apiData.errmsg ?? "虎皮椒下单失败" });
+      res.status(502).json({
+        error: apiData.errmsg ?? "虎皮椒下单失败",
+        _errcode: apiData.errcode,
+        _errmsg: apiData.errmsg,
+      });
       return;
     }
 
