@@ -183,6 +183,8 @@ router.get("/share/:token", optionalAuth, async (req, res) => {
     photos: entry.photos.map((p) => ({ ...p, url: rewriteStorageUrl(p.url) ?? p.url })),
   };
 
+  console.log(`[share] token=${token} entryId=${share.entryId} coverImage=${entryWithTokenUrls.coverImage} photoUrls=${entryWithTokenUrls.photos.slice(0,2).map(p=>p.url).join("|")}`);
+
   res.json({ entry: entryWithTokenUrls, likeCount: likeCount?.count ?? 0, viewerLiked, comments, author, viewerFavorited, viewerFollowing });
 });
 

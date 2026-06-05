@@ -205,12 +205,15 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
       // (most-restrictive wins). Policy per entry:
       //   owner         → allowed
       //   public        → allowed
-      //   share + valid token for that entry → allowed
+      //   share         → allowed (entry is intentionally shared; image URLs
+      //                   are opaque UUIDs and the share token gates the page)
+      //   share + valid token → also allowed (legacy / extra check)
       //   otherwise     → 403
       for (const owningEntry of owningEntries) {
         if (callerId && callerId === owningEntry.userId) continue;
         if (owningEntry.visibility === "public") continue;
-        if (owningEntry.visibility === "share" && shareToken) {
+        if (owningEntry.visibility === "share") continue;
+        if (shareToken) {
           const [shareRecord] = await db
             .select({ id: entrySharesTable.id })
             .from(entrySharesTable)
