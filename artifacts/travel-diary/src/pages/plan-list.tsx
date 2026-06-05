@@ -647,9 +647,13 @@ export default function PlanListPage() {
                             <Users className="w-3 h-3" />
                             {plan.travelers} 人
                           </span>
-                          {plan.lastViewedAt && (
+                          {plan.lastViewedAt ? (
                             <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
                               上次查看：{relativeTime(plan.lastViewedAt)}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground/40 italic">
+                              从未查看
                             </span>
                           )}
                         </div>
