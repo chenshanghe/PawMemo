@@ -189,9 +189,11 @@ export default function Me() {
   const [prefsSaved, setPrefsSaved] = useState(false);
   const [prefsCleared, setPrefsCleared] = useState(false);
   const [prefsSaveError, setPrefsSaveError] = useState<string | null>(null);
+  const [prefsRetrying, setPrefsRetrying] = useState(false);
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<UserPrefs | null>(null);
   const latestPrefsRef = useRef<UserPrefs | null>(null);
+  const queuedOfflinePrefsRef = useRef<UserPrefs | null>(null);
   const prefsPanelRef = useRef<HTMLDivElement>(null);
   const flushAndSaveRef = useRef<(updated: UserPrefs) => Promise<boolean>>(() => Promise.resolve(true));
   const prefsSavingRef = useRef(false);
@@ -335,13 +337,19 @@ export default function Me() {
         body: JSON.stringify(updated),
       });
       if (!res.ok) throw new Error("save_failed");
+      queuedOfflinePrefsRef.current = null;
       setPrefsSaved(true);
       setTimeout(() => setPrefsSaved(false), 2500);
       ok = true;
       return true;
     } catch {
-      setPrefsSaveError(navigator.onLine ? "保存失败，请重试" : "网络不可用");
-      setTimeout(() => setPrefsSaveError(null), 4000);
+      if (!navigator.onLine) {
+        queuedOfflinePrefsRef.current = updated;
+        setPrefsSaveError("网络不可用，将在恢复连接后自动保存");
+      } else {
+        setPrefsSaveError("保存失败，请重试");
+        setTimeout(() => setPrefsSaveError(null), 4000);
+      }
       return false;
     } finally {
       setPrefsSaving(false);
@@ -447,6 +455,19 @@ export default function Me() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
   useEffect(() => { fetchPrefs(); }, [fetchPrefs]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      const queued = queuedOfflinePrefsRef.current;
+      if (!queued) return;
+      queuedOfflinePrefsRef.current = null;
+      setPrefsSaveError(null);
+      setPrefsRetrying(true);
+      savePrefs(latestPrefsRef.current ?? queued).finally(() => setPrefsRetrying(false));
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
 
   // Browser-level navigation (close tab, hard refresh, external link).
   // • If a save is in-flight, show the browser's native "are you sure?" dialog so the
@@ -1042,14 +1063,20 @@ export default function Me() {
                 <span className="text-[11px] text-muted-foreground">· 用于规划行程时的默认设置</span>
               </div>
               <div className="flex items-center gap-2">
-                {prefsDebouncing && !prefsSaving && (
+                {prefsRetrying && (
+                  <span className="flex items-center gap-1 text-[11px] text-amber-600 font-medium">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    重新连接，正在保存…
+                  </span>
+                )}
+                {!prefsRetrying && prefsDebouncing && !prefsSaving && (
                   <span className="text-[11px] text-muted-foreground animate-pulse">待保存…</span>
                 )}
-                {prefsSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
-                {prefsSaved && !prefsSaving && !prefsDebouncing && (
+                {!prefsRetrying && prefsSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                {!prefsRetrying && prefsSaved && !prefsSaving && !prefsDebouncing && (
                   <span className="text-[11px] text-green-600 font-medium">{prefsCleared ? "已清除 ✓" : "已保存 ✓"}</span>
                 )}
-                {prefsSaveError && !prefsSaving && (
+                {!prefsRetrying && prefsSaveError && !prefsSaving && (
                   <span className="text-[11px] text-destructive font-medium">{prefsSaveError}</span>
                 )}
                 {prefs && (prefs.travelMode || prefs.budget || prefs.specialNeeds.length > 0 || prefs.fromCity || prefs.travelStyle) && (
