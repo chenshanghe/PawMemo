@@ -19,12 +19,13 @@ interface ShareModalProps {
   shareLoading: boolean;
   shareToken: string | null;
   copied: boolean;
+  toast: string | null;
   onAction: (action: ShareTarget) => void;
   onRevoke: () => void;
   onClose: () => void;
 }
 
-function ShareModal({ visibility, shareLoading, shareToken, copied, onAction, onRevoke, onClose }: ShareModalProps) {
+function ShareModal({ visibility, shareLoading, shareToken, copied, toast, onAction, onRevoke, onClose }: ShareModalProps) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
@@ -106,6 +107,13 @@ function ShareModal({ visibility, shareLoading, shareToken, copied, onAction, on
             </button>
           ))}
         </div>
+
+        {/* Toast */}
+        {toast && (
+          <div className="mx-5 mb-3 px-3 py-2 rounded-xl bg-green-50 border border-green-100 text-[11px] text-green-700 text-center leading-snug animate-in fade-in duration-150">
+            {toast}
+          </div>
+        )}
 
         {/* Footer */}
         {shareToken && (
@@ -219,7 +227,13 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
   const [showSharePanel, setShowSharePanel] = useState(false);
+
+  const showToast = (msg: string) => {
+    setShareToast(msg);
+    setTimeout(() => setShareToast(null), 3000);
+  };
 
   const fetchShareStatus = useCallback(async () => {
     if (!isOwner) return;
@@ -286,10 +300,11 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
       setTimeout(() => setCopied(false), 2500);
     };
 
-    const nativeShare = async (targetHint?: string) => {
+    // Opens iOS / Android system share sheet — correct for AirDrop, Notes, etc.
+    const nativeShare = async () => {
       if (navigator.share) {
         try {
-          await navigator.share({ title, text: targetHint ? `${text}\n（${targetHint}）` : text, url });
+          await navigator.share({ title, text, url });
           return true;
         } catch (e: any) {
           if (e?.name === "AbortError") return true;
@@ -299,44 +314,70 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
     };
 
     switch (action) {
+      // System share sheet is the ONLY correct path for AirDrop on iOS Safari.
       case "airdrop":
-        if (!await nativeShare("隔空投送")) await copyToClipboard();
+        if (!await nativeShare()) await copyToClipboard();
         break;
+
+      // WeChat / Moments cannot be deep-linked from Safari.
+      // Copy link + show instruction is the standard approach for Chinese web apps.
       case "wechat":
-        if (!await nativeShare("微信")) await copyToClipboard();
+        await copyToClipboard();
+        showToast("链接已复制 · 打开微信，粘贴给好友");
         break;
       case "moments":
-        if (!await nativeShare("朋友圈")) await copyToClipboard();
+        await copyToClipboard();
+        showToast("链接已复制 · 打开微信朋友圈，粘贴发布");
         break;
+
       case "qq":
-        if (!await nativeShare("QQ")) {
-          window.open(`https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent("顽童日记")}`, "_blank");
-        }
+        window.open(
+          `https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent("顽童日记")}`,
+          "_blank"
+        );
         break;
       case "weibo":
-        window.open(`https://service.weibo.com/share/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`, "_blank");
+        window.open(
+          `https://service.weibo.com/share/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(text)}`,
+          "_blank"
+        );
         break;
+
       case "xiaohongshu":
         await copyToClipboard();
+        showToast("链接已复制 · 打开小红书，发布时粘贴链接");
         break;
       case "douyin":
         await copyToClipboard();
+        showToast("链接已复制 · 打开抖音，发布时粘贴链接");
         break;
+
       case "dingtalk":
-        if (!await nativeShare("钉钉")) {
-          window.open(`dingtalk://dingtalkclient/action/share?sourceType=link&contentType=url&url=${encodeURIComponent(url)}&content=${encodeURIComponent(text)}`, "_blank");
-          setTimeout(async () => { await copyToClipboard(); }, 500);
+        if (!await nativeShare()) {
+          window.open(
+            `dingtalk://dingtalkclient/action/share?sourceType=link&contentType=url&url=${encodeURIComponent(url)}&content=${encodeURIComponent(text)}`,
+            "_blank"
+          );
+          await copyToClipboard();
+          showToast("链接已复制 · 未检测到钉钉，请手动粘贴");
         }
         break;
       case "feishu":
-        if (!await nativeShare("飞书")) {
-          window.open(`https://applink.feishu.cn/client/message/share?content=${encodeURIComponent(url)}`, "_blank");
-          setTimeout(async () => { await copyToClipboard(); }, 500);
+        if (!await nativeShare()) {
+          window.open(
+            `https://applink.feishu.cn/client/message/share?content=${encodeURIComponent(url)}`,
+            "_blank"
+          );
+          await copyToClipboard();
+          showToast("链接已复制 · 未检测到飞书，请手动粘贴");
         }
         break;
+
+      // Notes app — system share sheet puts it right there.
       case "notes":
-        if (!await nativeShare("备忘录")) await copyToClipboard();
+        if (!await nativeShare()) await copyToClipboard();
         break;
+
       case "copy":
         await copyToClipboard();
         break;
@@ -405,6 +446,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
           shareLoading={shareLoading}
           shareToken={shareToken}
           copied={copied}
+          toast={shareToast}
           onAction={handleShareAction}
           onRevoke={handleRevokeShare}
           onClose={() => setShowSharePanel(false)}
