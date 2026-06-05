@@ -88,14 +88,19 @@ router.post("/compose", async (req, res) => {
   }).join("\n\n---\n\n");
 
   const sectionCount = rows.length;
+  // Build an explicit example to make the [===] placement unambiguous
+  const separatorExample = rows
+    .map((_, i) => `第${i + 1}段正文…`)
+    .join("\n[===]\n");
   const systemPrompt = `你是一位擅长写游记的中文旅行作家，文笔优美、情感细腻、善于营造画面感。
 将旅行者提供的多篇随手日记整合成一篇完整、流畅的游记文章。
 要求：
 1. 保持第一人称视角，忠实原文事实，不捏造细节
 2. 按时间或地点顺序组织内容，加入自然的过渡衔接
 3. 适当增加环境描写和情感表达，使文章更具感染力
-4. 【重要】每完成一篇原始日记对应的段落后，必须在该段落末尾另起一行输出恰好 ${sectionCount - 1} 个分隔符 [===]（每个单独占一行），共 ${sectionCount} 段、${sectionCount - 1} 个分隔符
-5. 输出完整游记正文，除 [===] 分隔符外不要任何说明文字或标题
+4. 【重要·分段规则】全文必须严格分为 ${sectionCount} 段，每段对应一篇原始日记。相邻两段之间必须单独另起一行输出分隔符 [===]，前后各空一行，共 ${sectionCount - 1} 个分隔符。输出格式示例：
+${separatorExample}
+5. 除 [===] 分隔符外，不要输出任何标题、序号或说明文字
 6. 字数建议 800-2000 字`;
 
   const userPrompt = style?.trim()

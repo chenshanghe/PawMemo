@@ -75,6 +75,7 @@ export default function ComposeNarrative() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [savedId, setSavedId] = useState<number | null>(null);
+  const [photoSaveError, setPhotoSaveError] = useState<string | null>(null);
 
   const narrativeRef = useRef<HTMLTextAreaElement>(null);
 
@@ -230,6 +231,7 @@ export default function ComposeNarrative() {
   const handleSave = async () => {
     if (!narrative.trim() || !title.trim() || saving) return;
     setSaving(true);
+    setPhotoSaveError(null);
     const sorted = [...sources].sort((a, b) => a.startDate.localeCompare(b.startDate));
     const startDate = sorted[0].startDate;
     const endDate = sorted[sorted.length - 1].endDate ?? sorted[sorted.length - 1].startDate;
@@ -256,9 +258,7 @@ export default function ComposeNarrative() {
 
       // Copy selected photos with section markers [s:N]: so NarrativeContent
       // can place each photo next to its source entry's section
-      const sortedSourceIds = [...sources]
-        .sort((a, b) => a.startDate.localeCompare(b.startDate))
-        .map((e) => e.id);
+      const sortedSourceIds = sorted.map((e) => e.id);
       const photosToCopy = sourcePhotos
         .filter((p) => selectedPhotoIds.has(p.id))
         .map((p) => {
@@ -268,16 +268,26 @@ export default function ComposeNarrative() {
           return { url: p.url, caption };
         });
       if (photosToCopy.length > 0) {
-        await fetch(`${BASE}/api/entries/${data.id}/photos/batch`, {
+        const photoRes = await fetch(`${BASE}/api/entries/${data.id}/photos/batch`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ photos: photosToCopy }),
         });
+        if (!photoRes.ok) {
+          const photoErr = await photoRes.json().catch(() => ({}));
+          if (photoErr.code === "PHOTO_LIMIT") {
+            setPhotoSaveError(`照片超出上限（${photoErr.limit} 张），游记已保存但未附带图片`);
+          } else {
+            setPhotoSaveError("图片保存失败，游记已保存但未附带图片，可进入游记后手动上传");
+          }
+        }
       }
 
       setSaved(true);
       setSavedId(data.id);
+      // Auto-navigate to the saved narrative after a short delay
+      setTimeout(() => navigate(`/entries/${data.id}`), 800);
     } finally {
       setSaving(false);
     }
@@ -551,18 +561,21 @@ export default function ComposeNarrative() {
               <CalendarDays className="w-3.5 h-3.5" />{dateRange}
               <span className="ml-auto text-[10px]">默认私密，保存后可编辑可见性</span>
             </div>
+            {photoSaveError && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                <span className="shrink-0 mt-0.5">⚠️</span>
+                <span>{photoSaveError}</span>
+              </div>
+            )}
             {saved ? (
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-2 text-sm text-green-600 font-medium">
-                  <Check className="w-4 h-4" />已保存
+                  <Check className="w-4 h-4" />已保存，正在跳转…
                 </span>
                 <Link href={`/entries/${savedId}`}>
                   <Button size="sm" variant="outline" className="rounded-xl gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5" />查看游记
+                    <BookOpen className="w-3.5 h-3.5" />立即查看
                   </Button>
-                </Link>
-                <Link href="/entries">
-                  <Button size="sm" className="rounded-xl">返回旅记</Button>
                 </Link>
               </div>
             ) : (
