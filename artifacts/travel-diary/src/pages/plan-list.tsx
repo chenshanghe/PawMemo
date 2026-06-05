@@ -189,7 +189,14 @@ export default function PlanListPage() {
   const hasInitialFilters =
     urlParams.has("groupType") || urlParams.has("budget") ||
     urlParams.has("needs") || urlParams.has("mode") || urlParams.has("travelers");
-  const [showFilters, setShowFilters] = useState(hasInitialFilters);
+  const [showFilters, setShowFilters] = useState(() => {
+    if (hasInitialFilters) return true;
+    try {
+      const stored = localStorage.getItem("planListFilterOpen");
+      if (stored !== null) return stored === "true";
+    } catch { /* ignore */ }
+    return false;
+  });
 
   // Sync active filters back to the URL so they survive navigation
   useEffect(() => {
@@ -208,6 +215,10 @@ export default function PlanListPage() {
   }, [sortBy]);
 
   useEffect(() => {
+    try { localStorage.setItem("planListFilterOpen", String(showFilters)); } catch { /* ignore */ }
+  }, [showFilters]);
+
+  useEffect(() => {
     apiFetch("/api/plan/saved")
       .then(r => r.ok ? r.json() : [])
       .then(data => { setPlans(data); setLoading(false); })
@@ -222,6 +233,8 @@ export default function PlanListPage() {
     [...needsFilter].forEach(v => toggleNeeds(v));
     [...modeFilter].forEach(v => toggleMode(v));
     [...travelersFilter].forEach(v => toggleTravelers(v));
+    setShowFilters(false);
+    try { localStorage.removeItem("planListFilterOpen"); } catch { /* ignore */ }
   };
 
   const handleCopyLink = async () => {
