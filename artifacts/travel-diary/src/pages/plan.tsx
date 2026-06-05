@@ -293,6 +293,7 @@ export default function PlanPage() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [savedId, setSavedId] = useState<number | null>(null);
   const [loadingPlanId, setLoadingPlanId] = useState<number | null>(null);
+  const [isReplanMode, setIsReplanMode] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
   const editTitleRef = useRef<HTMLInputElement>(null);
@@ -439,6 +440,7 @@ export default function PlanPage() {
     if (!from.trim() || !filledDests.length) { setError("请填写出发城市和目的地"); return; }
     setError(null);
     setSavedId(null);
+    setIsReplanMode(false);
     setState("generating");
     const params = { from: from.trim(), destinations: filledDests, startDate, endDate, travelers, style, travelMode: travelMode || undefined, budget: budget || undefined, specialNeeds: specialNeeds.length ? specialNeeds : undefined, groupType: groupType || undefined };
     setCurrentPlanParams(params);
@@ -663,7 +665,7 @@ export default function PlanPage() {
               </button>
             )}
             {state === "result" && (
-              <button onClick={() => { setState("form"); setSavedId(null); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => { setIsReplanMode(savedId !== null); setState("form"); setSavedId(null); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
                 <RotateCcw className="w-3.5 h-3.5" />重新规划
               </button>
             )}
@@ -702,9 +704,9 @@ export default function PlanPage() {
         {/* ── Form ── */}
         {state === "form" && (
           <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-            <div className="bg-gradient-to-r from-primary/90 to-orange-400 px-5 py-4">
-              <p className="text-sm font-semibold text-white">✈️ 告诉我你的旅行计划</p>
-              <p className="text-xs text-white/70 mt-0.5">支持国内及出境路线，AI 推荐中国特色平台预订</p>
+            <div className={`px-5 py-4 ${isReplanMode ? "bg-gradient-to-r from-amber-500 to-orange-400" : "bg-gradient-to-r from-primary/90 to-orange-400"}`}>
+              <p className="text-sm font-semibold text-white">{isReplanMode ? "✏️ 正在修改已保存行程" : "✈️ 告诉我你的旅行计划"}</p>
+              <p className="text-xs text-white/70 mt-0.5">{isReplanMode ? "已从上次行程恢复出行偏好，修改后重新生成" : "支持国内及出境路线，AI 推荐中国特色平台预订"}</p>
             </div>
             <div className="p-5 space-y-4">
               {hasPrefs && (
