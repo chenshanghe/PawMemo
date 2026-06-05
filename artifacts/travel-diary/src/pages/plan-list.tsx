@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Layout } from "@/components/layout";
 import { Link, useLocation, useSearch } from "wouter";
-import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal, ArrowUpDown, Pencil } from "lucide-react";
+import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal, ArrowUpDown, Pencil, Copy, Check } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -168,6 +168,7 @@ export default function PlanListPage() {
   const [renameTitle, setRenameTitle] = useState("");
   const [flashRenamedId, setFlashRenamedId] = useState<number | null>(null);
   const [flashRenameErrorId, setFlashRenameErrorId] = useState<number | null>(null);
+  const [copyLinkToast, setCopyLinkToast] = useState(false);
 
   const [groupTypeFilter, toggleGroupType] = useToggleSet(
     new Set<string>(urlParams.getAll("groupType").flatMap(v => v ? v.split(",") : []))
@@ -221,6 +222,16 @@ export default function PlanListPage() {
     [...needsFilter].forEach(v => toggleNeeds(v));
     [...modeFilter].forEach(v => toggleMode(v));
     [...travelersFilter].forEach(v => toggleTravelers(v));
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopyLinkToast(true);
+      setTimeout(() => setCopyLinkToast(false), 2000);
+    } catch {
+      // clipboard API unavailable — silent fail
+    }
   };
 
   // Core per-plan filter predicate (omit whichever group is being counted)
@@ -367,6 +378,13 @@ export default function PlanListPage() {
 
   return (
     <Layout>
+      {/* Copy-link toast */}
+      {copyLinkToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-foreground text-background text-xs font-medium shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <Check className="w-3.5 h-3.5 text-green-400" />
+          链接已复制
+        </div>
+      )}
       <div className="space-y-5 animate-in fade-in duration-500">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -484,12 +502,24 @@ export default function PlanListPage() {
               counts={travelerCounts}
             />
             {activeFilterCount > 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="text-[11px] text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2"
-              >
-                清除全部筛选
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={clearAllFilters}
+                  className="text-[11px] text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2"
+                >
+                  清除全部筛选
+                </button>
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors font-medium"
+                >
+                  {copyLinkToast
+                    ? <Check className="w-3 h-3" />
+                    : <Copy className="w-3 h-3" />
+                  }
+                  复制链接
+                </button>
+              </div>
             )}
           </div>
         )}
