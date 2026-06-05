@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sentry, sentryEnabled } from "@/lib/sentry";
 import { ThemeProvider } from "next-themes";
 import { HelmetProvider } from "react-helmet-async";
@@ -104,6 +104,52 @@ const clerkAppearance = {
     main: "",
   },
 };
+
+// ── API health banner ──────────────────────────────────────────────────────
+// Shows a top bar when the API server is unreachable (e.g. during a redeploy).
+// Checks every 30 s and on tab-focus; auto-hides when service recovers.
+function ApiStatusBanner() {
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch(`${basePath}/api/healthz`, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(8000),
+        });
+        setOffline(!res.ok);
+      } catch {
+        setOffline(true);
+      }
+    };
+
+    const interval = setInterval(check, 30_000);
+    const onVisible = () => { if (document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
+  if (!offline) return null;
+
+  return (
+    <div className="fixed top-0 inset-x-0 z-[300] flex items-center justify-center gap-2 bg-amber-500 text-white text-sm py-2 px-4 shadow-md">
+      <svg className="w-4 h-4 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round"/>
+      </svg>
+      <span>网站正在更新升级，功能暂时不可用</span>
+      <button
+        onClick={() => window.location.reload()}
+        className="ml-1 underline underline-offset-2 font-semibold whitespace-nowrap hover:opacity-80 transition-opacity"
+      >
+        刷新重试
+      </button>
+    </div>
+  );
+}
 
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
@@ -274,6 +320,7 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          <ApiStatusBanner />
           <ClerkQueryClientCacheInvalidator />
           <AppRouter />
           <Onboarding />
