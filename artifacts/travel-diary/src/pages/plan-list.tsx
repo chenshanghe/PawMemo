@@ -37,11 +37,11 @@ const GROUP_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
 type SortKey = "createdAt" | "lastViewedAt" | "leastViewed";
 type GroupTypeKey = "solo" | "couple" | "family" | "friends";
 
-const GROUP_TYPE_CHIPS: { key: GroupTypeKey; label: string; activeCls: string; inactiveCls: string }[] = [
-  { key: "solo",    label: "🧍 独自",   activeCls: "bg-violet-500 text-white border-violet-500 shadow-sm", inactiveCls: "bg-violet-50 text-violet-600 border-violet-200 hover:border-violet-400" },
-  { key: "couple",  label: "💑 情侣",   activeCls: "bg-pink-500 text-white border-pink-500 shadow-sm",   inactiveCls: "bg-pink-50 text-pink-600 border-pink-200 hover:border-pink-400" },
-  { key: "family",  label: "👨‍👩‍👧 家庭", activeCls: "bg-amber-500 text-white border-amber-500 shadow-sm", inactiveCls: "bg-amber-50 text-amber-600 border-amber-200 hover:border-amber-400" },
-  { key: "friends", label: "👫 朋友",   activeCls: "bg-teal-500 text-white border-teal-500 shadow-sm",   inactiveCls: "bg-teal-50 text-teal-600 border-teal-200 hover:border-teal-400" },
+const GROUP_TYPE_CHIPS: { key: GroupTypeKey; label: string; shortLabel: string; activeCls: string; inactiveCls: string }[] = [
+  { key: "solo",    label: "🧍 独自",   shortLabel: "独自",  activeCls: "bg-violet-500 text-white border-violet-500 shadow-sm", inactiveCls: "bg-violet-50 text-violet-600 border-violet-200 hover:border-violet-400" },
+  { key: "couple",  label: "💑 情侣",   shortLabel: "情侣",  activeCls: "bg-pink-500 text-white border-pink-500 shadow-sm",   inactiveCls: "bg-pink-50 text-pink-600 border-pink-200 hover:border-pink-400" },
+  { key: "family",  label: "👨‍👩‍👧 家庭", shortLabel: "家庭",  activeCls: "bg-amber-500 text-white border-amber-500 shadow-sm", inactiveCls: "bg-amber-50 text-amber-600 border-amber-200 hover:border-amber-400" },
+  { key: "friends", label: "👫 朋友",   shortLabel: "朋友",  activeCls: "bg-teal-500 text-white border-teal-500 shadow-sm",   inactiveCls: "bg-teal-50 text-teal-600 border-teal-200 hover:border-teal-400" },
 ];
 
 const BUDGET_OPTIONS = ["经济实惠", "舒适中档", "豪华品质"];
@@ -506,6 +506,11 @@ export default function PlanListPage() {
                 );
               })}
             </div>
+            {groupTypeFilter.size >= 2 && (
+              <p className="text-[10px] text-muted-foreground/70 pl-1 -mt-1">
+                {GROUP_TYPE_CHIPS.filter(c => groupTypeFilter.has(c.key)).map(c => c.shortLabel).join(" · ")} 均会显示
+              </p>
+            )}
             <ChipGroup
               label="预算"
               options={BUDGET_OPTIONS}
