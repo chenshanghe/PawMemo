@@ -194,7 +194,12 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
       // Determine caller identity once.
       const auth = getAuth(req);
       const callerId = (auth?.sessionClaims?.userId as string) || auth?.userId || null;
-      const shareToken = typeof req.query.shareToken === "string" ? req.query.shareToken : null;
+      const rawShareToken = req.query.shareToken;
+      const shareToken = typeof rawShareToken === "string"
+        ? rawShareToken
+        : Array.isArray(rawShareToken) && typeof rawShareToken[0] === "string"
+          ? rawShareToken[0]
+          : null;
 
       // The caller must satisfy the access policy for EVERY owning entry
       // (most-restrictive wins). Policy per entry:

@@ -7,6 +7,7 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 function withToken(url: string | null | undefined, token: string): string {
   if (!url) return "";
   if (!url.startsWith("/api/storage/objects/") && !url.includes("/api/storage/objects/")) return url;
+  if (url.includes("shareToken=")) return url;
   const sep = url.includes("?") ? "&" : "?";
   return `${url}${sep}shareToken=${encodeURIComponent(token)}`;
 }
