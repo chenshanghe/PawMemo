@@ -419,15 +419,25 @@ export default function PlanPage() {
     if (clearedTimer.current) clearTimeout(clearedTimer.current);
     clearedTimer.current = setTimeout(() => setClearedPrefs(false), 2000);
     if (isSignedIn) {
-      apiFetch("/api/prefs", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" }),
-      }).catch(() => {
-        setClearPrefsError(true);
-        if (clearPrefsErrorTimer.current) clearTimeout(clearPrefsErrorTimer.current);
-        clearPrefsErrorTimer.current = setTimeout(() => setClearPrefsError(false), 4000);
-      });
+      const payload = JSON.stringify({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" });
+      const attemptClear = (retriesLeft: number) => {
+        apiFetch("/api/prefs", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+        }).then(r => {
+          if (!r.ok) throw new Error("failed");
+        }).catch(() => {
+          if (retriesLeft > 0) {
+            setTimeout(() => attemptClear(retriesLeft - 1), 1500);
+          } else {
+            setClearPrefsError(true);
+            if (clearPrefsErrorTimer.current) clearTimeout(clearPrefsErrorTimer.current);
+            clearPrefsErrorTimer.current = setTimeout(() => setClearPrefsError(false), 4000);
+          }
+        });
+      };
+      attemptClear(2);
     }
   };
 
