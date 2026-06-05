@@ -194,7 +194,7 @@ export default function Pricing() {
                     <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
                       当前套餐 ✓
                     </div>
-                  ) : isBelowCurrent ? (
+                  ) : isBelowCurrent && plan.tier !== "free" ? (
                     <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
                       已超出此套餐
                     </div>
