@@ -30,17 +30,27 @@ function parseBatchUploadBody(body: unknown):
   return { files: out };
 }
 
-// ── ACL result cache ─────────────────────────────────────────────────────────
-// Caches the ACL decision (allow / deny / not_found) for each
-// (storedUrl, callerId, shareToken) triple to avoid 2+ DB queries per image
-// request on hot pages. TTL 60 s — permission changes propagate within one
-// minute. Only "allow" and "not_found" are cached; "deny" is also cached so
-// repeated probing doesn't hammer the DB. Cache is process-local (single
-// instance), which is fine for the current single-server deployment.
+// ── ACL result cache + in-flight coalescing ───────────────────────────────────
+// Two-layer structure that together guarantee at most ONE DB round-trip per
+// (storedUrl, callerId, shareToken) key within a 60-second window:
+//
+//  1. aclCache   — TTL value cache.  Hit → return immediately, zero DB work.
+//  2. aclInflight — in-flight Promise map.  When multiple requests arrive
+//     concurrently and all miss the TTL cache, only the FIRST one runs the DB
+//     queries; the rest await the same Promise.  The in-flight entry is
+//     removed in a `finally` block so a failed DB call never blocks future
+//     requests.
+//
+// Together these properties hold:
+//   • Serial requests: second request hits TTL cache (zero DB work).
+//   • Burst of N concurrent requests: all N await one shared Promise (one DB
+//     round-trip), then subsequent requests hit the populated TTL cache.
+//   • Permission changes propagate within 60 s (TTL expiry).
 const ACL_CACHE_TTL_MS = 60_000;
 type AclDecision = "allow" | "deny" | "not_found";
 
-const aclCache = new Map<string, { decision: AclDecision; expiresAt: number }>();
+const aclCache    = new Map<string, { decision: AclDecision; expiresAt: number }>();
+const aclInflight = new Map<string, Promise<AclDecision>>();
 
 function aclCacheKey(
   storedUrl: string,
@@ -213,84 +223,103 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     }
 
     if (cached !== "allow") {
-      // Cache miss — run the full ACL check.
-
-      // Collect ALL entries that reference this object URL (photos table + cover
-      // image column). Using all matching rows rather than limit(1) prevents a
-      // policy-bypass if the same URL is somehow stored on multiple entries.
-      const [photoRows, coverRows] = await Promise.all([
-        db.select({ entryId: photosTable.entryId })
-          .from(photosTable)
-          .where(eq(photosTable.url, storedUrl)),
-        db.select({ id: diaryEntriesTable.id })
-          .from(diaryEntriesTable)
-          .where(eq(diaryEntriesTable.coverImage, storedUrl)),
-      ]);
-
-      const entryIds = Array.from(new Set([
-        ...photoRows.map(r => r.entryId),
-        ...coverRows.map(r => r.id),
-      ]));
-
-      if (entryIds.length === 0) {
-        // Object not in any diary entry — check if it is a user profile avatar.
-        // Avatars are public (shown on author cards, square feed, etc.) so any
-        // match here serves the file without further auth checks.
-        const [avatarRow] = await db
-          .select({ userId: userProfilesTable.userId })
-          .from(userProfilesTable)
-          .where(eq(userProfilesTable.avatar, storedUrl))
-          .limit(1);
-
-        if (!avatarRow) {
-          // Not referenced by any known entity — deny (fail closed).
-          aclCacheSet(cacheKey, "not_found");
-          res.status(404).json({ error: "Object not found" });
-          return;
-        }
-        // Avatar found — allow unconditionally.
-        aclCacheSet(cacheKey, "allow");
+      // Cache miss — resolve the ACL decision, coalescing concurrent requests.
+      // If another request is already running the DB queries for this key, await
+      // the same Promise instead of launching a duplicate. The in-flight entry
+      // is always removed in `finally` so a rejected Promise never sticks.
+      let decision: AclDecision;
+      const existing = aclInflight.get(cacheKey);
+      if (existing) {
+        decision = await existing;
       } else {
-        // Object belongs to one or more diary entries: enforce diary visibility.
-        const owningEntries = await db
-          .select({ id: diaryEntriesTable.id, visibility: diaryEntriesTable.visibility, userId: diaryEntriesTable.userId })
-          .from(diaryEntriesTable)
-          .where(inArray(diaryEntriesTable.id, entryIds));
+        const promise = (async (): Promise<AclDecision> => {
+          // Collect ALL entries that reference this object URL (photos table +
+          // cover image column). Using all matching rows rather than limit(1)
+          // prevents a policy-bypass if the same URL is on multiple entries.
+          const [photoRows, coverRows] = await Promise.all([
+            db.select({ entryId: photosTable.entryId })
+              .from(photosTable)
+              .where(eq(photosTable.url, storedUrl)),
+            db.select({ id: diaryEntriesTable.id })
+              .from(diaryEntriesTable)
+              .where(eq(diaryEntriesTable.coverImage, storedUrl)),
+          ]);
 
-        if (owningEntries.length === 0) {
-          aclCacheSet(cacheKey, "not_found");
-          res.status(404).json({ error: "Object not found" });
-          return;
-        }
+          const entryIds = Array.from(new Set([
+            ...photoRows.map(r => r.entryId),
+            ...coverRows.map(r => r.id),
+          ]));
 
-        // The caller must satisfy the access policy for EVERY owning entry
-        // (most-restrictive wins). Policy per entry:
-        //   owner         → allowed
-        //   public        → allowed
-        //   share         → allowed (entry is intentionally shared; image URLs
-        //                   are opaque UUIDs and the share token gates the page)
-        //   share + valid token → also allowed (legacy / extra check)
-        //   otherwise     → 403
-        for (const owningEntry of owningEntries) {
-          if (callerId && callerId === owningEntry.userId) continue;
-          if (owningEntry.visibility === "public") continue;
-          if (owningEntry.visibility === "share") continue;
-          if (shareToken) {
-            const [shareRecord] = await db
-              .select({ id: entrySharesTable.id })
-              .from(entrySharesTable)
-              .where(and(
-                eq(entrySharesTable.token, shareToken),
-                eq(entrySharesTable.entryId, owningEntry.id),
-              ));
-            if (shareRecord) continue;
+          if (entryIds.length === 0) {
+            // Not in any diary entry — check if it is a user profile avatar.
+            // Avatars are public (shown on author cards, square feed, etc.).
+            const [avatarRow] = await db
+              .select({ userId: userProfilesTable.userId })
+              .from(userProfilesTable)
+              .where(eq(userProfilesTable.avatar, storedUrl))
+              .limit(1);
+
+            const d: AclDecision = avatarRow ? "allow" : "not_found";
+            aclCacheSet(cacheKey, d);
+            return d;
           }
-          aclCacheSet(cacheKey, "deny");
-          res.status(403).json({ error: "Forbidden" });
-          return;
-        }
 
-        aclCacheSet(cacheKey, "allow");
+          // Object belongs to one or more diary entries: enforce visibility.
+          const owningEntries = await db
+            .select({ id: diaryEntriesTable.id, visibility: diaryEntriesTable.visibility, userId: diaryEntriesTable.userId })
+            .from(diaryEntriesTable)
+            .where(inArray(diaryEntriesTable.id, entryIds));
+
+          if (owningEntries.length === 0) {
+            aclCacheSet(cacheKey, "not_found");
+            return "not_found";
+          }
+
+          // The caller must satisfy the access policy for EVERY owning entry
+          // (most-restrictive wins). Policy per entry:
+          //   owner         → allowed
+          //   public        → allowed
+          //   share         → allowed (opaque UUID image URLs; share token gates
+          //                   the page itself)
+          //   share + valid token → also allowed (legacy / extra check)
+          //   otherwise     → deny
+          for (const owningEntry of owningEntries) {
+            if (callerId && callerId === owningEntry.userId) continue;
+            if (owningEntry.visibility === "public") continue;
+            if (owningEntry.visibility === "share") continue;
+            if (shareToken) {
+              const [shareRecord] = await db
+                .select({ id: entrySharesTable.id })
+                .from(entrySharesTable)
+                .where(and(
+                  eq(entrySharesTable.token, shareToken),
+                  eq(entrySharesTable.entryId, owningEntry.id),
+                ));
+              if (shareRecord) continue;
+            }
+            aclCacheSet(cacheKey, "deny");
+            return "deny";
+          }
+
+          aclCacheSet(cacheKey, "allow");
+          return "allow";
+        })();
+
+        aclInflight.set(cacheKey, promise);
+        try {
+          decision = await promise;
+        } finally {
+          aclInflight.delete(cacheKey);
+        }
+      }
+
+      if (decision === "not_found") {
+        res.status(404).json({ error: "Object not found" });
+        return;
+      }
+      if (decision === "deny") {
+        res.status(403).json({ error: "Forbidden" });
+        return;
       }
     }
 
