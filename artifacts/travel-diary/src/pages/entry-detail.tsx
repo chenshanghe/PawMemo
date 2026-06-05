@@ -118,8 +118,20 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [photoColumns, setPhotoColumnsState] = useState<1 | 2 | 3>(1);
   const { user } = useUser();
   const { getToken } = useAuth();
+
+  useEffect(() => {
+    if (!id) return;
+    const stored = localStorage.getItem(`narrativePhotoLayout:${id}`);
+    if (stored === "2" || stored === "3") setPhotoColumnsState(stored === "2" ? 2 : 3);
+  }, [id]);
+
+  const setPhotoColumns = (col: 1 | 2 | 3) => {
+    setPhotoColumnsState(col);
+    localStorage.setItem(`narrativePhotoLayout:${id}`, String(col));
+  };
 
   const { data: entry, isLoading } = useGetEntry(id, {
     query: { enabled: !!id, queryKey: getGetEntryQueryKey(id) },
@@ -519,14 +531,37 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
 
         {/* Content — narrative entries get 图文混排, regular entries get photo grid + plain text */}
         {(entry as any).entryType === "narrative" && entry.content ? (
-          <NarrativeContent
-            content={entry.content}
-            photos={photos}
-            lightboxIndex={lightboxIndex}
-            onPhotoClick={setLightboxIndex}
-            onDeletePhoto={handleDeletePhoto}
-            entryId={id}
-          />
+          <>
+            {photos.length > 0 && (
+              <div className="flex items-center justify-end gap-1 -mb-2">
+                <span className="text-xs text-muted-foreground mr-1">排版</span>
+                {([1, 2, 3] as const).map((col) => (
+                  <button
+                    key={col}
+                    onClick={() => setPhotoColumns(col)}
+                    className={cn(
+                      "w-7 h-7 rounded-md text-xs font-medium transition-colors",
+                      photoColumns === col
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {col}
+                  </button>
+                ))}
+                <span className="text-xs text-muted-foreground ml-0.5">列</span>
+              </div>
+            )}
+            <NarrativeContent
+              content={entry.content}
+              photos={photos}
+              columns={photoColumns}
+              lightboxIndex={lightboxIndex}
+              onPhotoClick={setLightboxIndex}
+              onDeletePhoto={handleDeletePhoto}
+              entryId={id}
+            />
+          </>
         ) : (
           <>
             {/* Photos grid for regular entries */}
@@ -729,6 +764,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
 interface NarrativeContentProps {
   content: string;
   photos: { id: number; url: string; caption?: string | null }[];
+  columns: 1 | 2 | 3;
   lightboxIndex: number | null;
   onPhotoClick: (idx: number) => void;
   onDeletePhoto: (id: number) => void;
@@ -745,7 +781,7 @@ function parseSectionCaption(caption: string | null): { sectionIdx: number; disp
   return { sectionIdx: -1, displayCaption: caption };
 }
 
-function NarrativeContent({ content, photos, onPhotoClick, onDeletePhoto, entryId }: NarrativeContentProps) {
+function NarrativeContent({ content, photos, columns, onPhotoClick, onDeletePhoto, entryId }: NarrativeContentProps) {
   // Split on [===] section dividers (inserted by AI between source-entry sections)
   const rawSections = content.split(/\n?\[===\]\n?/).map((s) => s.trim()).filter(Boolean);
   const sections = rawSections.length > 1 ? rawSections : [content]; // fallback: single section
@@ -780,31 +816,67 @@ function NarrativeContent({ content, photos, onPhotoClick, onDeletePhoto, entryI
 
   const renderPhotoGrid = (sectionPhotos: typeof photos, baseIdx: number) => {
     if (sectionPhotos.length === 0) return null;
+
+    if (columns === 1) {
+      return (
+        <div className="py-3 space-y-2">
+          {sectionPhotos.map((photo, i) => {
+            const { displayCaption } = parseSectionCaption(photo.caption ?? null);
+            const globalIdx = allPhotosOrdered.findIndex((p) => p.id === photo.id);
+            return (
+              <div key={photo.id} className="group relative rounded-2xl overflow-hidden shadow-md bg-muted/20">
+                <img
+                  src={photo.url}
+                  alt={displayCaption ?? "旅途照片"}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full object-cover max-h-[60vw] cursor-pointer transition-transform duration-500 group-hover:scale-[1.01]"
+                  onClick={() => onPhotoClick(globalIdx >= 0 ? globalIdx : baseIdx + i)}
+                />
+                {displayCaption && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
+                    <p className="text-white text-xs font-serif text-center">{displayCaption}</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => onDeletePhoto(photo.id)}
+                  className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity hover:bg-red-500"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    const gridCls = columns === 2 ? "grid grid-cols-2 gap-1.5" : "grid grid-cols-3 gap-1";
     return (
-      <div className="py-3 space-y-2">
+      <div className={cn("py-3", gridCls)}>
         {sectionPhotos.map((photo, i) => {
           const { displayCaption } = parseSectionCaption(photo.caption ?? null);
           const globalIdx = allPhotosOrdered.findIndex((p) => p.id === photo.id);
           return (
-            <div key={photo.id} className="group relative rounded-2xl overflow-hidden shadow-md bg-muted/20">
+            <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-xl shadow-sm bg-muted/20">
               <img
                 src={photo.url}
                 alt={displayCaption ?? "旅途照片"}
                 loading="lazy"
                 decoding="async"
-                className="w-full object-cover max-h-[500px] cursor-pointer transition-transform duration-500 group-hover:scale-[1.01]"
+                className="w-full h-full object-cover cursor-pointer transition-transform duration-500 group-hover:scale-105"
                 onClick={() => onPhotoClick(globalIdx >= 0 ? globalIdx : baseIdx + i)}
               />
               {displayCaption && (
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
-                  <p className="text-white text-xs font-serif text-center">{displayCaption}</p>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-2">
+                  <p className="text-white text-[10px] font-serif text-center line-clamp-2">{displayCaption}</p>
                 </div>
               )}
               <button
                 onClick={() => onDeletePhoto(photo.id)}
-                className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity hover:bg-red-500"
+                className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity hover:bg-red-500"
               >
-                <X className="w-3 h-3" />
+                <X className="w-2.5 h-2.5" />
               </button>
             </div>
           );
