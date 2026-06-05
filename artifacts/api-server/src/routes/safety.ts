@@ -143,31 +143,53 @@ router.get("/me/export/summary", requireAuth, async (req, res) => {
   });
 });
 
-// GET /api/me/export — export all user data as JSON download
+// GET /api/me/export — export user data as JSON download
+// Query param: include=entries&include=photos&include=favorites&include=profile
+// If no include params given, all sections are included (backwards compat).
 router.get("/me/export", requireAuth, async (req, res) => {
   const userId = (req as any).userId as string;
 
-  const [profile] = await db
-    .select()
-    .from(userProfilesTable)
-    .where(eq(userProfilesTable.userId, userId));
+  const KNOWN_SECTIONS = new Set(["entries", "photos", "favorites", "profile"]);
+  const rawInclude = req.query.include;
+  const requested = rawInclude
+    ? (Array.isArray(rawInclude) ? rawInclude : [rawInclude]).map(String).filter((s) => KNOWN_SECTIONS.has(s))
+    : ["entries", "photos", "favorites", "profile"];
+  const include = new Set(requested.length > 0 ? requested : ["entries", "photos", "favorites", "profile"]);
 
-  const entries = await db
-    .select()
-    .from(diaryEntriesTable)
-    .where(eq(diaryEntriesTable.userId, userId));
+  const [profile] = include.has("profile")
+    ? await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId))
+    : [undefined];
 
-  const favorites = await db
-    .select({ entryId: entryFavoritesTable.entryId })
-    .from(entryFavoritesTable)
-    .where(eq(entryFavoritesTable.userId, userId));
+  const entries = include.has("entries")
+    ? await db.select().from(diaryEntriesTable).where(eq(diaryEntriesTable.userId, userId))
+    : [];
 
-  const exportData = {
+  let photos: { id: string; entryId: string; url: string; caption: string | null; position: number }[] = [];
+  if (include.has("photos")) {
+    // Fetch entry IDs directly so photos work even when "entries" section is not selected
+    const entryIds = include.has("entries")
+      ? entries.map((e) => e.id)
+      : (await db.select({ id: diaryEntriesTable.id }).from(diaryEntriesTable).where(eq(diaryEntriesTable.userId, userId))).map((e) => e.id);
+    if (entryIds.length > 0) {
+      photos = await db.select().from(photosTable).where(inArray(photosTable.entryId, entryIds));
+    }
+  }
+
+  const favorites = include.has("favorites")
+    ? await db
+        .select({ entryId: entryFavoritesTable.entryId })
+        .from(entryFavoritesTable)
+        .where(eq(entryFavoritesTable.userId, userId))
+    : [];
+
+  const exportData: Record<string, unknown> = {
     exportedAt: new Date().toISOString(),
-    profile: profile ?? null,
-    entries,
-    favorites: favorites.map((f) => f.entryId),
+    sections: Array.from(include),
   };
+  if (include.has("profile")) exportData.profile = profile ?? null;
+  if (include.has("entries")) exportData.entries = entries;
+  if (include.has("photos")) exportData.photos = photos;
+  if (include.has("favorites")) exportData.favorites = favorites.map((f) => f.entryId);
 
   const filename = `hongshu-export-${new Date().toISOString().slice(0, 10)}.json`;
   res.setHeader("Content-Type", "application/json; charset=utf-8");

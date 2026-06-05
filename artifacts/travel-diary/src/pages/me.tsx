@@ -214,6 +214,12 @@ export default function Me() {
     accountCreatedAt: string | null;
   } | null>(null);
   const [exportSummaryLoading, setExportSummaryLoading] = useState(false);
+  const [exportSections, setExportSections] = useState({
+    entries: true,
+    photos: true,
+    favorites: true,
+    profile: true,
+  });
 
   const handleSelectAvatar = async (url: string) => {
     setAvatarSaving(true);
@@ -1209,7 +1215,7 @@ export default function Me() {
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-foreground">导出我的数据</h3>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  导出为 JSON 格式，包含所有旅行数据
+                  选择要导出的内容，导出为 JSON 格式
                 </p>
               </div>
               <button
@@ -1220,27 +1226,30 @@ export default function Me() {
               </button>
             </div>
             <div className="rounded-xl border border-border/40 bg-muted/30 divide-y divide-border/30">
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-muted-foreground">旅行日记</span>
-                <span className="text-sm font-semibold text-foreground">{exportSummary.entryCount} 篇</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-muted-foreground">照片</span>
-                <span className="text-sm font-semibold text-foreground">{exportSummary.photoCount} 张</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-muted-foreground">收藏</span>
-                <span className="text-sm font-semibold text-foreground">{exportSummary.favoriteCount} 篇</span>
-              </div>
-              {exportSummary.accountCreatedAt && (
-                <div className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm text-muted-foreground">账号创建时间</span>
-                  <span className="text-sm font-semibold text-foreground">
-                    {format(new Date(exportSummary.accountCreatedAt), "yyyy 年 M 月 d 日", { locale: zhCN })}
-                  </span>
-                </div>
-              )}
+              {([
+                { key: "entries" as const, label: "旅行日记", count: `${exportSummary.entryCount} 篇` },
+                { key: "photos" as const, label: "照片", count: `${exportSummary.photoCount} 张` },
+                { key: "favorites" as const, label: "收藏", count: `${exportSummary.favoriteCount} 篇` },
+                { key: "profile" as const, label: "个人资料", count: exportSummary.accountCreatedAt ? format(new Date(exportSummary.accountCreatedAt), "yyyy 年 M 月注册", { locale: zhCN }) : "已设置" },
+              ] as const).map(({ key, label, count }) => (
+                <button
+                  key={key}
+                  onClick={() => setExportSections(prev => ({ ...prev, [key]: !prev[key] }))}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${exportSections[key] ? "bg-primary border-primary" : "border-border"}`}>
+                      {exportSections[key] && <svg className="w-3 h-3 text-primary-foreground" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" /></svg>}
+                    </div>
+                    <span className={`text-sm transition-colors ${exportSections[key] ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
+                  </div>
+                  <span className={`text-xs transition-colors ${exportSections[key] ? "text-muted-foreground" : "text-muted-foreground/40 line-through"}`}>{count}</span>
+                </button>
+              ))}
             </div>
+            {!Object.values(exportSections).some(Boolean) && (
+              <p className="text-xs text-center text-amber-500">请至少选择一项内容</p>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowExportPreview(false); setExportSummary(null); }}
@@ -1249,11 +1258,13 @@ export default function Me() {
                 取消
               </button>
               <button
-                disabled={exportPending}
+                disabled={exportPending || !Object.values(exportSections).some(Boolean)}
                 onClick={async () => {
                   setExportPending(true);
                   try {
-                    const res = await fetch(`${BASE}/api/me/export`, { credentials: "include" });
+                    const params = new URLSearchParams();
+                    Object.entries(exportSections).forEach(([k, v]) => { if (v) params.append("include", k); });
+                    const res = await fetch(`${BASE}/api/me/export?${params.toString()}`, { credentials: "include" });
                     if (res.ok) {
                       const blob = await res.blob();
                       const url = URL.createObjectURL(blob);
