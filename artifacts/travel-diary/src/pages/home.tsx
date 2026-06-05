@@ -9,11 +9,11 @@ import { zhCN } from "date-fns/locale";
 
 function getHeroText() {
   const h = new Date().getHours();
-  if (h < 6) return { line1: "深夜的星光", line2: "为旅人指路" };
-  if (h < 11) return { line1: "清晨的旅途", line2: "正待出发" };
-  if (h < 14) return { line1: "午后的风景", line2: "值得被记录" };
-  if (h < 18) return { line1: "傍晚的回忆", line2: "正在沉淀" };
-  return { line1: "今晚的回忆", line2: "正在发酵" };
+  if (h < 6) return "深夜的星光，为旅人指路";
+  if (h < 11) return "清晨的旅途，正待出发";
+  if (h < 14) return "午后的风景，值得被记录";
+  if (h < 18) return "傍晚的回忆，正在沉淀";
+  return "今晚的回忆，正在发酵";
 }
 
 export default function Home() {
@@ -43,7 +43,7 @@ export default function Home() {
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-[2rem] leading-tight font-serif font-bold text-foreground">
-                {hero.line1}<br />{hero.line2}
+                {hero}
               </h2>
             </div>
             {/* Decorative stamp */}
