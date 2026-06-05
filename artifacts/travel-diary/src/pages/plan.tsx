@@ -279,6 +279,8 @@ export default function PlanPage() {
   const syncedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [clearedPrefs, setClearedPrefs] = useState(false);
   const clearedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [clearPrefsError, setClearPrefsError] = useState(false);
+  const clearPrefsErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClearPrefs, setConfirmClearPrefs] = useState(false);
 
   useEffect(() => { setSelectedPoi(null); }, [activeDay]);
@@ -380,7 +382,11 @@ export default function PlanPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ travelMode: "", budget: "", specialNeeds: [], fromCity: "", travelStyle: "", travelers: 2, groupType: "" }),
-      }).catch(() => {});
+      }).catch(() => {
+        setClearPrefsError(true);
+        if (clearPrefsErrorTimer.current) clearTimeout(clearPrefsErrorTimer.current);
+        clearPrefsErrorTimer.current = setTimeout(() => setClearPrefsError(false), 4000);
+      });
     }
   };
 
@@ -658,6 +664,12 @@ export default function PlanPage() {
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 border border-green-200 text-xs text-green-700 animate-in fade-in duration-300">
                   <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 4L6.5 11 3 7.5"/></svg>
                   偏好已清除
+                </div>
+              )}
+              {clearPrefsError && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 animate-in fade-in duration-300">
+                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11v.5"/></svg>
+                  同步失败，请重试
                 </div>
               )}
               <div>
