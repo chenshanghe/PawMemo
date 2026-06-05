@@ -61,6 +61,22 @@ function budgetLabel(budget: string | null) {
   return budget.split("（")[0];
 }
 
+function relativeTime(dateStr: string): string {
+  const now = new Date();
+  const then = new Date(dateStr);
+  const diffMs = now.getTime() - then.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) return "今天";
+  if (diffDays === 1) return "昨天";
+  if (diffDays < 7) return `${diffDays} 天前`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 5) return `${diffWeeks} 周前`;
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths < 12) return `${diffMonths} 个月前`;
+  const diffYears = Math.floor(diffDays / 365);
+  return `${diffYears} 年前`;
+}
+
 function ChipGroup({
   label,
   options,
@@ -586,6 +602,11 @@ export default function PlanListPage() {
                             <Users className="w-3 h-3" />
                             {plan.travelers} 人
                           </span>
+                          {plan.lastViewedAt && (
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                              上次查看：{relativeTime(plan.lastViewedAt)}
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex flex-wrap gap-1.5 mt-2">
