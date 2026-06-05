@@ -186,6 +186,7 @@ export default function Me() {
   const [prefsDebouncing, setPrefsDebouncing] = useState(false);
   const [prefsSaving, setPrefsSaving] = useState(false);
   const [prefsSaved, setPrefsSaved] = useState(false);
+  const [prefsCleared, setPrefsCleared] = useState(false);
   const [prefsSaveError, setPrefsSaveError] = useState<string | null>(null);
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<UserPrefs | null>(null);
@@ -312,6 +313,7 @@ export default function Me() {
     setPrefsDebouncing(false);
     setPrefsSaving(true);
     setPrefsSaved(false);
+    setPrefsCleared(false);
     setPrefsSaveError(null);
     try {
       const res = await fetch(`${BASE}/api/prefs`, {
@@ -363,7 +365,8 @@ export default function Me() {
     }).then((res) => {
       if (!res.ok) throw new Error("save_failed");
       setPrefsSaved(true);
-      setTimeout(() => setPrefsSaved(false), 2500);
+      setPrefsCleared(true);
+      setTimeout(() => { setPrefsSaved(false); setPrefsCleared(false); }, 2500);
     }).catch(() => {
       latestPrefsRef.current = snapshot;
       setPrefs(snapshot);
@@ -932,7 +935,7 @@ export default function Me() {
                 )}
                 {prefsSaving && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
                 {prefsSaved && !prefsSaving && !prefsDebouncing && (
-                  <span className="text-[11px] text-green-600 font-medium">已保存 ✓</span>
+                  <span className="text-[11px] text-green-600 font-medium">{prefsCleared ? "已清除 ✓" : "已保存 ✓"}</span>
                 )}
                 {prefsSaveError && !prefsSaving && (
                   <span className="text-[11px] text-destructive font-medium">{prefsSaveError}</span>
