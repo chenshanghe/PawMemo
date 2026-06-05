@@ -638,7 +638,13 @@ export default function PlanListPage() {
                                 >
                                   {plan.title}
                                 </h3>
-                                <Pencil className="w-3 h-3 opacity-0 group-hover/title:opacity-40 transition-opacity shrink-0 text-muted-foreground" />
+                                {flashRenamedId === plan.id ? (
+                                  <span className="text-[10px] font-medium text-green-600 bg-green-50 border border-green-200 rounded px-1 py-0.5 leading-none shrink-0 animate-in fade-in duration-150">
+                                    已保存
+                                  </span>
+                                ) : (
+                                  <Pencil className="w-3 h-3 opacity-0 group-hover/title:opacity-40 transition-opacity shrink-0 text-muted-foreground" />
+                                )}
                               </>
                             )}
                           </div>

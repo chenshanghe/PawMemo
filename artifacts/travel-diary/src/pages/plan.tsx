@@ -297,6 +297,7 @@ export default function PlanPage() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
   const editTitleRef = useRef<HTMLInputElement>(null);
+  const [flashRenamedTitle, setFlashRenamedTitle] = useState(false);
   const [syncedToAccount, setSyncedToAccount] = useState(false);
   const syncedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [clearedPrefs, setClearedPrefs] = useState(false);
@@ -612,10 +613,14 @@ export default function PlanPage() {
                       ref={editTitleRef}
                       value={editTitleValue}
                       onChange={e => setEditTitleValue(e.target.value)}
-                      onBlur={() => {
+                      onBlur={async () => {
                         const trimmed = editTitleValue.trim();
                         if (trimmed && trimmed !== result.title && savedId !== null) {
-                          handleRenameSaved(savedId, trimmed);
+                          const ok = await handleRenameSaved(savedId, trimmed);
+                          if (ok) {
+                            setFlashRenamedTitle(true);
+                            setTimeout(() => setFlashRenamedTitle(false), 1500);
+                          }
                         }
                         setIsEditingTitle(false);
                       }}
@@ -634,7 +639,12 @@ export default function PlanPage() {
                 ) : (
                   <span className="inline-flex items-center gap-1 group">
                     <span>{result.title} · {result.days.length} 天</span>
-                    {savedId !== null && (
+                    {flashRenamedTitle && (
+                      <span className="text-[10px] font-medium text-green-600 bg-green-50 border border-green-200 rounded px-1 py-0.5 leading-none animate-in fade-in duration-150">
+                        已保存
+                      </span>
+                    )}
+                    {savedId !== null && !flashRenamedTitle && (
                       <button
                         onClick={() => {
                           setEditTitleValue(result.title);
