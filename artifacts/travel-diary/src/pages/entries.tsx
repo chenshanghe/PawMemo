@@ -66,6 +66,12 @@ export default function Entries() {
 
   const hasFilters = search || selectedTag || destination || dateFrom || dateTo;
 
+  // In select mode we show notes (随记) so the user can pick them to compose.
+  // In normal mode we show only synthesised narratives (游记).
+  const noteEntries      = entries?.filter((e: any) => !e.entryType || e.entryType === "note");
+  const narrativeEntries = entries?.filter((e: any) => e.entryType === "narrative");
+  const displayEntries   = selectMode ? noteEntries : narrativeEntries;
+
   const travelDays = (entry: any) => {
     if (!entry.endDate) return 1;
     return Math.max(1, Math.ceil((new Date(entry.endDate).getTime() - new Date(entry.startDate).getTime()) / 86400000) + 1);
@@ -86,10 +92,6 @@ export default function Entries() {
     navigate(`/entries/compose?ids=${[...selected].join(",")}`);
   };
 
-  // Only show 随记 (note) entries in this view
-  const noteEntries = entries?.filter((e: any) => !e.entryType || e.entryType === "note");
-  const narrativeEntries = entries?.filter((e: any) => e.entryType === "narrative");
-
   return (
     <Layout>
       <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -99,7 +101,7 @@ export default function Entries() {
           <div>
             <h2 className="text-2xl font-serif font-bold text-foreground">我的旅记</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {isLoading ? "加载中..." : `${noteEntries?.length ?? 0} 篇随记 · ${narrativeEntries?.length ?? 0} 篇游记`}
+              {isLoading ? "加载中..." : `${narrativeEntries?.length ?? 0} 篇游记 · ${noteEntries?.length ?? 0} 篇随记`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -157,7 +159,7 @@ export default function Entries() {
         {selectMode && (
           <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary flex items-center gap-2">
             <CheckSquare className="w-4 h-4 shrink-0" />
-            选择 2 篇或以上随记，AI 将它们合成为一篇完整游记
+            正在显示你的随记——选择 2 篇或以上，AI 将它们合成为一篇完整游记
           </div>
         )}
 
@@ -218,46 +220,6 @@ export default function Entries() {
           </div>
         )}
 
-        {/* ── 游记 section ── */}
-        {!hasFilters && narrativeEntries && narrativeEntries.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">游记</h3>
-              <span className="text-xs text-muted-foreground">AI 合成的完整旅行文章</span>
-            </div>
-            <div className="space-y-3">
-              {narrativeEntries.map((entry: any) => (
-                <Link key={entry.id} href={`/entries/${entry.id}`}>
-                  <div className="group bg-gradient-to-r from-primary/5 to-amber-50/40 rounded-2xl border border-primary/20 p-4 hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-                        <BookOpen className="w-4 h-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-serif font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">{entry.title}</h4>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                          <MapPin className="w-3 h-3" /><span>{entry.destination}</span>
-                          <span>·</span>
-                          <span>{format(new Date(entry.startDate), "yyyy.MM.dd")}</span>
-                          {entry.sourceEntryIds?.length && <span className="text-primary/70">由 {entry.sourceEntryIds.length} 篇随记合成</span>}
-                        </div>
-                        {entry.content && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">"{entry.content.slice(0, 80)}…"</p>}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-            <div className="border-t border-border/30 pt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <h3 className="text-sm font-semibold text-foreground">随记</h3>
-                <span className="text-xs text-muted-foreground">日常旅行片段</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* ── Calendar View ── */}
         {view === "calendar" && !isLoading && (
           <CalendarView entries={entries ?? []} />
@@ -266,18 +228,36 @@ export default function Entries() {
         {/* ── Entries List ── */}
         {view === "list" && isLoading ? (
           <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 rounded-2xl bg-muted/50" />)}</div>
-        ) : view === "list" && noteEntries?.length === 0 ? (
+        ) : view === "list" && displayEntries?.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border/50 rounded-2xl bg-card/40">
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <ImageIcon className="w-7 h-7 text-primary/60" />
+              {selectMode
+                ? <Sparkles className="w-7 h-7 text-primary/60" />
+                : <BookOpen className="w-7 h-7 text-primary/60" />}
             </div>
-            <h3 className="text-lg font-serif font-bold mb-1.5 text-foreground">{hasFilters ? "没有找到匹配的日记" : "还没有任何日记"}</h3>
-            <p className="text-sm text-muted-foreground mb-5 max-w-xs">{hasFilters ? "试试调整搜索条件" : "每一段旅程都值得被记录"}</p>
-            {!hasFilters && <Link href="/entries/new"><Button className="rounded-xl shadow-sm">写下第一篇日记</Button></Link>}
+            <h3 className="text-lg font-serif font-bold mb-1.5 text-foreground">
+              {selectMode
+                ? "还没有随记"
+                : hasFilters ? "没有找到匹配的游记" : "还没有合成游记"}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-5 max-w-xs">
+              {selectMode
+                ? "先写几篇随记，再用 AI 合成为一篇完整游记"
+                : hasFilters ? "试试调整搜索条件" : "选几篇随记，让 AI 帮你合成一篇完整的游记"}
+            </p>
+            {!selectMode && !hasFilters && (
+              <button
+                onClick={() => setSelectMode(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                <Sparkles className="w-4 h-4" />
+                合成随记成游记
+              </button>
+            )}
           </div>
         ) : view === "list" ? (
           <div className="space-y-4">
-            {noteEntries?.map((entry: any) => {
+            {displayEntries?.map((entry: any) => {
               const isSelected = selected.has(entry.id);
               return (
                 <div
