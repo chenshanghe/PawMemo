@@ -140,7 +140,14 @@ export default function PlanListPage() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortKey>("createdAt");
+  const [sortBy, setSortBy] = useState<SortKey>(() => {
+    try {
+      const stored = localStorage.getItem("planListSortBy");
+      return stored === "lastViewedAt" ? "lastViewedAt" : "createdAt";
+    } catch {
+      return "createdAt";
+    }
+  });
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
 
@@ -176,6 +183,10 @@ export default function PlanListPage() {
     const qs = params.toString();
     setLocation(`/plan/list${qs ? `?${qs}` : ""}`, { replace: true } as never);
   }, [groupTypeFilter, budgetFilter, needsFilter, modeFilter, travelersFilter]); // eslint-disable-line
+
+  useEffect(() => {
+    try { localStorage.setItem("planListSortBy", sortBy); } catch { /* ignore */ }
+  }, [sortBy]);
 
   useEffect(() => {
     apiFetch("/api/plan/saved")
