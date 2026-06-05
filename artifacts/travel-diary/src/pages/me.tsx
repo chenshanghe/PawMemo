@@ -1261,7 +1261,7 @@ export default function Me() {
                       URL.revokeObjectURL(url);
                       setShowExportPreview(false);
                       setExportSummary(null);
-                      toast({ title: "导出成功", description: "旅行日记数据已下载到本地" });
+                      toast({ title: "数据已导出", description: "旅行日记数据已下载到本地" });
                     } else {
                       toast({ title: "导出失败", description: "服务器错误，请稍后再试", variant: "destructive" });
                     }
