@@ -282,6 +282,25 @@ export default function PlanPage() {
   const [clearPrefsError, setClearPrefsError] = useState(false);
   const clearPrefsErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClearPrefs, setConfirmClearPrefs] = useState(false);
+  const confirmClearPrefsRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!confirmClearPrefs) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (confirmClearPrefsRef.current && !confirmClearPrefsRef.current.contains(e.target as Node)) {
+        setConfirmClearPrefs(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConfirmClearPrefs(false);
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [confirmClearPrefs]);
 
   useEffect(() => { setSelectedPoi(null); }, [activeDay]);
 
@@ -621,7 +640,7 @@ export default function PlanPage() {
                   <div className="flex items-center justify-between">
                     <span>{isSignedIn ? "☁️ 已从账号同步偏好设置" : "✅ 已自动填入上次的偏好设置"}</span>
                     {confirmClearPrefs ? (
-                      <span className="flex items-center gap-1.5 shrink-0 ml-3">
+                      <span ref={confirmClearPrefsRef} className="flex items-center gap-1.5 shrink-0 ml-3">
                         <span className="text-muted-foreground">确认清除？</span>
                         <button
                           onClick={() => { setConfirmClearPrefs(false); handleClearPrefs(); }}
