@@ -183,6 +183,8 @@ function SavedPlanCard({ plan, onLoad, onDelete, onRename }: { plan: SavedPlan; 
   const [editTitle, setEditTitle] = React.useState(plan.title);
   const [flashOk, setFlashOk] = React.useState(false);
   const [flashErr, setFlashErr] = React.useState(false);
+  const [fadingOk, setFadingOk] = React.useState(false);
+  const [fadingErr, setFadingErr] = React.useState(false);
   const flashTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => { setEditTitle(plan.title); }, [plan.title]);
@@ -196,10 +198,10 @@ function SavedPlanCard({ plan, onLoad, onDelete, onRename }: { plan: SavedPlan; 
     if (flashTimer.current) clearTimeout(flashTimer.current);
     if (ok) {
       setFlashOk(true);
-      flashTimer.current = setTimeout(() => setFlashOk(false), 1000);
+      flashTimer.current = setTimeout(() => { setFlashOk(false); setFadingOk(true); flashTimer.current = setTimeout(() => setFadingOk(false), 300); }, 700);
     } else {
       setFlashErr(true);
-      flashTimer.current = setTimeout(() => setFlashErr(false), 1500);
+      flashTimer.current = setTimeout(() => { setFlashErr(false); setFadingErr(true); flashTimer.current = setTimeout(() => setFadingErr(false), 300); }, 1200);
     }
   };
 
@@ -224,12 +226,16 @@ function SavedPlanCard({ plan, onLoad, onDelete, onRename }: { plan: SavedPlan; 
           ) : (
             <>
               <p
-                className={`text-sm font-semibold truncate cursor-text transition-all rounded px-0.5 ${
+                className={`text-sm font-semibold truncate cursor-text rounded px-0.5 ${
                   flashOk
-                    ? "text-green-700 bg-green-50 ring-1 ring-green-300"
-                    : flashErr
-                      ? "text-red-600 bg-red-50 ring-1 ring-red-300"
-                      : "text-foreground group-hover:text-primary"
+                    ? "rename-flash-ok"
+                    : fadingOk
+                      ? "rename-flash-ok-fade"
+                      : flashErr
+                        ? "rename-flash-err"
+                        : fadingErr
+                          ? "rename-flash-err-fade"
+                          : "text-foreground group-hover:text-primary transition-colors"
                 }`}
                 title="点击重命名"
                 onClick={e => { e.stopPropagation(); setEditing(true); }}

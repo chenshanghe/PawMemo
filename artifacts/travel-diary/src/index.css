@@ -210,6 +210,32 @@
   .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 }
 
+/* Rename flash: steady highlight + smooth fade-out */
+.rename-flash-ok {
+  background-color: rgb(240 253 244);
+  color: rgb(21 128 61);
+  box-shadow: 0 0 0 1px rgb(134 239 172);
+}
+.rename-flash-err {
+  background-color: rgb(254 242 242);
+  color: rgb(220 38 38);
+  box-shadow: 0 0 0 1px rgb(252 165 165);
+}
+.rename-flash-ok-fade {
+  animation: rename-flash-fade-ok 300ms ease-out forwards;
+}
+.rename-flash-err-fade {
+  animation: rename-flash-fade-err 300ms ease-out forwards;
+}
+@keyframes rename-flash-fade-ok {
+  from { background-color: rgb(240 253 244); color: rgb(21 128 61); box-shadow: 0 0 0 1px rgb(134 239 172); }
+  to   { background-color: transparent; color: inherit; box-shadow: none; }
+}
+@keyframes rename-flash-fade-err {
+  from { background-color: rgb(254 242 242); color: rgb(220 38 38); box-shadow: 0 0 0 1px rgb(252 165 165); }
+  to   { background-color: transparent; color: inherit; box-shadow: none; }
+}
+
 /* Hide Replit platform-injected feedback / agent-inbox widget */
 replit-agent-inbox,
 [data-replit-agent-inbox],

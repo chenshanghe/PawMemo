@@ -175,6 +175,8 @@ export default function PlanListPage() {
   const [renameTitle, setRenameTitle] = useState("");
   const [flashRenamedId, setFlashRenamedId] = useState<number | null>(null);
   const [flashRenameErrorId, setFlashRenameErrorId] = useState<number | null>(null);
+  const [fadingRenamedId, setFadingRenamedId] = useState<number | null>(null);
+  const [fadingRenameErrorId, setFadingRenameErrorId] = useState<number | null>(null);
   const [copyLinkToast, setCopyLinkToast] = useState(false);
 
   const [groupTypeFilter, toggleGroupType] = useToggleSet(
@@ -367,16 +369,16 @@ export default function PlanListPage() {
       });
       if (res.ok) {
         setFlashRenamedId(id);
-        setTimeout(() => setFlashRenamedId(null), 1000);
+        setTimeout(() => { setFlashRenamedId(null); setFadingRenamedId(id); setTimeout(() => setFadingRenamedId(null), 300); }, 700);
       } else {
         setPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
         setFlashRenameErrorId(id);
-        setTimeout(() => setFlashRenameErrorId(null), 1500);
+        setTimeout(() => { setFlashRenameErrorId(null); setFadingRenameErrorId(id); setTimeout(() => setFadingRenameErrorId(null), 300); }, 1200);
       }
     } catch {
       setPlans(prev => prev.map(p => p.id === id ? { ...p, title: oldTitle } : p));
       setFlashRenameErrorId(id);
-      setTimeout(() => setFlashRenameErrorId(null), 1500);
+      setTimeout(() => { setFlashRenameErrorId(null); setFadingRenameErrorId(id); setTimeout(() => setFadingRenameErrorId(null), 300); }, 1200);
     }
   };
 
@@ -626,12 +628,16 @@ export default function PlanListPage() {
                             ) : (
                               <>
                                 <h3
-                                  className={`text-sm font-semibold leading-snug truncate cursor-text transition-all rounded px-0.5 ${
+                                  className={`text-sm font-semibold leading-snug truncate cursor-text rounded px-0.5 ${
                                     flashRenamedId === plan.id
-                                      ? "text-green-700 bg-green-50 ring-1 ring-green-300"
-                                      : flashRenameErrorId === plan.id
-                                        ? "text-red-600 bg-red-50 ring-1 ring-red-300"
-                                        : "text-foreground group-hover:text-primary"
+                                      ? "rename-flash-ok"
+                                      : fadingRenamedId === plan.id
+                                        ? "rename-flash-ok-fade"
+                                        : flashRenameErrorId === plan.id
+                                          ? "rename-flash-err"
+                                          : fadingRenameErrorId === plan.id
+                                            ? "rename-flash-err-fade"
+                                            : "text-foreground group-hover:text-primary transition-colors"
                                   }`}
                                   title="点击重命名"
                                   onClick={e => { e.stopPropagation(); e.preventDefault(); setRenamingId(plan.id); setRenameTitle(plan.title); }}
