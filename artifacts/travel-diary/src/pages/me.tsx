@@ -695,26 +695,6 @@ export default function Me() {
               <AlertTriangle className="w-4 h-4 text-destructive/70" />
               <span className="text-sm font-semibold text-foreground">账号与隐私</span>
             </div>
-            <Link href="/privacy" className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group">
-              <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
-                <Shield className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">隐私政策</p>
-                <p className="text-[11px] text-muted-foreground">了解我们如何收集和使用您的数据</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
-            </Link>
-            <Link href="/terms" className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group border-t border-border/30">
-              <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">用户服务协议</p>
-                <p className="text-[11px] text-muted-foreground">查看服务条款与用户行为规范</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
-            </Link>
             <button
               disabled={exportSummaryLoading}
               onClick={async () => {
