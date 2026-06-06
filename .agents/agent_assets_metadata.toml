@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "qJB8x5bipUMYjEIKltYqL"
+uri = "file://exports/顽童日记_PRD.docx"
+type = "word_document"
+title = "顽童日记 PRD v1.0 （Word 文档）"
