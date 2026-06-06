@@ -18,6 +18,9 @@ interface PhotoItem {
 interface PhotosResponse {
   photos: PhotoItem[];
   total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
   hasMore: boolean;
 }
 
@@ -112,36 +115,45 @@ function Lightbox({
   );
 }
 
+const LIMIT = 24;
+
 export default function Photos() {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [destination, setDestination] = useState("");
   const [destinations, setDestinations] = useState<string[]>([]);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
 
-  const fetchPhotos = useCallback(async (p: number, dest: string, replace: boolean) => {
+  const fetchPhotos = useCallback(async (p: number, dest: string) => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(p), limit: "60" });
+    setLightboxIdx(null);
+    const params = new URLSearchParams({ page: String(p), limit: String(LIMIT) });
     if (dest) params.set("destination", dest);
     try {
       const r = await fetch(`${BASE}/api/me/photos?${params}`, { credentials: "include" });
       if (!r.ok) return;
       const data: PhotosResponse = await r.json();
-      setPhotos((prev) => replace ? data.photos : [...prev, ...data.photos]);
+      setPhotos(data.photos);
       setTotal(data.total);
-      setHasMore(data.hasMore);
+      setTotalPages(data.totalPages ?? Math.ceil(data.total / LIMIT));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchPhotos(1, destination, true);
+    fetchPhotos(1, destination);
     setPage(1);
   }, [destination, fetchPhotos]);
+
+  const goToPage = (p: number) => {
+    setPage(p);
+    fetchPhotos(p, destination);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Load destination list for filter
   useEffect(() => {
@@ -151,24 +163,29 @@ export default function Photos() {
       .catch(() => {});
   }, []);
 
-  const loadMore = () => {
-    const next = page + 1;
-    setPage(next);
-    fetchPhotos(next, destination, false);
-  };
+  const pageNumbers = (() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages: (number | "…")[] = [1];
+    if (page > 3) pages.push("…");
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    if (page < totalPages - 2) pages.push("…");
+    pages.push(totalPages);
+    return pages;
+  })();
 
   return (
     <Layout>
       <div className="space-y-6 animate-in fade-in duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-serif font-bold text-foreground">旅行相册</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {total > 0 ? `共 ${total} 张旅途照片` : "还没有照片"}
+              {total > 0
+                ? `共 ${total} 张照片 · 第 ${page} / ${totalPages} 页`
+                : "还没有照片"}
             </p>
           </div>
-          {/* Destination filter */}
           {destinations.length > 0 && (
             <select
               value={destination}
@@ -183,8 +200,21 @@ export default function Photos() {
           )}
         </div>
 
+        {/* Loading skeleton */}
+        {loading && (
+          <div className="columns-2 md:columns-3 lg:columns-4 gap-3">
+            {Array.from({ length: LIMIT }).map((_, i) => (
+              <div
+                key={i}
+                className="break-inside-avoid mb-3 rounded-xl bg-muted/30 animate-pulse"
+                style={{ height: `${120 + (i % 3) * 40}px` }}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Photo grid */}
-        {photos.length > 0 && (
+        {!loading && photos.length > 0 && (
           <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
             {photos.map((photo, idx) => (
               <div
@@ -197,6 +227,7 @@ export default function Photos() {
                   alt={photo.caption ?? ""}
                   className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
+                  decoding="async"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
                   <p className="text-white text-xs font-semibold line-clamp-1">{photo.entryTitle}</p>
@@ -204,13 +235,6 @@ export default function Photos() {
                 </div>
               </div>
             ))}
-          </div>
-        )}
-
-        {/* Loading state */}
-        {loading && (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-primary/60" />
           </div>
         )}
 
@@ -228,14 +252,41 @@ export default function Photos() {
           </div>
         )}
 
-        {/* Load more */}
-        {hasMore && !loading && (
-          <div className="flex justify-center pt-2">
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1 pt-2 pb-4 flex-wrap">
             <button
-              onClick={loadMore}
-              className="px-6 py-2.5 rounded-xl border border-border/50 text-sm text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
+              onClick={() => goToPage(page - 1)}
+              disabled={page === 1}
+              className="p-2 rounded-lg border border-border/50 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              加载更多
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {pageNumbers.map((p, i) =>
+              p === "…" ? (
+                <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground/50 text-sm select-none">…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => goToPage(p as number)}
+                  className={`min-w-[36px] h-9 px-2 rounded-lg text-sm font-medium transition-colors ${
+                    page === p
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border/50 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page === totalPages}
+              className="p-2 rounded-lg border border-border/50 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}
