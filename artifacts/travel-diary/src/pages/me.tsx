@@ -612,7 +612,6 @@ export default function Me() {
               </Link>
             )}
             {([
-              { href: "/notifications", Icon: Bell,      label: "消息",     desc: "互动通知与系统消息" },
               { href: "/achievements",  Icon: Award,     label: "旅行成就", desc: "解锁你的专属旅行勋章" },
             ] as const).map(({ href, Icon, label, desc }) => (
               <Link key={href} href={href}>
