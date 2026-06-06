@@ -1,6 +1,6 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useUpload } from "@workspace/object-storage-web";
-import { Camera, Upload, X, ImageIcon, Loader2 } from "lucide-react";
+import { Camera, Upload, X, ImageIcon, Loader2, ClipboardPaste } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
 import { convertHeicToJpeg } from "@/lib/heic-convert";
@@ -103,6 +103,29 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
     if (file && file.type.startsWith("image/")) handleFile(file);
   };
 
+  // Keep a ref so the paste listener always calls the latest handleFile
+  const handleFileRef = useRef(handleFile);
+  useEffect(() => { handleFileRef.current = handleFile; });
+
+  // Global paste listener — fires when user presses Ctrl/Cmd+V anywhere on the page
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            handleFileRef.current(file);
+            break;
+          }
+        }
+      }
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, []);
+
   const handleRemove = () => {
     revokeCurrent();
     setPreview(null);
@@ -170,9 +193,9 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-foreground">{label}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">拖拽图片到此处，或点击选择 · 大图自动压缩</p>
+              <p className="text-xs text-muted-foreground mt-0.5">拖拽 · 粘贴 · 点击选择 · 大图自动压缩</p>
             </div>
-            <div className="flex gap-2 mt-1" onClick={(e) => e.stopPropagation()}>
+            <div className="flex gap-2 mt-1 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
               <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">
                 <Upload className="w-3.5 h-3.5" />从相册选择
               </button>
@@ -180,6 +203,10 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
                 <Camera className="w-3.5 h-3.5" />拍照上传
               </button>
             </div>
+            <p className="text-[11px] text-muted-foreground/60 flex items-center gap-1">
+              <ClipboardPaste className="w-3 h-3" />
+              截图后直接 Ctrl+V / ⌘V 粘贴
+            </p>
           </div>
         </div>
       )}
