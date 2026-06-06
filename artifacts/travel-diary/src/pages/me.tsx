@@ -596,49 +596,32 @@ export default function Me() {
           </div>
 
           {/* ── Quick Links ────────────────────────────────────────────── */}
-          <div className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden divide-y divide-border/30">
+          <div className="mt-4 grid grid-cols-3 gap-3">
             {sub && sub.tier !== "free" && (
-              <Link href="/pricing">
-                <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer group">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Zap className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">管理套餐</p>
-                    <p className="text-[11px] text-muted-foreground">查看当前套餐与续费选项</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+              <Link href="/pricing" className="flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-border/40 bg-card/40 hover:bg-muted/50 transition-colors text-center">
+                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-primary" />
                 </div>
+                <p className="text-xs font-semibold text-foreground leading-tight">管理套餐</p>
+                <p className="text-[10px] text-muted-foreground leading-tight">查看当前套餐与续费选项</p>
               </Link>
             )}
-            {([
-              { href: "/achievements",  Icon: Award,     label: "旅行成就", desc: "解锁你的专属旅行勋章" },
-            ] as const).map(({ href, Icon, label, desc }) => (
-              <Link key={href} href={href}>
-                <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer group">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{label}</p>
-                    <p className="text-[11px] text-muted-foreground">{desc}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
-                </div>
-              </Link>
-            ))}
+            <Link href="/achievements" className="flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-border/40 bg-card/40 hover:bg-muted/50 transition-colors text-center">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                <Award className="w-4 h-4 text-primary" />
+              </div>
+              <p className="text-xs font-semibold text-foreground leading-tight">旅行成就</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">解锁你的专属旅行勋章</p>
+            </Link>
             <button
               onClick={() => setShowFeedback(true)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer group text-left"
+              className="flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-border/40 bg-card/40 hover:bg-muted/50 transition-colors text-center"
             >
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
                 <MessageSquare className="w-4 h-4 text-primary" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">意见反馈</p>
-                <p className="text-[11px] text-muted-foreground">告诉我们你的想法或遇到的问题</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+              <p className="text-xs font-semibold text-foreground leading-tight">意见反馈</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">告诉我们你的想法或遇到的问题</p>
             </button>
           </div>
 
