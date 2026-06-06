@@ -364,7 +364,7 @@ export default function Me() {
 
   return (
     <Layout>
-      <div className="-mt-4 md:-mt-8 -mx-4 md:-mx-8 animate-in fade-in duration-300">
+      <div className="-mt-4 md:-mt-4 -mx-4 md:-mx-8 animate-in fade-in duration-300">
         {/* ── Cover ─────────────────────────────────────────────────────── */}
         <div className="relative h-28 md:h-36 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/60 via-orange-300 to-amber-200" />
@@ -376,17 +376,6 @@ export default function Me() {
 
         {/* ── Identity ──────────────────────────────────────────────────── */}
         <div className="px-4 md:px-8 -mt-12 relative">
-          <div className="flex justify-end mb-1">
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60 select-none">
-              <Zap className="w-2.5 h-2.5" />
-              {(() => {
-                try {
-                  const d = new Date(__BUILD_TIME__);
-                  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-                } catch { return "—"; }
-              })()}
-            </span>
-          </div>
           <div className="flex items-end gap-4">
             <div className="relative shrink-0 group">
               <div className="w-24 h-24 rounded-full ring-4 ring-background bg-primary/20 overflow-hidden flex items-center justify-center text-3xl font-serif font-bold text-primary shadow-md">
