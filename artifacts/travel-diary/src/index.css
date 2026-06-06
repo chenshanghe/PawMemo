@@ -227,6 +227,17 @@
 .rename-flash-err-fade {
   animation: rename-flash-fade-err 300ms ease-out forwards;
 }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+.animate-shake {
+  animation: shake 0.6s ease-in-out;
+}
+
 @keyframes rename-flash-fade-ok {
   from { background-color: rgb(240 253 244); color: rgb(21 128 61); box-shadow: 0 0 0 1px rgb(134 239 172); }
   to   { background-color: transparent; color: inherit; box-shadow: none; }
