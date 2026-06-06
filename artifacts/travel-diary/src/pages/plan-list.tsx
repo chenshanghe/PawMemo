@@ -91,32 +91,40 @@ function ChipGroup({
   onToggle: (v: string) => void;
   counts?: Map<string, number>;
 }) {
+  const hasDisabled = counts
+    ? options.some(opt => counts.get(opt) === 0 && !selected.has(opt))
+    : false;
+
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-[11px] font-semibold text-muted-foreground shrink-0">{label}</span>
-      {options.map((opt) => {
-        const active = selected.has(opt);
-        const count = counts?.get(opt);
-        const isZero = count === 0 && !active;
-        return (
-          <button
-            key={opt}
-            onClick={() => { if (!isZero) onToggle(opt); }}
-            disabled={isZero}
-            title={isZero ? "没有符合条件的规划" : undefined}
-            aria-label={isZero ? `${opt}（没有符合条件的规划）` : undefined}
-            className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
-              active
-                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : isZero
-                  ? "bg-background text-muted-foreground/35 border-border/30 cursor-not-allowed"
-                  : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
-            }`}
-          >
-            {opt}{count !== undefined ? <span className={`ml-1 ${active ? "opacity-70" : isZero ? "opacity-50" : "opacity-60"}`}>({count})</span> : null}
-          </button>
-        );
-      })}
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[11px] font-semibold text-muted-foreground shrink-0">{label}</span>
+        {options.map((opt) => {
+          const active = selected.has(opt);
+          const count = counts?.get(opt);
+          const isZero = count === 0 && !active;
+          return (
+            <button
+              key={opt}
+              onClick={() => { if (!isZero) onToggle(opt); }}
+              disabled={isZero}
+              aria-label={isZero ? `${opt}（暂无匹配结果）` : undefined}
+              className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : isZero
+                    ? "bg-background text-muted-foreground/35 border-border/30 cursor-not-allowed"
+                    : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
+              }`}
+            >
+              {opt}{count !== undefined ? <span className={`ml-1 ${active ? "opacity-70" : isZero ? "opacity-50" : "opacity-60"}`}>({count})</span> : null}
+            </button>
+          );
+        })}
+      </div>
+      {hasDisabled && (
+        <p className="text-[10px] text-muted-foreground/50 pl-1 italic">灰色选项与当前筛选无匹配</p>
+      )}
     </div>
   );
 }
@@ -495,37 +503,41 @@ export default function PlanListPage() {
         {showFilters && (
           <div className="rounded-2xl border border-border/40 bg-card p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
             {/* Group type chips */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] font-semibold text-muted-foreground shrink-0">出行类型</span>
-              <button
-                onClick={() => [...groupTypeFilter].forEach(v => toggleGroupType(v))}
-                className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
-                  groupTypeFilter.size === 0
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
-                }`}
-              >
-                全部
-              </button>
-              {GROUP_TYPE_CHIPS.map(({ key, label, activeCls, inactiveCls }) => {
-                const count = groupTypeCounts.get(key) ?? 0;
-                const isActive = groupTypeFilter.has(key);
-                const isZero = count === 0 && !isActive;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => { if (!isZero) toggleGroupType(key); }}
-                    disabled={isZero}
-                    title={isZero ? "没有符合条件的规划" : undefined}
-                    aria-label={isZero ? `${label}（没有符合条件的规划）` : undefined}
-                    className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
-                      isActive ? activeCls : isZero ? "opacity-40 cursor-not-allowed " + inactiveCls : inactiveCls
-                    }`}
-                  >
-                    {label}<span className={`ml-1 ${isActive ? "opacity-70" : "opacity-60"}`}>({count})</span>
-                  </button>
-                );
-              })}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-semibold text-muted-foreground shrink-0">出行类型</span>
+                <button
+                  onClick={() => [...groupTypeFilter].forEach(v => toggleGroupType(v))}
+                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
+                    groupTypeFilter.size === 0
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
+                  }`}
+                >
+                  全部
+                </button>
+                {GROUP_TYPE_CHIPS.map(({ key, label, activeCls, inactiveCls }) => {
+                  const count = groupTypeCounts.get(key) ?? 0;
+                  const isActive = groupTypeFilter.has(key);
+                  const isZero = count === 0 && !isActive;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => { if (!isZero) toggleGroupType(key); }}
+                      disabled={isZero}
+                      aria-label={isZero ? `${label}（暂无匹配结果）` : undefined}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
+                        isActive ? activeCls : isZero ? "opacity-40 cursor-not-allowed " + inactiveCls : inactiveCls
+                      }`}
+                    >
+                      {label}<span className={`ml-1 ${isActive ? "opacity-70" : "opacity-60"}`}>({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {GROUP_TYPE_CHIPS.some(({ key }) => (groupTypeCounts.get(key) ?? 0) === 0 && !groupTypeFilter.has(key)) && (
+                <p className="text-[10px] text-muted-foreground/50 pl-1 italic">灰色选项与当前筛选无匹配</p>
+              )}
             </div>
             {groupTypeFilter.size >= 2 && (
               <p className="text-[10px] text-muted-foreground/70 pl-1 -mt-1">
