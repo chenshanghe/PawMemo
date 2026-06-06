@@ -5,6 +5,9 @@ const SHELL_CACHE = `wantong-shell-${CACHE_VER}`;
 const API_CACHE   = `wantong-api-${CACHE_VER}`;
 const IMAGE_CACHE = `wantong-img-${CACHE_VER}`;
 
+// Pages/assets pre-cached on install
+const PRECACHE_URLS = ["/", "/index.html"];
+
 // API GET routes worth caching for offline reading
 const API_CACHE_PATTERNS = [
   /\/api\/entries(\?|$|\/.+)/,
@@ -22,35 +25,33 @@ const API_STALE_MS = 5 * 60 * 1000; // 5 min
 // Max number of images to keep in the image cache
 const IMAGE_CACHE_MAX = 500;
 
-// ── Install — skip waiting immediately so the new SW activates ASAP ────────────
+// ── Install ────────────────────────────────────────────────────────────────────
 self.addEventListener("install", (e) => {
-  // No precache of index.html: HTML is served network-first so precaching it
-  // would risk serving a stale shell that references old (now-deleted) JS chunks.
-  e.waitUntil(self.skipWaiting());
+  e.waitUntil(
+    caches.open(SHELL_CACHE)
+      .then((c) => c.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
+  );
 });
 
-// ── Activate — claim clients first, then clean up old caches ──────────────────
-// Claiming clients BEFORE cache deletion means any in-flight asset fetches
-// from the still-loading old page can still hit the old shell cache momentarily.
-// We then delete old caches once we've taken control.
+// ── Activate — delete old caches, then notify all clients to reload ────────────
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    self.clients.claim().then(() =>
-      caches.keys().then((keys) =>
-        Promise.all(
-          keys
-            .filter((k) => k !== SHELL_CACHE && k !== API_CACHE && k !== IMAGE_CACHE)
-            .map((k) => caches.delete(k))
-        )
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((k) => k !== SHELL_CACHE && k !== API_CACHE && k !== IMAGE_CACHE)
+          .map((k) => caches.delete(k))
       )
-    ).then(() => {
-      // Tell every open tab that a new version is active
-      return self.clients.matchAll({ type: "window" }).then((clients) => {
-        clients.forEach((client) =>
-          client.postMessage({ type: "SW_UPDATED", version: CACHE_VER })
-        );
-      });
-    })
+    ).then(() => self.clients.claim())
+      .then(() => {
+        // Tell every open tab that a new version is active
+        return self.clients.matchAll({ type: "window" }).then((clients) => {
+          clients.forEach((client) =>
+            client.postMessage({ type: "SW_UPDATED", version: CACHE_VER })
+          );
+        });
+      })
   );
 });
 
@@ -60,37 +61,13 @@ self.addEventListener("fetch", (e) => {
 
   const url = new URL(e.request.url);
 
-  // ① Navigation (HTML) — network-first so the app always boots with fresh HTML.
-  //    If the network fails (offline / slow), fall back to a cached copy.
-  //    This prevents loading stale index.html that references old JS chunk hashes.
-  if (e.request.mode === "navigate") {
-    e.respondWith(
-      fetch(e.request)
-        .then((res) => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(SHELL_CACHE).then((c) => c.put(e.request, clone));
-          }
-          return res;
-        })
-        .catch(async () => {
-          const cached = await caches.match(e.request);
-          return cached ?? await caches.match("/index.html") ?? new Response(
-            "<h1>顽童记</h1><p>正在加载… 请检查网络连接</p>",
-            { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } }
-          );
-        })
-    );
-    return;
-  }
-
-  // ② API calls that are worth caching — stale-while-revalidate
+  // ① API calls that are worth caching — stale-while-revalidate
   if (API_CACHE_PATTERNS.some((re) => re.test(url.pathname + url.search))) {
     e.respondWith(staleWhileRevalidate(e.request));
     return;
   }
 
-  // ③ Other API calls — network-first, offline JSON fallback
+  // ② Other API calls — network-first, offline JSON fallback
   if (url.pathname.startsWith("/api/")) {
     e.respondWith(
       fetch(e.request).catch(() =>
@@ -103,16 +80,14 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // ④ Images (including external storage URLs) — cache-first, silently fail offline
+  // ③ Images (including external storage URLs) — cache-first, silently fail offline
   if (IMAGE_EXTENSIONS.test(url.pathname)) {
     e.respondWith(cacheFirstImage(e.request));
     return;
   }
 
-  // ⑤ Static assets (JS/CSS chunks with content-hash) — cache-first.
-  //    These are safe because Vite content-hashes every chunk: once a chunk URL
-  //    is in cache it is immutable. Stale entries are evicted when the cache
-  //    version changes (old SHELL_CACHE deleted on activate).
+  // ④ Static assets (JS/CSS chunks) — cache-first, fall back to index.html only
+  //    for navigation requests so the SPA can render.
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached;
@@ -122,7 +97,14 @@ self.addEventListener("fetch", (e) => {
           caches.open(SHELL_CACHE).then((c) => c.put(e.request, clone));
         }
         return res;
-      }).catch(() => new Response("", { status: 503 }));
+      }).catch(() => {
+        // Only serve index.html fallback for navigation requests (SPA routes)
+        if (e.request.mode === "navigate") {
+          return caches.match("/index.html");
+        }
+        // For other assets that aren't cached, return a generic error response
+        return new Response("", { status: 503 });
+      });
     })
   );
 });
@@ -136,6 +118,7 @@ async function cacheFirstImage(request) {
   try {
     const res = await fetch(request);
     if (res.ok) {
+      // Trim oldest entries if cache is getting large
       await trimImageCache(cache, IMAGE_CACHE_MAX - 1);
       cache.put(request, res.clone());
     }
@@ -143,6 +126,7 @@ async function cacheFirstImage(request) {
   } catch {
     // Offline and not cached — return a transparent 1×1 pixel as placeholder
     return new Response(
+      // 1×1 transparent PNG
       new Uint8Array([
         0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x0d,0x49,0x48,0x44,0x52,
         0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x08,0x06,0x00,0x00,0x00,0x1f,0x15,0xc4,
@@ -169,22 +153,35 @@ async function staleWhileRevalidate(request) {
   const cache  = await caches.open(API_CACHE);
   const cached = await cache.match(request);
 
+  // Kick off a background network fetch regardless
   const networkFetch = fetch(request).then((res) => {
-    if (res.ok) cache.put(request, res.clone());
+    if (res.ok) {
+      const clone = res.clone();
+      // Stamp the response with a cached-at header
+      clone.headers; // force read
+      cache.put(request, res.clone());
+    }
     return res;
   }).catch(() => null);
 
   if (cached) {
+    // Check age via Date header
     const dateHeader = cached.headers.get("date");
     const age = dateHeader ? Date.now() - new Date(dateHeader).getTime() : Infinity;
-    if (age < API_STALE_MS) return cached;
+    if (age < API_STALE_MS) {
+      // Fresh enough — return cache immediately; background fetch already running
+      return cached;
+    }
+    // Stale — try network, fall back to cache
     const fresh = await networkFetch;
     return fresh ?? cached;
   }
 
+  // No cache — must wait for network
   const res = await networkFetch;
   if (res) return res;
 
+  // Fully offline and no cache
   return new Response(JSON.stringify({ error: "offline", offline: true }), {
     status: 503,
     headers: { "Content-Type": "application/json" },
