@@ -774,13 +774,11 @@ export default function Me() {
                     套餐到期：{format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}
                   </p>
                 )}
-                <div className="flex items-center justify-between pt-0.5">
-                  {sub.tier === "free" ? (
+                {sub.tier === "free" && (
+                  <div className="flex items-center justify-between pt-0.5">
                     <a href="/pricing" className="text-xs font-semibold text-primary hover:underline">升级以获得更多次数 →</a>
-                  ) : (
-                    <a href="/pricing" className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">管理套餐 →</a>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
