@@ -38,6 +38,7 @@ export function InstallBanner() {
     }
 
     // Android/Chrome: wait for beforeinstallprompt (handled via canInstall)
+    return undefined;
   }, []);
 
   // Android path: show when browser fires beforeinstallprompt (mobile only)

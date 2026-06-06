@@ -12,3 +12,9 @@ id = "fzdUmx-kZoDYVxHgpIiMF"
 uri = "file://exports/顽童日记_产品规划.docx"
 type = "word_document"
 title = "顽童日记 产品规划 2026 Roadmap"
+
+[[outputs]]
+id = "GsF9SKcvAddAtLBVN_uCp"
+uri = "file://artifacts/travel-diary/public/images/journal-hero.jpg"
+type = "image"
+title = "vintage leather travel journal open on a table with a map and compass"

@@ -388,7 +388,7 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
               className="gap-1.5"
               onClick={() => window.open(`/entries/${id}/print`, "_blank")}
             >
-              📄 导出 PDF
+              导出 PDF
             </Button>
             <Link href={`/entries/${id}/edit`}>
               <Button variant="outline" size="sm" className="gap-1.5">
@@ -429,42 +429,42 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         )}
 
         {/* Title & Meta */}
-        <div className="space-y-4">
-          <h1 className="text-4xl font-serif font-bold text-foreground leading-tight">{entry.title}</h1>
-          <div className="flex flex-wrap items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
+        <div className="space-y-6 pb-6 border-b border-border/30">
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground leading-tight tracking-tight">{entry.title}</h1>
+          <div className="flex flex-wrap items-center gap-y-3 gap-x-4 text-sm">
+            <div className="flex items-center gap-1.5 text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50 shadow-sm">
               <MapPin className="w-4 h-4 text-primary" />
               <span className="font-medium text-foreground">{entry.destination}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50 shadow-sm">
               <CalendarDays className="w-4 h-4" />
-              <span>{format(new Date(entry.startDate), 'yyyy年MM月dd日')}</span>
-              {entry.endDate && <span> — {format(new Date(entry.endDate), 'MM月dd日')}</span>}
-              <span className="text-primary ml-1">{travelDays} 天</span>
+              <span className="font-medium">{format(new Date(entry.startDate), 'yyyy年MM月dd日')}</span>
+              {entry.endDate && <span className="font-medium"> — {format(new Date(entry.endDate), 'MM月dd日')}</span>}
+              <span className="text-primary ml-1 font-bold">{travelDays} 天</span>
             </div>
             {entry.rating && (
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-0.5 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50 shadow-sm">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className={`w-4 h-4 ${i < entry.rating! ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} />
+                  <Star key={i} className={`w-3.5 h-3.5 ${i < entry.rating! ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} />
                 ))}
               </div>
             )}
             {entry.mood && (
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${MOODS[entry.mood] ?? "bg-muted text-muted-foreground"}`}>
+              <span className={`px-3 py-1.5 rounded-lg shadow-sm text-xs font-bold tracking-wider ${MOODS[entry.mood] ?? "bg-muted text-muted-foreground"}`}>
                 {entry.mood}
               </span>
             )}
             {entry.companions && (
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Users className="w-4 h-4 shrink-0" />
-                <span>{entry.companions}</span>
+              <div className="flex items-center gap-1.5 text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50 shadow-sm">
+                <Users className="w-4 h-4 shrink-0 text-primary/70" />
+                <span className="font-medium">{entry.companions}</span>
               </div>
             )}
             {(entry as any).weather && (() => {
               const w = (entry as any).weather as { icon: string; desc: string; tempMax: number; tempMin: number };
               return (
-                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-medium">
-                  {w.icon} {w.desc} {w.tempMax}°/{w.tempMin}°C
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50/50 border border-sky-200/50 shadow-sm text-sky-700 text-xs font-bold">
+                  <span className="text-sm">{w.icon}</span> {w.desc} {w.tempMax}°/{w.tempMin}°C
                 </span>
               );
             })()}
@@ -473,15 +473,15 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
               const isOwner = !!user && entry.userId === user.id;
               const opts = [
                 { value: "private" as const, Icon: Lock,  label: "私密",     cls: "text-muted-foreground bg-muted/40 border-border/50", optCls: "hover:bg-muted/60" },
-                { value: "shared"  as const, Icon: Link2, label: "分享可见",  cls: "text-blue-600 bg-blue-50 border-blue-200",            optCls: "hover:bg-blue-50" },
-                { value: "public"  as const, Icon: Globe, label: "公开",      cls: "text-green-600 bg-green-50 border-green-200",          optCls: "hover:bg-green-50" },
+                { value: "shared"  as const, Icon: Link2, label: "分享可见",  cls: "text-blue-700 bg-blue-50 border-blue-200/60",            optCls: "hover:bg-blue-50" },
+                { value: "public"  as const, Icon: Globe, label: "公开",      cls: "text-green-700 bg-green-50 border-green-200/60",          optCls: "hover:bg-green-50" },
               ];
               const cur = opts.find((o) => o.value === v) ?? opts[0];
 
               if (!isOwner) {
                 return (
-                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${cur.cls}`}>
-                    <cur.Icon className="w-3 h-3" />
+                  <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border shadow-sm ${cur.cls}`}>
+                    <cur.Icon className="w-3.5 h-3.5" />
                     {cur.label}
                   </span>
                 );
@@ -492,25 +492,25 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
                   <button
                     onClick={() => setVisibilityOpen((o) => !o)}
                     disabled={visibilityUpdating}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-opacity ${cur.cls} ${visibilityUpdating ? "opacity-50" : "hover:opacity-80"}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg shadow-sm text-xs font-bold border transition-all ${cur.cls} ${visibilityUpdating ? "opacity-50" : "hover:opacity-80 hover:shadow-md"}`}
                   >
                     {visibilityUpdating
-                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : <cur.Icon className="w-3 h-3" />}
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <cur.Icon className="w-3.5 h-3.5" />}
                     {cur.label}
-                    <ChevronDown className="w-3 h-3 ml-0.5 opacity-60" />
+                    <ChevronDown className="w-3.5 h-3.5 ml-0.5 opacity-60" />
                   </button>
                   {visibilityOpen && (
-                    <div className="absolute left-0 top-full mt-1.5 z-50 bg-popover border border-border/60 rounded-xl shadow-lg py-1 min-w-[9rem] animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="absolute left-0 top-full mt-2 z-50 bg-popover border border-border/60 rounded-xl shadow-xl py-1.5 min-w-[10rem] animate-in fade-in zoom-in-95 duration-200">
                       {opts.map((opt) => (
                         <button
                           key={opt.value}
                           onClick={() => handleUpdateVisibility(opt.value)}
-                          className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors ${opt.optCls} ${opt.value === v ? "font-semibold" : ""}`}
+                          className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-left transition-colors ${opt.optCls} ${opt.value === v ? "font-bold text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                         >
-                          <opt.Icon className="w-3.5 h-3.5 shrink-0" />
+                          <opt.Icon className="w-4 h-4 shrink-0" />
                           {opt.label}
-                          {opt.value === v && <Check className="w-3 h-3 ml-auto text-primary" />}
+                          {opt.value === v && <Check className="w-4 h-4 ml-auto text-primary" />}
                         </button>
                       ))}
                     </div>
@@ -520,10 +520,10 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
             })()}
           </div>
           {entry.tags && entry.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               {entry.tags.map((tag) => (
-                <Badge key={tag.id} variant="outline" className="border-border/50 text-muted-foreground">
-                  {tag.name}
+                <Badge key={tag.id} variant="secondary" className="bg-primary/5 hover:bg-primary/10 text-primary border-primary/20 transition-colors px-3 py-1 rounded-md text-xs font-semibold">
+                  # {tag.name}
                 </Badge>
               ))}
             </div>
@@ -581,47 +581,45 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
         ) : (
           <>
             {/* Photos grid for regular entries */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-serif font-bold text-foreground">旅途照片</h2>
+            <div className="space-y-4 pt-6">
+              <h2 className="text-2xl font-serif font-bold text-foreground tracking-tight">旅途照片</h2>
               {photos.length > 0 && (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
                   {photos.map((photo, idx) => (
-                    <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-xl shadow-sm bg-muted/30">
+                    <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-2xl shadow-sm border border-border/40 bg-muted/20">
                       <img
                         src={photo.url}
                         alt={photo.caption ?? "旅途照片"}
                         loading="lazy"
                         decoding="async"
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-pointer"
                         onClick={() => setLightboxIndex(idx)}
                       />
                       {photo.caption && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
-                          <p className="text-white text-xs">{photo.caption}</p>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity duration-300">
+                          <p className="text-white/90 text-sm font-medium line-clamp-2">{photo.caption}</p>
                         </div>
                       )}
                       <button
                         onClick={() => handleDeletePhoto(photo.id)}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity hover:bg-red-500"
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 text-white/80 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-all duration-300 hover:bg-destructive hover:text-white backdrop-blur-sm"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
                 </div>
               )}
-              <PhotoUploader entryId={id} />
+              <div className="pt-2">
+                <PhotoUploader entryId={id} />
+              </div>
             </div>
 
             {entry.content && (
-              <div className="space-y-3">
-                <Card className="border-border/40 bg-card/70 shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="prose prose-sm max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap font-serif text-base">
-                      {entry.content}
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="space-y-6 pt-6 border-t border-border/30">
+                <div className="prose prose-base md:prose-lg max-w-none text-foreground/90 leading-[1.8] whitespace-pre-wrap font-serif selection:bg-primary/20">
+                  {entry.content}
+                </div>
 
                 {/* AI Enhancement toggle button */}
                 <button
@@ -639,125 +637,128 @@ export default function EntryDetail({ params }: { params: { id: string } }) {
 
                 {/* AI Enhancement Panel */}
                 {aiPanelOpen && (enhanceUsed !== null && enhanceLimit < 999999 && enhanceUsed >= enhanceLimit ? (
-                  <div className="rounded-xl border border-border/50 bg-muted/10 p-4 flex items-start gap-3">
-                    <span className="text-2xl">✨</span>
+                  <div className="rounded-2xl border border-amber-200/50 bg-amber-50/50 p-5 flex items-start gap-4 shadow-sm">
+                    <span className="text-3xl drop-shadow-sm">✨</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground">本月 AI 优化次数已用完</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-base font-bold text-amber-900">本月 AI 优化次数已用完</p>
+                      <p className="text-sm text-amber-700/80 mt-1 leading-relaxed">
                         免费版每月可使用 {enhanceLimit} 次 AI 优化，下月自动重置。
                       </p>
-                      <a href="/pricing" className="inline-block mt-2 text-xs text-primary hover:underline font-medium">
+                      <a href="/pricing" className="inline-block mt-3 px-4 py-2 bg-amber-100 text-amber-900 rounded-lg text-sm font-bold hover:bg-amber-200 transition-colors shadow-sm">
                         升级套餐，解锁更多次数 →
                       </a>
                     </div>
                   </div>
                 ) : (
-                <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+                <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-5 space-y-4 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                  
                   {/* Usage counter */}
                   {enhanceUsed !== null && enhanceLimit < 999999 && (
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />AI 优化本月用量
+                    <div className="flex items-center justify-between text-xs pb-2 border-b border-border/40">
+                      <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                        <Sparkles className="w-3.5 h-3.5 text-primary/70" />AI 优化本月用量
                       </span>
                       <span className={cn(
-                        "font-semibold tabular-nums",
-                        enhanceUsed >= enhanceLimit ? "text-destructive" : enhanceUsed >= enhanceLimit * 0.8 ? "text-amber-600" : "text-foreground"
+                        "font-bold tabular-nums px-2 py-0.5 rounded-full bg-background border shadow-sm",
+                        enhanceUsed >= enhanceLimit ? "text-destructive border-destructive/20" : enhanceUsed >= enhanceLimit * 0.8 ? "text-amber-600 border-amber-200" : "text-primary border-primary/20"
                       )}>
                         {enhanceUsed} / {enhanceLimit}
                       </span>
                     </div>
                   )}
                   {/* Writing style presets */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {WRITING_STYLES.map((s) => {
-                      const active = aiInstruction === s.prompt;
-                      return (
-                        <button
-                          key={s.name}
-                          type="button"
-                          disabled={aiLoading || !!aiDraft}
-                          onClick={() => setAiInstruction(active ? "" : s.prompt)}
-                          className={cn(
-                            "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
-                            active
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground hover:bg-primary/5",
-                            (aiLoading || !!aiDraft) && "opacity-50 cursor-not-allowed",
-                          )}
-                        >
-                          <span>{s.emoji}</span>
-                          <span>{s.name}</span>
-                        </button>
-                      );
-                    })}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-muted-foreground ml-1">选择写作风格</p>
+                    <div className="flex flex-wrap gap-2">
+                      {WRITING_STYLES.map((s) => {
+                        const active = aiInstruction === s.prompt;
+                        return (
+                          <button
+                            key={s.name}
+                            type="button"
+                            disabled={aiLoading || !!aiDraft}
+                            onClick={() => setAiInstruction(active ? "" : s.prompt)}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-sm",
+                              active
+                                ? "bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]"
+                                : "bg-background text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground hover:bg-primary/5",
+                              (aiLoading || !!aiDraft) && "opacity-50 cursor-not-allowed transform-none",
+                            )}
+                          >
+                            <span className="text-sm">{s.emoji}</span>
+                            <span>{s.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="flex gap-2 items-stretch">
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch pt-2">
                     <Textarea
-                      placeholder="描述优化要求（留空则自动润色语法和文笔）"
+                      placeholder="描述优化要求（留空则自动润色语法和文笔）..."
                       value={aiInstruction}
                       onChange={(e) => setAiInstruction(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !aiDraft) { e.preventDefault(); handleAiEnhance(); } }}
                       disabled={aiLoading || !!aiDraft}
-                      rows={5}
-                      className="bg-background border-border/60 text-sm min-h-[120px] resize-y flex-1"
+                      rows={4}
+                      className="bg-background/80 backdrop-blur-sm border-border/60 text-sm resize-y flex-1 rounded-xl shadow-inner focus-visible:ring-primary/30"
                     />
                     <Button
                       type="button"
-                      size="sm"
+                      size="default"
                       onClick={aiLoading ? () => { abortRef.current?.abort(); } : handleAiEnhance}
                       disabled={!!aiDraft && !aiLoading}
-                      className="shrink-0 gap-1.5 self-stretch h-auto"
+                      className={cn("shrink-0 gap-2 self-stretch sm:w-28 rounded-xl font-bold shadow-sm transition-all", aiLoading ? "bg-muted text-muted-foreground" : "")}
                       variant={aiLoading ? "outline" : "default"}
                     >
                       {aiLoading ? (
-                        <><Loader2 className="w-3.5 h-3.5 animate-spin" />停止</>
+                        <><Loader2 className="w-4 h-4 animate-spin" />停止</>
                       ) : (
-                        <><Sparkles className="w-3.5 h-3.5" />AI 优化</>
+                        <><Sparkles className="w-4 h-4" />开始优化</>
                       )}
                     </Button>
                   </div>
 
-                  {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+                  {aiError && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive font-medium">{aiError}</div>}
 
                   {(aiLoading || aiDraft !== null) && (
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground font-medium">
+                    <div className="space-y-3 pt-4 border-t border-border/40 mt-4">
+                      <p className="text-sm text-primary font-bold flex items-center gap-2">
                         {aiLoading ? (
-                          <span className="animate-pulse">正在生成优化版本...</span>
+                          <><Loader2 className="w-4 h-4 animate-spin" /> 正在生成优化版本...</>
                         ) : (
-                          "优化结果预览（可直接编辑）"
+                          <><Check className="w-4 h-4" /> 优化结果预览（可直接编辑）</>
                         )}
                       </p>
                       <Textarea
                         value={aiDraft ?? ""}
                         onChange={(e) => setAiDraft(e.target.value)}
-                        rows={10}
-                        className="bg-background border-border/60 resize-none font-serif text-sm leading-relaxed"
+                        rows={12}
+                        className="bg-background/90 backdrop-blur border-primary/30 shadow-inner resize-none font-serif text-base leading-[1.8] rounded-xl focus-visible:ring-primary/30"
                         readOnly={aiLoading}
                       />
                       {!aiLoading && (
-                        <div className="flex gap-2 justify-end">
+                        <div className="flex gap-3 justify-end pt-2">
                           <Button
                             type="button"
                             variant="outline"
-                            size="sm"
-                            className="gap-1.5"
+                            className="gap-2 rounded-xl font-bold border-border/60 hover:bg-muted/60"
                             onClick={handleDiscardDraft}
                           >
-                            <RotateCcw className="w-3.5 h-3.5" />
+                            <RotateCcw className="w-4 h-4" />
                             丢弃
                           </Button>
                           <Button
                             type="button"
-                            size="sm"
-                            className="gap-1.5"
+                            className="gap-2 rounded-xl font-bold shadow-sm"
                             onClick={handleApplyDraft}
                             disabled={updateEntry.isPending}
                           >
                             {updateEntry.isPending ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                              <Check className="w-3.5 h-3.5" />
+                              <Check className="w-4 h-4" />
                             )}
                             应用并保存
                           </Button>
