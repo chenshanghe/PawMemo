@@ -40,10 +40,12 @@ export function InstallBanner() {
     // Android/Chrome: wait for beforeinstallprompt (handled via canInstall)
   }, []);
 
-  // Android path: show when browser fires beforeinstallprompt
+  // Android path: show when browser fires beforeinstallprompt (mobile only)
   useEffect(() => {
     if (!canInstall || installed) return;
     if (localStorage.getItem(DISMISS_KEY)) return;
+    const isTouch = navigator.maxTouchPoints > 0 || "ontouchstart" in window;
+    if (!isTouch) return;
     // Only show if we haven't set platform to ios already
     setPlatform((prev) => prev ?? "android");
     const t = setTimeout(() => setShow(true), 2000);
