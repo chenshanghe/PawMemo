@@ -87,7 +87,7 @@ export function InstallBanner() {
         {platform === "ios" ? (
           <>
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-              像 App 一样使用顽童日记：点击浏览器底部的
+              像 App 一样使用顽童记：点击浏览器底部的
               {/* Inline share icon */}
               <span className="inline-flex items-center mx-0.5 align-middle">
                 <svg className="w-3.5 h-3.5 text-primary inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

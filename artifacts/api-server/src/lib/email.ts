@@ -1,5 +1,5 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM = "顽童日记 <notifications@hongshu.app>";
+const FROM = "顽童记 <notifications@hongshu.app>";
 
 export async function sendEmail({
   to,
@@ -57,7 +57,7 @@ export function buildCommentEmail({
 <body style="margin:0;padding:0;background:#faf9f7;font-family:'PingFang SC',system-ui,sans-serif;color:#333;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07)">
     <tr><td style="background:linear-gradient(135deg,#f97316,#ea580c);padding:32px 36px 28px;text-align:center">
-      <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">顽童日记</div>
+      <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">顽童记</div>
     </td></tr>
     <tr><td style="padding:32px 36px">
       <p style="margin:0 0 8px;font-size:15px">你好，<strong>${ownerName}</strong>！</p>
@@ -69,7 +69,7 @@ export function buildCommentEmail({
     </td></tr>
     <tr><td style="padding:20px 36px 28px;text-align:center;color:#aaa;font-size:12px;border-top:1px solid #f3f0ec">
       你收到此邮件因为你的日记收到了互动通知。<br>
-      © 2025 顽童日记
+      © 2025 顽童记
     </td></tr>
   </table>
 </body>
@@ -118,7 +118,7 @@ export function buildWeeklyDigestEmail({
 <body style="margin:0;padding:0;background:#faf9f7;font-family:'PingFang SC',system-ui,sans-serif;color:#333;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07)">
     <tr><td style="background:linear-gradient(135deg,#f97316,#ea580c);padding:32px 36px 24px;text-align:center">
-      <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">顽童日记 · 本周回顾</div>
+      <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">顽童记 · 本周回顾</div>
       <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:6px">${weekLabel}</div>
     </td></tr>
     <tr><td style="padding:28px 36px 20px">
@@ -138,13 +138,13 @@ export function buildWeeklyDigestEmail({
     <tr><td style="padding:20px 36px 28px;text-align:center;color:#bbb;font-size:12px;border-top:1px solid #f3f0ec">
       你收到此邮件因为你开启了每周旅行回顾。
       <a href="${appUrl}/me" style="color:#f97316;text-decoration:none">前往设置退订</a><br>
-      © 2025 顽童日记
+      © 2025 顽童记
     </td></tr>
   </table>
 </body>
 </html>`;
   return {
-    subject: `顽童日记 · 本周旅行回顾（${weekLabel}）`,
+    subject: `顽童记 · 本周旅行回顾（${weekLabel}）`,
     html,
   };
 }
@@ -170,7 +170,7 @@ export function buildLikeEmail({
 <body style="margin:0;padding:0;background:#faf9f7;font-family:'PingFang SC',system-ui,sans-serif;color:#333;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07)">
     <tr><td style="background:linear-gradient(135deg,#f97316,#ea580c);padding:32px 36px 28px;text-align:center">
-      <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">顽童日记</div>
+      <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">顽童记</div>
     </td></tr>
     <tr><td style="padding:32px 36px">
       <p style="margin:0 0 8px;font-size:15px">你好，<strong>${ownerName}</strong>！</p>
@@ -181,7 +181,7 @@ export function buildLikeEmail({
     </td></tr>
     <tr><td style="padding:20px 36px 28px;text-align:center;color:#aaa;font-size:12px;border-top:1px solid #f3f0ec">
       你收到此邮件因为你的日记收到了互动通知。<br>
-      © 2025 顽童日记
+      © 2025 顽童记
     </td></tr>
   </table>
 </body>

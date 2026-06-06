@@ -96,7 +96,7 @@ router.post("/create", requireAuth, async (req: Request, res: Response): Promise
   if (!totalFee) { res.status(400).json({ error: "价格配置错误" }); return; }
 
   const tradeOrderId = makeTradeOrderId();
-  const title = `顽童日记 ${tier === "pro" ? "探索家 Pro" : "旅记大师 Plus"} ${period === "yearly" ? "年度" : "月度"}订阅`;
+  const title = `顽童记 ${tier === "pro" ? "探索家 Pro" : "旅记大师 Plus"} ${period === "yearly" ? "年度" : "月度"}订阅`;
   const amountCents = Math.round(parseFloat(totalFee) * 100);
 
   await db.insert(subscriptionOrdersTable).values({

@@ -187,7 +187,7 @@ export function SocialPanel({ entryId, isOwner, visibility = "private" }: Social
     const token = await ensureShareToken();
     if (!token) return;
     const url = makeShareUrl(token);
-    const title = document.title.replace(" - 顽童日记", "").trim() || "旅行日记";
+    const title = document.title.replace(" - 顽童记", "").trim() || "旅行日记";
 
     // WeChat browser: show ··· guide (JSSDK not configured)
     if (isWechatBrowser()) {

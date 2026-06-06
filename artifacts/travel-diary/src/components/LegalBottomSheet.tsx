@@ -15,11 +15,11 @@ function TermsContent() {
   return (
     <div className="space-y-8 text-sm leading-relaxed text-foreground">
       <p className="text-muted-foreground">
-        欢迎使用顽童日记（以下简称"本应用"或"本服务"）。请在使用本服务前仔细阅读本用户服务协议（以下简称"本协议"）。注册账号或使用本服务即视为您已阅读、理解并同意本协议的全部条款。
+        欢迎使用顽童记（以下简称"本应用"或"本服务"）。请在使用本服务前仔细阅读本用户服务协议（以下简称"本协议"）。注册账号或使用本服务即视为您已阅读、理解并同意本协议的全部条款。
       </p>
       <Section title="一、服务说明">
         <p className="text-muted-foreground">
-          顽童日记是一款帮助用户记录旅行经历、管理旅行日记和照片、获取 AI 辅助行程规划的移动及网页应用。我们保留随时修改、暂停或终止部分或全部服务的权利，并将提前通知用户。
+          顽童记是一款帮助用户记录旅行经历、管理旅行日记和照片、获取 AI 辅助行程规划的移动及网页应用。我们保留随时修改、暂停或终止部分或全部服务的权利，并将提前通知用户。
         </p>
       </Section>
       <Section title="二、账号注册与安全">
@@ -93,7 +93,7 @@ function PrivacyContent() {
   return (
     <div className="space-y-8 text-sm leading-relaxed text-foreground">
       <p className="text-muted-foreground">
-        欢迎使用顽童日记（以下简称"本应用"）。本隐私政策说明我们如何收集、使用和保护您的个人信息。使用本应用即表示您同意本政策的条款。
+        欢迎使用顽童记（以下简称"本应用"）。本隐私政策说明我们如何收集、使用和保护您的个人信息。使用本应用即表示您同意本政策的条款。
       </p>
       <Section title="一、我们收集的信息">
         <SubItem title="1.1 账号信息">

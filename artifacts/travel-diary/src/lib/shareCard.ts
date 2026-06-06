@@ -73,7 +73,7 @@ export async function generateShareCard(opts: ShareCardOptions): Promise<Blob> {
   // ── Branding top-left ────────────────────────────────────────────────────────
   ctx.font = "bold 28px 'Noto Serif SC', serif";
   ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.fillText("顽童日记", 60, 68);
+  ctx.fillText("顽童记", 60, 68);
 
   // ── Title ────────────────────────────────────────────────────────────────────
   ctx.font = "bold 72px 'Noto Serif SC', serif";

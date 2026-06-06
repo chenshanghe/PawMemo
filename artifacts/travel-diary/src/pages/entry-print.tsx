@@ -22,7 +22,7 @@ export function EntryPrintPage() {
 
   useEffect(() => {
     if (!entry) return;
-    document.title = `${entry.title} - 顽童日记`;
+    document.title = `${entry.title} - 顽童记`;
     const timer = setTimeout(() => window.print(), 800);
     return () => clearTimeout(timer);
   }, [entry]);
@@ -292,7 +292,7 @@ export function EntryPrintPage() {
       <div className="print-root">
         {/* Cover Page */}
         <div className="print-cover">
-          <div className="print-brand">顽童日记</div>
+          <div className="print-brand">顽童记</div>
 
           {entry.coverImage ? (
             <img src={entry.coverImage} alt="封面" className="print-cover-img" />
@@ -332,7 +332,7 @@ export function EntryPrintPage() {
 
         {/* Footer */}
         <div className="print-footer">
-          <span>顽童日记</span>
+          <span>顽童记</span>
           <span>{format(new Date(), "yyyy年MM月dd日")} 导出</span>
         </div>
       </div>

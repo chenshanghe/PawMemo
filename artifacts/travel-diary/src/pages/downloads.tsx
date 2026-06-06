@@ -4,14 +4,14 @@ export default function DownloadsPage() {
   const files = [
     {
       href: `${base}/downloads/prd.docx`,
-      download: "顽童日记_PRD.docx",
+      download: "顽童记_PRD.docx",
       icon: "📄",
       title: "产品需求文档 PRD v1.0",
       desc: "功能模块 · 技术架构 · 商业化 · 用户旅程",
     },
     {
       href: `${base}/downloads/roadmap.docx`,
-      download: "顽童日记_产品规划.docx",
+      download: "顽童记_产品规划.docx",
       icon: "🗺️",
       title: "产品规划 2026 Roadmap",
       desc: "OKR · 里程碑 · Q3/Q4 详细计划 · 风险分析",
@@ -21,7 +21,7 @@ export default function DownloadsPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full">
-        <h1 className="text-xl font-bold text-[#1a1a2e] mb-1">顽童日记 · 文档下载</h1>
+        <h1 className="text-xl font-bold text-[#1a1a2e] mb-1">顽童记 · 文档下载</h1>
         <p className="text-sm text-gray-500 mb-8">点击下方按钮直接下载 Word 文档</p>
 
         {files.map((f) => (

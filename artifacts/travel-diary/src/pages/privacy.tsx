@@ -24,7 +24,7 @@ export default function PrivacyPage() {
         </div>
 
         <p className="text-muted-foreground">
-          欢迎使用顽童日记（以下简称"本应用"）。本隐私政策说明我们如何收集、使用和保护您的个人信息。使用本应用即表示您同意本政策的条款。
+          欢迎使用顽童记（以下简称"本应用"）。本隐私政策说明我们如何收集、使用和保护您的个人信息。使用本应用即表示您同意本政策的条款。
         </p>
 
         <Section title="一、我们收集的信息">

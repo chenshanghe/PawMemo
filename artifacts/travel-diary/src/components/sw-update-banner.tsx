@@ -24,7 +24,7 @@ export function SwUpdateBanner() {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground">发现新版本</p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          顽童日记已更新，刷新后生效
+          顽童记已更新，刷新后生效
         </p>
       </div>
       <button

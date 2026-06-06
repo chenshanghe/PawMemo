@@ -6,12 +6,12 @@ const router = Router();
 
 const FILES: Record<string, { filename: string; label: string }> = {
   prd: {
-    filename: "顽童日记_PRD.docx",
-    label: "顽童日记_PRD.docx",
+    filename: "顽童记_PRD.docx",
+    label: "顽童记_PRD.docx",
   },
   roadmap: {
-    filename: "顽童日记_产品规划.docx",
-    label: "顽童日记_产品规划.docx",
+    filename: "顽童记_产品规划.docx",
+    label: "顽童记_产品规划.docx",
   },
 };
 
