@@ -83,7 +83,7 @@ interface FollowItem {
   avatar: string | null;
 }
 
-type Tab = "notes" | "favorites" | "following" | "followers" | "report" | "export";
+type Tab = "notes" | "favorites" | "following" | "followers" | "data";
 
 const MOODS: Record<string, string> = {
   开心: "bg-yellow-100 text-yellow-700",
@@ -277,7 +277,7 @@ export default function Me() {
         setFollowersLoaded(true);
       });
     }
-    if (tab === "report" && !statsLoaded) {
+    if (tab === "data" && !statsLoaded) {
       Promise.all([
         fetch(`${BASE}/api/stats/monthly`, { credentials: "include" }).then(r => r.ok ? r.json() : []),
         fetch(`${BASE}/api/tags`, { credentials: "include" }).then(r => r.ok ? r.json() : []),
@@ -287,7 +287,7 @@ export default function Me() {
         setStatsLoaded(true);
       }).catch(() => setStatsLoaded(true));
     }
-    if (tab === "export" && !exportLoaded) {
+    if (tab === "data" && !exportLoaded) {
       fetch(`${BASE}/api/entries?limit=500`, { credentials: "include" })
         .then(r => r.ok ? r.json() : [])
         .then(d => {
@@ -483,29 +483,24 @@ export default function Me() {
           </div>
 
           {/* Stats triple */}
-          <div className="flex items-center gap-6 mt-4 text-sm">
-            <Link href="/entries" className="hover:text-primary transition-colors">
-              <span className="font-serif font-bold text-foreground text-base">{profile.entryCount}</span>
-              <span className="text-muted-foreground ml-1">日记</span>
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            <Link href="/entries" className="rounded-xl border border-border/40 bg-card/40 py-2.5 px-2 text-center hover:bg-muted/50 transition-colors">
+              <div className="font-serif font-bold text-foreground text-lg leading-none">{profile.entryCount}</div>
+              <div className="text-[10px] text-muted-foreground mt-1">日记</div>
             </Link>
-            <button onClick={() => setTab("following")} className="hover:text-primary transition-colors">
-              <span className="font-serif font-bold text-foreground text-base">{profile.followingCount}</span>
-              <span className="text-muted-foreground ml-1">关注</span>
+            <button onClick={() => setTab("following")} className="rounded-xl border border-border/40 bg-card/40 py-2.5 px-2 text-center hover:bg-muted/50 transition-colors">
+              <div className="font-serif font-bold text-foreground text-lg leading-none">{profile.followingCount}</div>
+              <div className="text-[10px] text-muted-foreground mt-1">关注</div>
             </button>
-            <button onClick={() => setTab("followers")} className="hover:text-primary transition-colors">
-              <span className="font-serif font-bold text-foreground text-base">{profile.followerCount}</span>
-              <span className="text-muted-foreground ml-1">粉丝</span>
-            </button>
-            <button onClick={() => setTab("favorites")} className="hover:text-primary transition-colors ml-auto">
-              <Heart className="w-3.5 h-3.5 inline text-red-400" />
-              <span className="font-serif font-bold text-foreground text-base ml-1">{profile.likesReceived + profile.favoritesReceived}</span>
-              <span className="text-muted-foreground ml-1 text-xs">获赞与收藏</span>
+            <button onClick={() => setTab("followers")} className="rounded-xl border border-border/40 bg-card/40 py-2.5 px-2 text-center hover:bg-muted/50 transition-colors">
+              <div className="font-serif font-bold text-foreground text-lg leading-none">{profile.followerCount}</div>
+              <div className="text-[10px] text-muted-foreground mt-1">粉丝</div>
             </button>
           </div>
 
           {/* Quick cards */}
           {stats && (
-            <div className="grid grid-cols-3 gap-2 mt-5">
+            <div className="grid grid-cols-2 gap-2 mt-3">
               <div className="rounded-xl border border-border/50 bg-card/40 p-3 text-center">
                 <div className="text-lg font-serif font-bold text-foreground">{stats.totalDestinations}</div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">🗺️ 去过的城市</div>
@@ -514,13 +509,6 @@ export default function Me() {
                 <div className="text-lg font-serif font-bold text-foreground">{stats.totalTravelDays}</div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">📅 旅行天数</div>
               </div>
-              <button
-                onClick={handleSignOut}
-                className="rounded-xl border border-border/50 bg-card/40 p-3 text-center hover:bg-muted/50 transition-colors group"
-              >
-                <LogOut className="w-4 h-4 mx-auto text-muted-foreground group-hover:text-destructive transition-colors" />
-                <div className="text-[10px] text-muted-foreground mt-1">退出登录</div>
-              </button>
             </div>
           )}
 
@@ -636,39 +624,11 @@ export default function Me() {
             </button>
           </div>
 
-          {/* ── About / Legal ──────────────────────────────────────────── */}
+          {/* ── Account & Data ─────────────────────────────────────────── */}
           <div className="mt-4 rounded-2xl border border-border/40 bg-card/40 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
-              <BookText className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-semibold text-foreground">关于 / 法律信息</span>
-            </div>
-            <Link href="/terms" className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group">
-              <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">用户服务协议</p>
-                <p className="text-[11px] text-muted-foreground">查看服务条款与用户行为规范</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
-            </Link>
-            <Link href="/privacy" className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group border-t border-border/30">
-              <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
-                <Shield className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">隐私政策</p>
-                <p className="text-[11px] text-muted-foreground">了解我们如何收集和使用您的数据</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
-            </Link>
-          </div>
-
-          {/* ── Account & Privacy ──────────────────────────────────────── */}
-          <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/5 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-destructive/15">
-              <AlertTriangle className="w-4 h-4 text-destructive/70" />
-              <span className="text-sm font-semibold text-foreground">账号与隐私</span>
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/30 bg-muted/20">
+              <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold text-foreground">账号与数据</span>
             </div>
             <button
               disabled={exportSummaryLoading}
@@ -687,29 +647,43 @@ export default function Me() {
                   toast({ title: "网络错误", description: "无法连接服务器，请检查网络后重试", variant: "destructive" });
                 } finally { setExportSummaryLoading(false); }
               }}
-              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors group text-left border-t border-border/30 disabled:opacity-50"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors group text-left disabled:opacity-50"
             >
-              <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
-                {exportSummaryLoading ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" /> : <Download className="w-4 h-4 text-muted-foreground" />}
+              <div className="w-7 h-7 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+                {exportSummaryLoading ? <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" /> : <Download className="w-3.5 h-3.5 text-muted-foreground" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground">导出我的数据</p>
-                <p className="text-[11px] text-muted-foreground">下载所有旅行日记数据（JSON 格式）</p>
+                <p className="text-[11px] text-muted-foreground">下载所有旅记数据（JSON 格式）</p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
             </button>
             <button
               onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
-              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-destructive/5 transition-colors group text-left border-t border-border/30"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-destructive/5 transition-colors group text-left border-t border-border/30"
             >
-              <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                <Trash2 className="w-4 h-4 text-destructive/70" />
+              <div className="w-7 h-7 rounded-full bg-destructive/8 flex items-center justify-center shrink-0">
+                <Trash2 className="w-3.5 h-3.5 text-destructive/60" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-destructive/80">注销账号</p>
                 <p className="text-[11px] text-muted-foreground">删除所有旅行日记和账号数据，此操作不可撤销</p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+            </button>
+          </div>
+
+          {/* ── Legal footer ───────────────────────────────────────────── */}
+          <div className="mt-4 mb-2 flex items-center justify-center gap-3 flex-wrap">
+            <Link href="/privacy" className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors">隐私政策</Link>
+            <span className="text-muted-foreground/30 text-[11px]">·</span>
+            <Link href="/terms" className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors">用户协议</Link>
+            <span className="text-muted-foreground/30 text-[11px]">·</span>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            >
+              <LogOut className="w-3 h-3" />退出登录
             </button>
           </div>
 
@@ -720,8 +694,7 @@ export default function Me() {
               ["favorites", "收藏", Bookmark, null],
               ["following", "关注", Users, profile.followingCount],
               ["followers", "粉丝", Users, profile.followerCount],
-              ["report", "报告", BarChart2, null],
-              ["export", "导出", Download, null],
+              ["data", "数据", BarChart2, null],
             ] as const).map(([k, label, Icon, count]) => (
               <button
                 key={k}
@@ -753,20 +726,24 @@ export default function Me() {
             {tab === "followers" && (
               <UsersList users={followers} loaded={followersLoaded} emptyHint="还没有粉丝 — 多发几篇公开日记吧" ctaHref="/entries/new" ctaLabel="写一篇公开日记" />
             )}
-            {tab === "report" && stats && (
-              <ReportTab
-                stats={stats}
-                monthlyData={monthlyData}
-                tags={tags}
-                recs={recs}
-                recsLoading={recsLoading}
-                recsLoaded={recsLoaded}
-                loaded={statsLoaded}
-                onGetRecs={handleGetRecs}
-              />
-            )}
-            {tab === "export" && (
-              <ExportTab entries={exportEntries} loaded={exportLoaded} printing={printing} onPrint={handlePrint} />
+            {tab === "data" && (
+              <>
+                {stats && (
+                  <ReportTab
+                    stats={stats}
+                    monthlyData={monthlyData}
+                    tags={tags}
+                    recs={recs}
+                    recsLoading={recsLoading}
+                    recsLoaded={recsLoaded}
+                    loaded={statsLoaded}
+                    onGetRecs={handleGetRecs}
+                  />
+                )}
+                <div className="mt-4">
+                  <ExportTab entries={exportEntries} loaded={exportLoaded} printing={printing} onPrint={handlePrint} />
+                </div>
+              </>
             )}
           </div>
         </div>
