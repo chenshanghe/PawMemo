@@ -417,45 +417,6 @@ export default function Me() {
               </button>
             </div>
 
-            {/* ── Account actions (right of avatar) ──────────────────── */}
-            <div className="ml-auto flex items-center gap-2 pb-1">
-              <button
-                disabled={exportSummaryLoading}
-                onClick={async () => {
-                  setExportSummaryLoading(true);
-                  try {
-                    const res = await fetch(`${BASE}/api/me/export/summary`, { credentials: "include" });
-                    if (res.ok) {
-                      const data = await res.json();
-                      setExportSummary(data);
-                      setShowExportPreview(true);
-                    } else {
-                      toast({ title: "获取数据失败", description: "请稍后再试", variant: "destructive" });
-                    }
-                  } catch {
-                    toast({ title: "网络错误", description: "无法连接服务器，请检查网络后重试", variant: "destructive" });
-                  } finally { setExportSummaryLoading(false); }
-                }}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-border/50 bg-background/60 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors disabled:opacity-50 backdrop-blur-sm"
-              >
-                {exportSummaryLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                导出
-              </button>
-              <button
-                onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-destructive/20 bg-background/60 text-xs text-destructive/60 hover:bg-destructive/5 hover:text-destructive transition-colors backdrop-blur-sm"
-              >
-                <Trash2 className="w-3 h-3" />
-                注销
-              </button>
-              <button
-                onClick={handleSignOut}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-border/50 bg-background/60 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors backdrop-blur-sm"
-              >
-                <LogOut className="w-3 h-3" />
-                退出
-              </button>
-            </div>
           </div>
 
           <div className="mt-3">
@@ -470,13 +431,46 @@ export default function Me() {
             <p className="text-xs text-muted-foreground mt-0.5">
               旅行号：{profile.userId.slice(-10)}
             </p>
-            {profile.bio ? (
-              <p className="text-sm text-foreground/80 mt-2 leading-relaxed">{profile.bio}</p>
-            ) : (
-              <button onClick={() => setEditing(true)} className="text-sm text-muted-foreground/70 mt-2 hover:text-primary transition-colors">
-                还没有简介，去写一句吧 →
-              </button>
-            )}
+            <div className="flex items-center gap-2 mt-2">
+              {profile.bio ? (
+                <p className="text-sm text-foreground/80 leading-relaxed flex-1 min-w-0">{profile.bio}</p>
+              ) : (
+                <button onClick={() => setEditing(true)} className="text-sm text-muted-foreground/70 hover:text-primary transition-colors flex-1 text-left">
+                  还没有简介，去写一句吧 →
+                </button>
+              )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  disabled={exportSummaryLoading}
+                  onClick={async () => {
+                    setExportSummaryLoading(true);
+                    try {
+                      const res = await fetch(`${BASE}/api/me/export/summary`, { credentials: "include" });
+                      if (res.ok) {
+                        const data = await res.json();
+                        setExportSummary(data);
+                        setShowExportPreview(true);
+                      } else {
+                        toast({ title: "获取数据失败", description: "请稍后再试", variant: "destructive" });
+                      }
+                    } catch {
+                      toast({ title: "网络错误", description: "无法连接服务器，请检查网络后重试", variant: "destructive" });
+                    } finally { setExportSummaryLoading(false); }
+                  }}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-border/50 bg-card/40 text-[11px] text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {exportSummaryLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                  导出
+                </button>
+                <button
+                  onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-destructive/20 bg-card/40 text-[11px] text-destructive/60 hover:bg-destructive/5 hover:text-destructive transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  注销
+                </button>
+              </div>
+            </div>
             {/* AI 叙事用量进度 + 套餐管理 */}
             {sub && (
               <div className="mt-3 p-3 rounded-xl bg-muted/40 border border-border/30 space-y-2">
