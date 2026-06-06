@@ -202,12 +202,11 @@ export default function Photos() {
 
         {/* Loading skeleton */}
         {loading && (
-          <div className="columns-2 md:columns-3 lg:columns-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {Array.from({ length: LIMIT }).map((_, i) => (
               <div
                 key={i}
-                className="break-inside-avoid mb-3 rounded-xl bg-muted/30 animate-pulse"
-                style={{ height: `${120 + (i % 3) * 40}px` }}
+                className="aspect-[4/3] rounded-xl bg-muted/30 animate-pulse"
               />
             ))}
           </div>
@@ -215,17 +214,17 @@ export default function Photos() {
 
         {/* Photo grid */}
         {!loading && photos.length > 0 && (
-          <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {photos.map((photo, idx) => (
               <div
                 key={photo.id}
-                className="group break-inside-avoid relative rounded-xl overflow-hidden cursor-pointer shadow-sm bg-muted/20 mb-3"
+                className="group relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer shadow-sm bg-muted/20"
                 onClick={() => setLightboxIdx(idx)}
               >
                 <img
                   src={photo.url}
                   alt={photo.caption ?? ""}
-                  className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                   decoding="async"
                 />
