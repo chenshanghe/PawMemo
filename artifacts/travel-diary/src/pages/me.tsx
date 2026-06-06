@@ -372,13 +372,6 @@ export default function Me() {
             <img src={profile.avatar} alt="" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
-          <button
-            onClick={() => setEditing(true)}
-            className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/90 backdrop-blur-sm text-xs font-medium text-foreground shadow-sm hover:bg-background transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            编辑主页
-          </button>
         </div>
 
         {/* ── Identity ──────────────────────────────────────────────────── */}
@@ -427,6 +420,13 @@ export default function Me() {
                   {TIER_BADGE[sub.tier]?.label ?? "免费版"}
                 </span>
               )}
+              <button
+                onClick={() => setEditing(true)}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/60 bg-background text-xs font-medium text-foreground hover:bg-muted/60 transition-colors shadow-sm"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                编辑主页
+              </button>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               旅行号：{profile.userId.slice(-10)}
