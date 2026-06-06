@@ -18,6 +18,7 @@ import payHupiRouter from "./pay-hupi";
 import prefsRouter from "./prefs";
 import feedbackRouter from "./feedback";
 import safetyRouter from "./safety";
+import downloadsRouter from "./downloads";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use("/pay/hupi", payHupiRouter);
 router.use(prefsRouter);
 router.use(feedbackRouter);
 router.use(safetyRouter);
+router.use(downloadsRouter);
 
 export default router;
