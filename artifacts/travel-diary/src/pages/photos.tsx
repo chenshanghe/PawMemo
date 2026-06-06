@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
-import { Loader2, X, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -115,7 +115,8 @@ function Lightbox({
   );
 }
 
-const LIMIT = 24;
+const LIMIT = 12;
+const SKELETON_COUNT = 12;
 
 export default function Photos() {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -155,7 +156,6 @@ export default function Photos() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Load destination list for filter
   useEffect(() => {
     fetch(`${BASE}/api/stats/destinations`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : [])
@@ -200,38 +200,39 @@ export default function Photos() {
           )}
         </div>
 
-        {/* Loading skeleton */}
+        {/* Loading skeleton — matches grid layout exactly */}
         {loading && (
-          <div className="columns-2 md:columns-3 lg:columns-4 gap-3">
-            {Array.from({ length: LIMIT }).map((_, i) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
               <div
                 key={i}
-                className="break-inside-avoid mb-3 rounded-xl bg-muted/30 animate-pulse"
-                style={{ height: `${120 + (i % 3) * 40}px` }}
+                className="aspect-square rounded-xl bg-muted/40 animate-pulse"
               />
             ))}
           </div>
         )}
 
-        {/* Photo grid */}
+        {/* Photo grid — CSS grid for consistent alignment */}
         {!loading && photos.length > 0 && (
-          <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {photos.map((photo, idx) => (
               <div
                 key={photo.id}
-                className="group break-inside-avoid relative rounded-xl overflow-hidden cursor-pointer shadow-sm bg-muted/20 mb-3"
+                className="group relative rounded-xl overflow-hidden cursor-pointer shadow-sm bg-muted/30 aspect-square"
                 onClick={() => setLightboxIdx(idx)}
               >
                 <img
                   src={photo.url}
                   alt={photo.caption ?? ""}
-                  className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                  decoding="async"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading={idx < 8 ? "eager" : "lazy"}
+                  decoding={idx < 4 ? "sync" : "async"}
+                  fetchPriority={idx < 4 ? "high" : "auto"}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+                {/* hover overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
                   <p className="text-white text-xs font-semibold line-clamp-1">{photo.entryTitle}</p>
-                  <p className="text-white/70 text-[10px] mt-0.5">📍 {photo.entryDestination}</p>
+                  <p className="text-white/70 text-[10px] mt-0.5 line-clamp-1">📍 {photo.entryDestination}</p>
                 </div>
               </div>
             ))}
