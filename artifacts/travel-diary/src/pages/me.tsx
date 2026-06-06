@@ -416,6 +416,46 @@ export default function Me() {
                 <Camera className="w-3.5 h-3.5" />
               </button>
             </div>
+
+            {/* ── Account actions (right of avatar) ──────────────────── */}
+            <div className="ml-auto flex items-center gap-2 pb-1">
+              <button
+                disabled={exportSummaryLoading}
+                onClick={async () => {
+                  setExportSummaryLoading(true);
+                  try {
+                    const res = await fetch(`${BASE}/api/me/export/summary`, { credentials: "include" });
+                    if (res.ok) {
+                      const data = await res.json();
+                      setExportSummary(data);
+                      setShowExportPreview(true);
+                    } else {
+                      toast({ title: "获取数据失败", description: "请稍后再试", variant: "destructive" });
+                    }
+                  } catch {
+                    toast({ title: "网络错误", description: "无法连接服务器，请检查网络后重试", variant: "destructive" });
+                  } finally { setExportSummaryLoading(false); }
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-border/50 bg-background/60 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors disabled:opacity-50 backdrop-blur-sm"
+              >
+                {exportSummaryLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                导出
+              </button>
+              <button
+                onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-destructive/20 bg-background/60 text-xs text-destructive/60 hover:bg-destructive/5 hover:text-destructive transition-colors backdrop-blur-sm"
+              >
+                <Trash2 className="w-3 h-3" />
+                注销
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-border/50 bg-background/60 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors backdrop-blur-sm"
+              >
+                <LogOut className="w-3 h-3" />
+                退出
+              </button>
+            </div>
           </div>
 
           <div className="mt-3">
@@ -621,51 +661,6 @@ export default function Me() {
               </div>
               <p className="text-xs font-semibold text-foreground leading-tight">意见反馈</p>
               <p className="text-[10px] text-muted-foreground leading-tight">告诉我们你的想法或遇到的问题</p>
-            </button>
-          </div>
-
-          {/* ── Account actions ────────────────────────────────────────── */}
-          <div className="mt-4 mb-2 flex items-center justify-center gap-3">
-            <button
-              disabled={exportSummaryLoading}
-              onClick={async () => {
-                setExportSummaryLoading(true);
-                try {
-                  const res = await fetch(`${BASE}/api/me/export/summary`, { credentials: "include" });
-                  if (res.ok) {
-                    const data = await res.json();
-                    setExportSummary(data);
-                    setShowExportPreview(true);
-                  } else {
-                    toast({ title: "获取数据失败", description: "请稍后再试", variant: "destructive" });
-                  }
-                } catch {
-                  toast({ title: "网络错误", description: "无法连接服务器，请检查网络后重试", variant: "destructive" });
-                } finally { setExportSummaryLoading(false); }
-              }}
-              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full border border-border/50 bg-card/40 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors disabled:opacity-50"
-            >
-              {exportSummaryLoading
-                ? <Loader2 className="w-3 h-3 animate-spin" />
-                : <Download className="w-3 h-3" />}
-              导出数据
-            </button>
-            <button
-              onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
-              className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full border border-destructive/20 bg-card/40 text-xs text-destructive/60 hover:bg-destructive/5 hover:text-destructive transition-colors"
-            >
-              <Trash2 className="w-3 h-3" />
-              注销账号
-            </button>
-          </div>
-
-          {/* ── Sign out ───────────────────────────────────────────────── */}
-          <div className="mt-1 mb-1 flex justify-center">
-            <button
-              onClick={handleSignOut}
-              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors py-1"
-            >
-              <LogOut className="w-3 h-3" />退出登录
             </button>
           </div>
 
