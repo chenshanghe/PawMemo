@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { generateShareCard } from "@/lib/shareCard";
 
+const isWechatBrowser = () => /MicroMessenger/i.test(navigator.userAgent);
+
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function withToken(url: string | null | undefined, token: string): string {
@@ -13,7 +15,7 @@ function withToken(url: string | null | undefined, token: string): string {
 }
 
 import { useUser } from "@clerk/react";
-import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Download } from "lucide-react";
+import { MapPin, CalendarDays, Star, Heart, MessageCircle, ChevronLeft, ChevronRight, X, Users, Loader2, Trash2, Download, Share2, Link2, Check } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -86,6 +88,41 @@ export default function ShareView({ params }: { params: { token: string } }) {
   const [commentText, setCommentText] = useState("");
   const [commentPending, setCommentPending] = useState(false);
   const [cardGenerating, setCardGenerating] = useState(false);
+  const [wechatGuideOpen, setWechatGuideOpen] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const showShareToast = (msg: string) => {
+    setShareToast(msg);
+    setTimeout(() => setShareToast(null), 3000);
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = data ? `${data.entry.title} — 顽童日记` : "顽童日记";
+
+    if (isWechatBrowser()) {
+      setWechatGuideOpen(true);
+      return;
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: title, url });
+      } catch {
+        // AbortError = user cancelled
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      showShareToast("复制失败，请手动复制地址");
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -237,6 +274,58 @@ export default function ShareView({ params }: { params: { token: string } }) {
         />
       )}
 
+      {/* WeChat in-app guide overlay */}
+      {wechatGuideOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center"
+          onClick={() => setWechatGuideOpen(false)}
+        >
+          <div
+            className="bg-background rounded-t-2xl w-full max-w-sm p-6 space-y-4 animate-in slide-in-from-bottom-4 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="#07c160">
+                  <path d="M8.5 3C4.36 3 1 5.9 1 9.5c0 2.01 1.05 3.81 2.7 5l-.6 2.1 2.4-1.2c.78.22 1.62.34 2.5.34.23 0 .46-.01.68-.03A5.96 5.96 0 008 14c0-3.31 3.13-6 7-6h.26C14.44 5.62 11.74 3 8.5 3zM6 7.5a1 1 0 110 2 1 1 0 010-2zm5 0a1 1 0 110 2 1 1 0 010-2z"/>
+                  <path d="M15 10c-3.31 0-6 2.24-6 5s2.69 5 6 5c.72 0 1.4-.12 2.03-.33l1.97 1-.5-1.74A4.97 4.97 0 0021 15c0-2.76-2.69-5-6-5zm-2 4a1 1 0 110-2 1 1 0 010 2zm4 0a1 1 0 110-2 1 1 0 010 2z"/>
+                </svg>
+                <span className="font-semibold text-foreground">分享到微信</span>
+              </div>
+              <button onClick={() => setWechatGuideOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-start gap-3 bg-muted/40 rounded-xl p-4">
+              <span className="text-2xl leading-none mt-0.5">☝️</span>
+              <div>
+                <p className="font-medium text-foreground">点击右上角 ···</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  选择「发送给朋友」发给联系人，<br />
+                  或「分享到朋友圈」发布动态。
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(window.location.href);
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 2000);
+                } catch {}
+                setWechatGuideOpen(false);
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border/60 text-sm text-muted-foreground hover:bg-muted/40 transition-colors"
+            >
+              <Link2 className="w-4 h-4" />
+              复制链接备用
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top bar */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border/40 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -244,6 +333,16 @@ export default function ShareView({ params }: { params: { token: string } }) {
           <span className="font-serif font-bold text-foreground">顽童日记</span>
         </div>
         <div className="flex items-center gap-3">
+          {/* Share button — system share sheet on mobile, guide in WeChat, copy on desktop */}
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {linkCopied
+              ? <Check className="w-3.5 h-3.5 text-green-500" />
+              : <Share2 className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{linkCopied ? "已复制" : "分享"}</span>
+          </button>
           <button
             onClick={handleDownloadCard}
             disabled={cardGenerating}
