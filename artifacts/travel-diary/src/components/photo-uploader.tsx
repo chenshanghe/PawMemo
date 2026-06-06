@@ -9,13 +9,8 @@ import { convertHeicToJpeg, isHeic } from "@/lib/heic-convert";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 // ── Compression config ──────────────────────────────────────────────────────
-// Two-tier strategy:
-//   • < SKIP_BYTES        → direct upload, no resize
-//   • >= SKIP_BYTES       → native canvas resize (createImageBitmap + toBlob),
-//                           3-5× faster than browser-image-compression's
-//                           binary-search; fall back to the library on error.
-const SKIP_BYTES = 600 * 1024;        // 600 KB — direct upload threshold
-const MAX_EDGE = 1600;                 // long-edge cap after resize
+const SKIP_BYTES = 600 * 1024;
+const MAX_EDGE = 1600;
 const JPEG_QUALITY = 0.8;
 
 const FALLBACK_OPTIONS = {
@@ -27,11 +22,7 @@ const FALLBACK_OPTIONS = {
   preserveExif: false,
 };
 
-// ── Concurrency limiters (P0) ───────────────────────────────────────────────
-// Split into two pools so compression and uploads pipeline instead of blocking
-// each other:
-//   • compress: CPU-bound, 2 parallel is enough to saturate a mid-range phone
-//   • upload:   network-bound, browsers cap same-origin HTTP at 6 anyway
+// ── Concurrency limiters ────────────────────────────────────────────────────
 const COMPRESS_CONCURRENCY = 2;
 const UPLOAD_CONCURRENCY = 6;
 
@@ -55,10 +46,7 @@ function createSemaphore(max: number) {
   };
 }
 
-// ── Native canvas compression (P1) ──────────────────────────────────────────
-// Single-pass resize + JPEG encode. ~3-5× faster than binary-search libraries
-// for typical phone photos (3-5 MB). Falls back to browser-image-compression
-// if the browser lacks createImageBitmap / OffscreenCanvas or encoding fails.
+// ── Native canvas compression ────────────────────────────────────────────────
 async function compressViaCanvas(file: File): Promise<File> {
   if (typeof createImageBitmap !== "function") {
     throw new Error("createImageBitmap unsupported");
@@ -92,10 +80,7 @@ async function compressViaCanvas(file: File): Promise<File> {
           );
         });
 
-    // If the "compressed" output is actually larger (rare, but possible for
-    // already-tiny PNG icons), keep the original.
     if (blob.size >= file.size) return file;
-
     const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
     return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
   } finally {
@@ -114,23 +99,19 @@ async function compressImage(file: File): Promise<File> {
 // ── Types ───────────────────────────────────────────────────────────────────
 interface QueueItem {
   id: string;
-  // Monotonically increasing index — preserves user selection order even when
-  // uploads finish out of order. Used to sort the batch DB write so photos
-  // appear in the order the user picked, not the order the network returned.
   order: number;
   file: File;
   previewUrl: string;
   status: "compressing" | "uploading" | "saving" | "done" | "error";
   progress: number;
   errorMsg?: string;
-  // P2: presigned upload target assigned upfront in a single batched request
-  uploadURL?: string;
-  objectPath?: string;
 }
 
-// P3: how long to wait for more uploads before flushing a batched DB write.
-// Short enough to feel instant; long enough to coalesce a burst of parallel
-// uploads finishing within a few hundred ms of each other.
+// Resolved when the batch presign round-trip returns for this item
+type PresignResult =
+  | { uploadURL: string; objectPath: string }
+  | { error: Error };
+
 const SAVE_DEBOUNCE_MS = 250;
 
 interface PhotoUploaderProps {
@@ -144,21 +125,12 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const queryClient = useQueryClient();
 
-  // Two pools per uploader instance — compress and upload pipeline independently
   const compressSem = useRef(createSemaphore(COMPRESS_CONCURRENCY)).current;
   const uploadSem = useRef(createSemaphore(UPLOAD_CONCURRENCY)).current;
 
-  // P3: debounced batch-save buffer. Each finished PUT pushes its URL here;
-  // a single coalesced POST /entries/:id/photos/batch flushes them all and
-  // invalidates the entry query exactly once. `order` carries the user-
-  // selection index so the server insert is sorted, not finish-order.
   const pendingSaveRef = useRef<{ itemId: string; url: string; order: number }[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Monotonic counter shared across all handleFiles invocations on this
-  // mount — guarantees a stable, unique order index even if the user
-  // selects a second batch before the first finishes.
   const orderCounterRef = useRef(0);
-  // Track all created blob preview URLs so we can revoke them on unmount.
   const blobUrlsRef = useRef<Set<string>>(new Set());
 
   const updateItem = useCallback((id: string, patch: Partial<QueueItem>) => {
@@ -181,17 +153,12 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   const flushSaves = useCallback(async () => {
     const pending = pendingSaveRef.current;
     if (!pending.length) return;
-    // Swap to a new buffer before awaiting — anything pushed during the
-    // network round-trip belongs to the next flush.
     pendingSaveRef.current = [];
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
-    // Sort by user-selection order so the server INSERT (and therefore
-    // the visible photo grid) reflects the picker order, not finish order.
     pending.sort((a, b) => a.order - b.order);
-
     const ids = pending.map((p) => p.itemId);
     try {
       const resp = await fetch(`${BASE}/api/entries/${entryId}/photos/batch`, {
@@ -219,10 +186,6 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
     saveTimerRef.current = setTimeout(flushSaves, SAVE_DEBOUNCE_MS);
   }, [flushSaves]);
 
-  // ── Lifecycle cleanup ─────────────────────────────────────────────────
-  // On unmount: cancel any pending debounce timer, fire a best-effort
-  // sendBeacon (keepalive) for any buffered URLs so already-uploaded
-  // objects still get persisted to the DB, and revoke leftover blob URLs.
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) {
@@ -234,8 +197,6 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
         pendingSaveRef.current = [];
         pending.sort((a, b) => a.order - b.order);
         try {
-          // fetch with keepalive survives navigation; falls back silently
-          // if the browser doesn't support it.
           fetch(`${BASE}/api/entries/${entryId}/photos/batch`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -252,33 +213,36 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
     };
   }, [entryId]);
 
+  // ── Core item processor ─────────────────────────────────────────────────
+  // Accepts a presignPromise that resolves as soon as the batch API returns.
+  // Compression starts immediately — not blocked by the network round-trip.
   const processItem = useCallback(
-    async (item: QueueItem) => {
+    async (item: QueueItem, presignPromise: Promise<PresignResult>) => {
       try {
-        // ── Step 1: HEIC → JPEG conversion (if needed) ───────────────
-        updateItem(item.id, { status: "compressing", progress: 5 });
+        // Step 1: HEIC → JPEG (starts right away, no waiting for presign)
+        updateItem(item.id, { status: "compressing", progress: 8 });
         let sourceFile = item.file;
         if (isHeic(sourceFile)) {
           sourceFile = await convertHeicToJpeg(sourceFile);
-          // Update the preview with a displayable JPEG blob URL
           const jpegPreview = URL.createObjectURL(sourceFile);
           blobUrlsRef.current.add(jpegPreview);
-          updateItem(item.id, { previewUrl: jpegPreview });
+          updateItem(item.id, { previewUrl: jpegPreview, progress: 20 });
         }
 
-        // ── Step 2: compress (skip if already small) ──────────────────
-        updateItem(item.id, { status: "compressing", progress: 15 });
-        const toUpload: File = await compressSem(async () => {
+        // Step 2: Compress (semaphore-limited; runs parallel to presign fetch)
+        updateItem(item.id, { progress: 15 });
+        const toUpload = await compressSem(async () => {
           if (sourceFile.size <= SKIP_BYTES) return sourceFile;
-          return await compressImage(sourceFile);
+          return compressImage(sourceFile);
         });
-        updateItem(item.id, { progress: 35 });
+        updateItem(item.id, { progress: 38 });
 
-        // ── Step 3: PUT to pre-assigned presigned URL ─────────────────
-        // No per-photo presign round-trip — URL was fetched in batch upfront.
-        const { uploadURL, objectPath } = item;
-        if (!uploadURL || !objectPath) throw new Error("缺少上传地址");
+        // Step 3: Wait for presigned URL — usually already resolved by now
+        const presign = await presignPromise;
+        if ("error" in presign) throw presign.error;
+        const { uploadURL, objectPath } = presign;
 
+        // Step 4: Upload with per-byte progress
         await uploadSem(async () => {
           updateItem(item.id, { status: "uploading", progress: 40 });
           await new Promise<void>((resolve, reject) => {
@@ -287,7 +251,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
             xhr.setRequestHeader("Content-Type", toUpload.type || "image/jpeg");
             xhr.upload.onprogress = (e) => {
               if (e.lengthComputable) {
-                const pct = 40 + Math.round((e.loaded / e.total) * 50);
+                const pct = 40 + Math.round((e.loaded / e.total) * 55);
                 updateItem(item.id, { progress: pct });
               }
             };
@@ -300,8 +264,8 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
           });
         });
 
-        // ── Step 3: queue for debounced batch DB save ─────────────────
-        updateItem(item.id, { status: "saving", progress: 95 });
+        // Step 5: Debounced batch DB save
+        updateItem(item.id, { status: "saving", progress: 97 });
         pendingSaveRef.current.push({
           itemId: item.id,
           url: `/api/storage${objectPath}`,
@@ -323,6 +287,9 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
     if (files.length > MAX_PHOTOS) {
       alert(`一次最多可选 ${MAX_PHOTOS} 张，已自动取前 ${MAX_PHOTOS} 张。`);
     }
+
+    // 1. Show previews immediately with a small non-zero progress so users
+    //    see something happening right away.
     const newItems: QueueItem[] = sliced.map((file) => {
       const previewUrl = URL.createObjectURL(file);
       blobUrlsRef.current.add(previewUrl);
@@ -332,15 +299,27 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
         file,
         previewUrl,
         status: "compressing" as const,
-        progress: 0,
+        progress: 3, // non-zero → bar appears immediately
       };
     });
     setQueue((prev) => [...prev, ...newItems]);
 
-    // ── P2: batch-presign all upload URLs in a single round-trip ───────
-    // The server doesn't use size/contentType to build the URL — they're
-    // just echoed back — so it's safe to presign with the *original*
-    // file metadata before we even start compressing.
+    // 2. Create one Promise<PresignResult> per item — resolved once the
+    //    batch API call returns. processItem awaits this after compression.
+    const resolvers = new Map<string, (r: PresignResult) => void>();
+    const presignPromises = new Map(
+      newItems.map((it) => {
+        let resolve!: (r: PresignResult) => void;
+        const p = new Promise<PresignResult>((res) => { resolve = res; });
+        resolvers.set(it.id, resolve);
+        return [it.id, p] as [string, Promise<PresignResult>];
+      }),
+    );
+
+    // 3. Kick off compression for every item immediately (parallel to presign)
+    newItems.forEach((it) => processItem(it, presignPromises.get(it.id)!));
+
+    // 4. Batch presign — fires in parallel with compression above
     try {
       const resp = await fetch(`${BASE}/api/storage/uploads/request-urls`, {
         method: "POST",
@@ -348,7 +327,6 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
         credentials: "include",
         body: JSON.stringify({
           files: sliced.map((f) => ({
-            // HEIC will be converted to JPEG before upload; presign as JPEG
             name: isHeic(f) ? f.name.replace(/\.[^.]+$/, ".jpg") : f.name,
             size: f.size,
             contentType: isHeic(f) ? "image/jpeg" : (f.type || "image/jpeg"),
@@ -359,24 +337,18 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
       const { items } = (await resp.json()) as {
         items: { uploadURL: string; objectPath: string }[];
       };
-      // Pair URLs back to items by index, then kick off processing.
-      const ready: QueueItem[] = newItems.map((it, i) => ({
-        ...it,
-        uploadURL: items[i]?.uploadURL,
-        objectPath: items[i]?.objectPath,
-      }));
-      setQueue((prev) =>
-        prev.map((it) => ready.find((r) => r.id === it.id) ?? it),
-      );
-      ready.forEach((it) => processItem(it));
-    } catch (err) {
-      newItems.forEach((it) => {
-        updateItem(it.id, {
-          status: "error",
-          errorMsg: (err as Error).message,
+      // Resolve each item's presign promise — processItem unblocks at Step 3
+      newItems.forEach((it, i) => {
+        resolvers.get(it.id)!({
+          uploadURL: items[i]?.uploadURL ?? "",
+          objectPath: items[i]?.objectPath ?? "",
         });
-        removeItemSoon(it.id, 3000);
       });
+    } catch (err) {
+      // Reject all presign promises so processItem catches and marks error
+      newItems.forEach((it) =>
+        resolvers.get(it.id)!({ error: err as Error }),
+      );
     }
   };
 
@@ -390,7 +362,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   const statusLabel = (item: QueueItem) => {
     switch (item.status) {
       case "compressing": return item.file.size <= SKIP_BYTES ? "准备中..." : "压缩中...";
-      case "uploading":   return `上传中 ${item.progress}%`;
+      case "uploading":   return `上传 ${item.progress - 40 > 0 ? Math.round(((item.progress - 40) / 55) * 100) : 0}%`;
       case "saving":      return "保存中...";
       case "done":        return "完成";
       case "error":       return item.errorMsg ?? "失败";
@@ -419,8 +391,12 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
                 <div className="w-full h-1.5 bg-white/30 rounded-full overflow-hidden">
                   <div
                     className={cn(
-                      "h-full rounded-full transition-all duration-200",
-                      item.status === "done" ? "bg-green-400" : item.status === "error" ? "bg-red-400" : "bg-white"
+                      "h-full rounded-full transition-all duration-300",
+                      item.status === "done"
+                        ? "bg-green-400"
+                        : item.status === "error"
+                        ? "bg-red-400"
+                        : "bg-white",
                     )}
                     style={{ width: `${item.progress}%` }}
                   />
