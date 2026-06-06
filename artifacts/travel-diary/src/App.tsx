@@ -33,6 +33,7 @@ import AchievementsPage from "@/pages/achievements";
 import PlanListPage from "@/pages/plan-list";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
+import DownloadsPage from "@/pages/downloads";
 import LegalBottomSheet from "@/components/LegalBottomSheet";
 import { Onboarding } from "@/components/onboarding";
 
@@ -307,6 +308,7 @@ function AppRouter() {
       </Route>
       <Route path="/privacy">{() => <PrivacyPage />}</Route>
       <Route path="/terms">{() => <TermsPage />}</Route>
+      <Route path="/downloads">{() => <DownloadsPage />}</Route>
       <Route component={NotFound} />
     </Switch>
   );
