@@ -53,12 +53,12 @@ function Lightbox({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center"
+      className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center backdrop-blur-sm"
       onClick={onClose}
     >
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+        className="absolute top-6 right-6 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all hover:scale-105"
       >
         <X className="w-5 h-5" />
       </button>
@@ -67,13 +67,13 @@ function Lightbox({
         <>
           <button
             onClick={(e) => { e.stopPropagation(); prev(); }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="absolute left-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/5 hover:bg-white/20 text-white transition-all hover:-translate-x-1 backdrop-blur-md hidden sm:block"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); next(); }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="absolute right-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/5 hover:bg-white/20 text-white transition-all hover:translate-x-1 backdrop-blur-md hidden sm:block"
           >
             <ChevronRight className="w-6 h-6" />
           </button>
@@ -83,7 +83,7 @@ function Lightbox({
       <img
         src={photo.url}
         alt={photo.caption ?? ""}
-        className="max-h-[80vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
+        className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl transition-transform duration-300"
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
         onTouchEnd={(e) => {
@@ -94,21 +94,38 @@ function Lightbox({
         }}
       />
 
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 text-white text-center">
-        {photo.caption && <p className="text-sm mb-1 text-white/80">{photo.caption}</p>}
-        <p className="text-base font-semibold">{photo.entryTitle}</p>
-        <p className="text-sm text-white/70 mb-3">📍 {photo.entryDestination}</p>
-        <Link
-          href={`/entries/${photo.entryId}`}
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-primary/80 hover:bg-primary text-white text-xs font-medium transition-colors"
-        >
-          <ExternalLink className="w-3 h-3" />
-          查看日记
-        </Link>
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent pt-32 pb-8 px-6 text-center pointer-events-none">
+        <div className="max-w-4xl mx-auto flex flex-col items-center pointer-events-auto">
+          {photo.caption && (
+            <div className="mb-6 animate-in slide-in-from-bottom-2 duration-500">
+              <span className="inline-flex px-4 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/90 text-sm font-medium tracking-wide">
+                {photo.caption}
+              </span>
+            </div>
+          )}
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4">
+            <div className="text-center sm:text-left flex-1 min-w-0">
+              <h2 className="text-xl font-serif font-medium text-white/95 truncate">{photo.entryTitle}</h2>
+              <div className="flex items-center justify-center sm:justify-start gap-3 mt-2 text-white/60 text-sm">
+                <span className="flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                  {photo.entryDestination}
+                </span>
+              </div>
+            </div>
+            <Link
+              href={`/entries/${photo.entryId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white text-black hover:bg-white/90 text-sm font-medium transition-all hover:scale-105 shadow-lg shadow-black/20"
+            >
+              <ExternalLink className="w-4 h-4" />
+              查看日记
+            </Link>
+          </div>
+        </div>
       </div>
 
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/50 text-sm">
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium tracking-widest bg-black/20 px-4 py-1.5 rounded-full backdrop-blur-sm border border-white/5">
         {current + 1} / {photos.length}
       </div>
     </div>
@@ -175,64 +192,80 @@ export default function Photos() {
 
   return (
     <Layout>
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="space-y-8 animate-in fade-in duration-500 pb-12">
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-serif font-bold text-foreground">旅行相册</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {total > 0
-                ? `共 ${total} 张照片 · 第 ${page} / ${totalPages} 页`
-                : "还没有照片"}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="space-y-1.5">
+            <h1 className="text-3xl sm:text-4xl font-serif font-bold text-foreground tracking-tight">旅行相册</h1>
+            <p className="text-sm font-medium text-muted-foreground/80 flex items-center gap-2">
+              {total > 0 ? (
+                <>
+                  <span>共 {total} 个瞬间</span>
+                  <span className="w-1 h-1 rounded-full bg-border"></span>
+                  <span>第 {page} / {totalPages} 页</span>
+                </>
+              ) : (
+                "光影记忆"
+              )}
             </p>
           </div>
           {destinations.length > 0 && (
-            <select
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              className="text-sm border border-border/50 rounded-xl px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              <option value="">全部目的地</option>
-              {destinations.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                className="appearance-none w-full sm:w-auto min-w-[140px] pl-4 pr-10 py-2.5 text-sm font-medium border border-border/60 rounded-xl bg-card/80 text-foreground shadow-sm hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all cursor-pointer"
+              >
+                <option value="">全部目的地</option>
+                {destinations.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
           )}
         </div>
 
         {/* Loading skeleton — matches grid layout exactly */}
         {loading && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
               <div
                 key={i}
-                className="aspect-square rounded-xl bg-muted/40 animate-pulse"
-              />
+                className="aspect-square rounded-2xl bg-gradient-to-br from-muted/50 to-muted/20 animate-pulse relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent"></div>
+              </div>
             ))}
           </div>
         )}
 
         {/* Photo grid — CSS grid for consistent alignment */}
         {!loading && photos.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {photos.map((photo, idx) => (
               <div
                 key={photo.id}
-                className="group relative rounded-xl overflow-hidden cursor-pointer shadow-sm bg-muted/30 aspect-square"
+                className="group relative rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500 bg-muted/20 aspect-square"
                 onClick={() => setLightboxIdx(idx)}
               >
                 <img
                   src={photo.url}
                   alt={photo.caption ?? ""}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   loading={idx < 8 ? "eager" : "lazy"}
                   decoding={idx < 4 ? "sync" : "async"}
                   fetchPriority={idx < 4 ? "high" : "auto"}
                 />
                 {/* hover overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
-                  <p className="text-white text-xs font-semibold line-clamp-1">{photo.entryTitle}</p>
-                  <p className="text-white/70 text-[10px] mt-0.5 line-clamp-1">📍 {photo.entryDestination}</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 sm:p-5">
+                  <p className="text-white text-sm font-medium line-clamp-1 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">{photo.entryTitle}</p>
+                  <div className="flex items-center gap-1.5 text-white/80 text-[11px] mt-1.5 translate-y-2 group-hover:translate-y-0 transition-transform duration-300 delay-75">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span className="line-clamp-1 font-medium">{photo.entryDestination}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -241,40 +274,43 @@ export default function Photos() {
 
         {/* Empty state */}
         {!loading && photos.length === 0 && (
-          <div className="flex flex-col items-center py-20 gap-4 text-center">
-            <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center text-3xl">📷</div>
-            <div>
-              <p className="font-semibold text-foreground">还没有旅行照片</p>
-              <p className="text-sm text-muted-foreground mt-1">上传照片到日记，它们就会出现在这里</p>
+          <div className="flex flex-col items-center justify-center py-32 px-4 gap-6 text-center bg-card/30 rounded-3xl border border-border/30 border-dashed">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center text-primary/60 mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
             </div>
-            <Link href="/entries/new" className="text-primary text-sm hover:underline">
-              写第一篇日记 →
+            <div className="space-y-2 max-w-[280px]">
+              <p className="text-lg font-serif font-medium text-foreground">暂无光影记忆</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">每一次快门，都是时光的标本。在日记中上传照片，它们就会在这里汇聚成海。</p>
+            </div>
+            <Link href="/entries/new" className="inline-flex items-center justify-center gap-2 mt-2 px-6 py-2.5 rounded-full bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-all hover:scale-105 shadow-sm shadow-primary/20">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+              记录新旅程
             </Link>
           </div>
         )}
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-center gap-1 pt-2 pb-4 flex-wrap">
+          <div className="flex items-center justify-center gap-2 pt-8 pb-4 flex-wrap">
             <button
               onClick={() => goToPage(page - 1)}
               disabled={page === 1}
-              className="p-2 rounded-lg border border-border/50 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-2.5 rounded-xl border border-border/60 bg-card/50 text-foreground hover:bg-muted hover:border-border transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:-translate-x-0.5 disabled:hover:translate-x-0"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
 
             {pageNumbers.map((p, i) =>
               p === "…" ? (
-                <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground/50 text-sm select-none">…</span>
+                <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground/40 text-sm select-none font-medium">…</span>
               ) : (
                 <button
                   key={p}
                   onClick={() => goToPage(p as number)}
-                  className={`min-w-[36px] h-9 px-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`min-w-[40px] h-10 px-3 rounded-xl text-sm font-medium transition-all ${
                     page === p
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border/50 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-105"
+                      : "border border-border/60 bg-card/50 text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
                   {p}
@@ -285,7 +321,7 @@ export default function Photos() {
             <button
               onClick={() => goToPage(page + 1)}
               disabled={page === totalPages}
-              className="p-2 rounded-lg border border-border/50 text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-2.5 rounded-xl border border-border/60 bg-card/50 text-foreground hover:bg-muted hover:border-border transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:translate-x-0.5 disabled:hover:translate-x-0"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

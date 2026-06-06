@@ -369,7 +369,10 @@ function EntryCardInner({ entry, travelDays }: { entry: any; travelDays: (e: any
         </div>
       </div>
       <div className="p-5 flex flex-col flex-1">
-        {entry.content && <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed flex-1">"{entry.content.replace(/<[^>]*>?/gm, '').slice(0, 80)}{entry.content.length > 80 ? '…"' : '"'}</p>}
+        {entry.content && (() => {
+          const plain = entry.content.replace(/<[^>]*>?/gm, '');
+          return <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed flex-1">"{plain.slice(0, 80)}{plain.length > 80 ? '…"' : '"'}</p>;
+        })()}
         
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/40">
           <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">

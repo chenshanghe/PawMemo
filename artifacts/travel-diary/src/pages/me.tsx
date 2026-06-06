@@ -475,7 +475,8 @@ export default function Me() {
             {sub && (
               <div className="mt-3 p-3 rounded-xl bg-muted/40 border border-border/30 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">✨ AI 叙事本月用量</span>
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs text-muted-foreground">AI 叙事本月用量</span>
                   <span className="text-xs font-semibold text-foreground">
                     {sub.aiComposedThisMonth} / {sub.aiComposeLimit === 999999 ? "无限" : sub.aiComposeLimit}
                   </span>
@@ -488,8 +489,9 @@ export default function Me() {
                     />
                   </div>
                 )}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">✍️ AI 优化本月用量</span>
+                <div className="flex items-center gap-2 mt-2">
+                  <Pencil className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-xs text-muted-foreground">AI 优化本月用量</span>
                   <span className="text-xs font-semibold text-foreground">
                     {sub.aiEnhancedThisMonth} / {sub.aiEnhanceLimit === 999999 ? "无限" : sub.aiEnhanceLimit}
                   </span>
@@ -537,11 +539,11 @@ export default function Me() {
             <div className="grid grid-cols-2 gap-2 mt-3">
               <div className="rounded-xl border border-border/50 bg-card/40 p-3 text-center">
                 <div className="text-lg font-serif font-bold text-foreground">{stats.totalDestinations}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">🗺️ 去过的城市</div>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground mt-0.5"><MapPin className="w-3 h-3" />去过的城市</div>
               </div>
               <div className="rounded-xl border border-border/50 bg-card/40 p-3 text-center">
                 <div className="text-lg font-serif font-bold text-foreground">{stats.totalTravelDays}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">📅 旅行天数</div>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground mt-0.5"><CalendarDays className="w-3 h-3" />旅行天数</div>
               </div>
             </div>
           )}
@@ -551,7 +553,9 @@ export default function Me() {
             <div className="mt-4 rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/8 via-primary/5 to-amber-50/60 dark:to-amber-900/10">
               <div className="px-4 pt-4 pb-3">
                 <div className="flex items-start gap-3">
-                  <div className="text-2xl leading-none mt-0.5">✨</div>
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">升级解锁更多旅行空间</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
@@ -584,7 +588,10 @@ export default function Me() {
           <div className="mt-4 p-3 rounded-xl border border-border/40 bg-muted/20">
             <div className="flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-foreground">📧 每周旅行回顾</p>
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <FileText className="w-3.5 h-3.5 text-primary" />
+                  每周旅行回顾
+                </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
                   {profile.weeklyDigest
                     ? "每周日晚 9 点收到本周日记摘要邮件"
@@ -615,7 +622,7 @@ export default function Me() {
                   {digestSending ? (
                     <><span className="inline-block w-3 h-3 border-2 border-primary/40 border-t-primary rounded-full animate-spin" /> 发送中…</>
                   ) : (
-                    <>✉️ 立即发送本周回顾</>
+                    <><Zap className="w-3 h-3" /> 立即发送本周回顾</>
                   )}
                 </button>
                 {!profile.email && (
@@ -659,7 +666,7 @@ export default function Me() {
           </div>
 
           {/* ── Tabs ───────────────────────────────────────────────────── */}
-          <div className="mt-6 border-b border-border/40 flex gap-1 -mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto">
+          <div className="mt-6 border-b border-border/40 flex gap-2 -mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto scrollbar-none pb-2">
             {([
               ["notes", "笔记", BookText, profile.entryCount],
               ["favorites", "收藏", Bookmark, null],
@@ -671,14 +678,20 @@ export default function Me() {
                 key={k}
                 onClick={() => setTab(k as Tab)}
                 className={cn(
-                  "relative px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-1.5 shrink-0",
-                  tab === k ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                  "relative px-4 py-2 text-sm font-medium transition-all duration-300 flex items-center gap-1.5 shrink-0 rounded-full",
+                  tab === k ? "bg-primary text-primary-foreground shadow-sm" : "bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                 )}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-4 h-4" />
                 {label}
-                {count !== null && count > 0 && <span className="text-[10px] text-muted-foreground/70">({count})</span>}
-                {tab === k && <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />}
+                {count !== null && count > 0 && (
+                  <span className={cn(
+                    "text-[10px]",
+                    tab === k ? "text-primary-foreground/80" : "text-muted-foreground/70"
+                  )}>
+                    ({count})
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -922,12 +935,12 @@ function StatsTab({
   const maxCount = Math.max(...monthlyData.map((d) => d.count), 1);
 
   const cards = [
-    { icon: "📓", value: stats.totalEntries, label: "篇日记" },
-    { icon: "📅", value: stats.totalTravelDays, label: "天旅途" },
-    { icon: "🗺️", value: stats.totalDestinations, label: "个目的地" },
-    { icon: "📷", value: stats.totalPhotos, label: "张照片" },
-    ...(stats.longestTripDays > 0 ? [{ icon: "✈️", value: stats.longestTripDays, label: "天最长旅行" }] : []),
-    ...(stats.avgRating ? [{ icon: "⭐", value: stats.avgRating.toFixed(1), label: "平均评分" }] : []),
+    { icon: <BookText className="w-4 h-4" />, value: stats.totalEntries, label: "篇日记" },
+    { icon: <CalendarDays className="w-4 h-4" />, value: stats.totalTravelDays, label: "天旅途" },
+    { icon: <MapPin className="w-4 h-4" />, value: stats.totalDestinations, label: "个目的地" },
+    { icon: <Camera className="w-4 h-4" />, value: stats.totalPhotos, label: "张照片" },
+    ...(stats.longestTripDays > 0 ? [{ icon: <Award className="w-4 h-4" />, value: stats.longestTripDays, label: "天最长旅行" }] : []),
+    ...(stats.avgRating ? [{ icon: <Star className="w-4 h-4" />, value: stats.avgRating.toFixed(1), label: "平均评分" }] : []),
   ];
 
   if (!loaded) {
@@ -1036,7 +1049,9 @@ function StatsTab({
       {/* Empty state */}
       {stats.totalEntries === 0 && (
         <div className="flex flex-col items-center py-12 gap-3 text-center">
-          <div className="text-4xl">✈️</div>
+          <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-primary/40">
+            <BookText className="w-6 h-6" />
+          </div>
           <p className="text-sm text-muted-foreground">还没有旅行记录，快去写第一篇日记吧！</p>
           <Link href="/entries/new" className="text-primary text-sm hover:underline">写日记 →</Link>
         </div>
@@ -1049,39 +1064,43 @@ function NotesGrid({ notes, loaded }: { notes: MyEntry[]; loaded: boolean }) {
   if (!loaded) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary/60" /></div>;
   if (notes.length === 0) return (
     <div className="flex flex-col items-center py-16 text-center gap-3">
-      <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-2xl">📓</div>
+      <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-primary/40">
+        <BookText className="w-6 h-6" />
+      </div>
       <p className="text-sm text-muted-foreground">还没有写过日记</p>
       <Link href="/entries/new" className="text-primary text-sm hover:underline">写第一篇 →</Link>
     </div>
   );
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+    <div className="flex flex-col gap-4">
       {notes.map((n) => (
-        <Link key={n.id} href={`/entries/${n.id}`}>
-          <div className="rounded-xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all group cursor-pointer">
-            <div className="relative aspect-[4/5] bg-muted/30 overflow-hidden">
+        <Link key={n.id} href={`/entries/${n.id}`} className="block group">
+          <div className="rounded-2xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all flex h-28">
+            <div className="w-28 shrink-0 bg-muted/30 relative">
               {n.coverImage ? (
                 <img src={n.coverImage} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <ImageIcon className="w-8 h-8 text-muted-foreground/20" />
+                  <ImageIcon className="w-6 h-6 text-muted-foreground/30" />
                 </div>
               )}
-              <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-background/85 backdrop-blur-sm text-[10px] text-foreground">
+              <div className="absolute top-2 left-2 flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-background/85 backdrop-blur-sm text-[10px] text-foreground">
                 {VIS_ICON[n.visibility]}
               </div>
-              {n.mood && (
-                <div className={cn("absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium", MOODS[n.mood] ?? "bg-muted text-muted-foreground")}>
-                  {n.mood}
-                </div>
-              )}
             </div>
-            <div className="p-2">
-              <p className="text-xs font-semibold text-foreground line-clamp-2 leading-snug">{n.title}</p>
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
-                <MapPin className="w-2.5 h-2.5 shrink-0" />
+            <div className="p-3 flex flex-col flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{n.title}</h3>
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                <MapPin className="w-3 h-3 shrink-0" />
                 <span className="truncate">{n.destination}</span>
-                <span className="ml-auto">{format(new Date(n.startDate), "MM.dd")}</span>
+              </div>
+              <div className="mt-auto flex items-center justify-between">
+                <span className="text-xs text-muted-foreground/70">{format(new Date(n.startDate), "MM.dd")}</span>
+                {n.mood && (
+                  <span className={cn("px-1.5 py-0.5 rounded-md text-[10px] font-medium", MOODS[n.mood] ?? "bg-muted text-muted-foreground")}>
+                    {n.mood}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -1095,33 +1114,35 @@ function FavoritesGrid({ favs, loaded }: { favs: FavEntry[]; loaded: boolean }) 
   if (!loaded) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary/60" /></div>;
   if (favs.length === 0) return (
     <div className="flex flex-col items-center py-16 text-center gap-3">
-      <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-2xl">📚</div>
+      <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-primary/40">
+        <Bookmark className="w-6 h-6" />
+      </div>
       <p className="text-sm text-muted-foreground">还没有收藏</p>
       <Link href="/square" className="text-primary text-sm hover:underline">去广场看看 →</Link>
     </div>
   );
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="flex flex-col gap-4">
         {favs.map((f) => (
-          <Link key={f.id} href={`/public/${f.id}`}>
-            <div className="rounded-xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all group cursor-pointer">
-              <div className="relative aspect-[4/5] bg-muted/30 overflow-hidden">
+          <Link key={f.id} href={`/public/${f.id}`} className="block group">
+            <div className="rounded-2xl overflow-hidden bg-card border border-border/40 hover:shadow-md transition-all flex h-28">
+              <div className="w-28 shrink-0 bg-muted/30 relative">
                 {f.coverPhotoUrl ? (
                   <img src={f.coverPhotoUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-8 h-8 text-muted-foreground/20" />
+                    <ImageIcon className="w-6 h-6 text-muted-foreground/30" />
                   </div>
                 )}
-                <div className="absolute top-1.5 right-1.5 p-1 rounded-md bg-amber-100/90 text-amber-600">
+                <div className="absolute top-2 right-2 p-1 rounded-md bg-amber-100/90 text-amber-600 shadow-sm">
                   <Bookmark className="w-3 h-3 fill-amber-500" />
                 </div>
               </div>
-              <div className="p-2">
-                <p className="text-xs font-semibold text-foreground line-clamp-2 leading-snug">{f.title}</p>
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
-                  <MapPin className="w-2.5 h-2.5 shrink-0" />
+              <div className="p-3 flex flex-col flex-1 min-w-0 justify-center">
+                <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">{f.title}</h3>
+                <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                  <MapPin className="w-3 h-3 shrink-0" />
                   <span className="truncate">{f.destination}</span>
                 </div>
               </div>
@@ -1129,7 +1150,7 @@ function FavoritesGrid({ favs, loaded }: { favs: FavEntry[]; loaded: boolean }) 
           </Link>
         ))}
       </div>
-      <Link href="/favorites" className="block text-center text-xs text-primary hover:underline mt-4">
+      <Link href="/favorites" className="block text-center text-xs text-primary hover:underline mt-6">
         查看全部收藏 →
       </Link>
     </>
@@ -1145,31 +1166,31 @@ function UsersList({ users, loaded, emptyHint, ctaHref, ctaLabel }: {
 }) {
   if (!loaded) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary/60" /></div>;
   if (users.length === 0) return (
-    <div className="flex flex-col items-center py-16 text-center gap-4">
-      <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-2xl">👥</div>
-      <div className="space-y-1">
-        <p className="text-sm text-muted-foreground">{emptyHint}</p>
+    <div className="flex flex-col items-center py-16 text-center gap-3">
+      <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-primary/40">
+        <Users className="w-6 h-6" />
       </div>
+      <p className="text-sm text-muted-foreground">{emptyHint}</p>
       {ctaHref && ctaLabel && (
-        <Link href={ctaHref} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-          {ctaLabel}
+        <Link href={ctaHref} className="text-primary text-sm hover:underline">
+          {ctaLabel} →
         </Link>
       )}
     </div>
   );
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+    <div className="flex flex-col gap-3">
       {users.map((u) => (
         <Link key={u.userId} href={`/users/${u.userId}`}>
-          <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card/40 hover:bg-card/80 transition-colors cursor-pointer">
-            <div className="w-11 h-11 rounded-full bg-primary/15 overflow-hidden shrink-0 flex items-center justify-center text-base font-semibold text-primary">
+          <div className="flex items-center gap-3 p-3 rounded-2xl border border-border/40 bg-card/60 hover:bg-card hover:shadow-sm hover:border-primary/20 transition-all cursor-pointer">
+            <div className="w-12 h-12 rounded-full bg-primary/10 overflow-hidden shrink-0 flex items-center justify-center text-lg font-bold text-primary ring-2 ring-background shadow-sm">
               {u.avatar ? <img src={u.avatar} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" /> : u.name[0]}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">{u.name}</p>
-              <p className="text-[10px] text-muted-foreground">旅行者</p>
+              <p className="text-sm font-bold text-foreground truncate">{u.name}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">旅行者</p>
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
+            <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
           </div>
         </Link>
       ))}
@@ -1462,10 +1483,10 @@ function ReportTab({
           ...(stats.avgRating ? [{ icon: <Star className="w-4 h-4" />, label: "平均评分", value: `${stats.avgRating} ★`, sub: "满分 5 分" }] : []),
           ...(thisYearTotal > 0 ? [{ icon: <TrendingUp className="w-4 h-4" />, label: `${year} 年写了`, value: thisYearTotal, sub: "篇日记" }] : []),
         ].map(({ icon, label, value, sub }) => (
-          <div key={label} className="bg-card border border-border/40 rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm">
+          <div key={label} className="bg-card/60 hover:bg-card border border-border/40 hover:border-primary/30 hover:shadow-md transition-all rounded-2xl p-4 flex flex-col gap-1.5 shadow-sm">
             <div className="flex items-center gap-1.5 text-muted-foreground text-xs">{icon}{label}</div>
-            <div className="text-2xl font-bold tracking-tight">{value}</div>
-            {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
+            <div className="text-2xl font-bold tracking-tight text-foreground">{value}</div>
+            {sub && <div className="text-xs text-muted-foreground/70">{sub}</div>}
           </div>
         ))}
       </div>
@@ -1544,7 +1565,6 @@ function ReportTab({
                   color: MOOD_COLORS[mood] ?? "#6b7280",
                 }}
               >
-                <span>{MOOD_EMOJI[mood] ?? "🙂"}</span>
                 <span>{mood}</span>
                 <span className="opacity-60">×{count}</span>
               </div>
@@ -1803,8 +1823,8 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
             <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
               <Check className="w-6 h-6 text-green-600" />
             </div>
-            <p className="text-base font-semibold text-foreground">感谢你的反馈！</p>
-            <p className="text-sm text-muted-foreground">我们会认真阅读每一条意见 🙏</p>
+            <p className="text-base font-bold text-foreground">感谢你的反馈！</p>
+            <p className="text-sm text-muted-foreground">我们会认真阅读每一条意见</p>
             <button
               onClick={onClose}
               className="mt-2 px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
