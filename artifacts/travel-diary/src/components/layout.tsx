@@ -63,13 +63,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { canInstall, install } = usePWAInstall();
 
-  const cycleTheme = () => {
-    if (theme === "light") setTheme("dark");
-    else if (theme === "dark") setTheme("system");
-    else setTheme("light");
-  };
-  const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
-  const themeLabel = theme === "dark" ? "深色" : theme === "light" ? "浅色" : "跟随系统";
 
   const displayName = profile?.name || user?.fullName || user?.username || "旅行者";
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -114,16 +107,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="mt-auto space-y-3">
-          {/* Theme toggle */}
-          <button
-            onClick={cycleTheme}
-            title={themeLabel}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
-          >
-            <ThemeIcon className="w-4 h-4 shrink-0" />
-            <span>{themeLabel}</span>
-          </button>
-
           {/* PWA install prompt */}
           {canInstall && (
             <button
