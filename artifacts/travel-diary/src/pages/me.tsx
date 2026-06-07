@@ -509,12 +509,15 @@ export default function Me() {
                 {sub.tier !== "free" && (
                   <div className="space-y-2">
                     {sub.expiresAt && (
-                      <p className="text-xs text-muted-foreground">
-                        {sub.cancelAtPeriodEnd 
-                          ? `将于 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，不再续费`
-                          : `套餐到期：${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`
-                        }
-                      </p>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <CalendarDays className="w-3 h-3 shrink-0" />
+                        <span>
+                          {sub.cancelAtPeriodEnd 
+                            ? `将于 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，不再续费`
+                            : `套餐到期：${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`
+                          }
+                        </span>
+                      </div>
                     )}
                     <Link href="/orders" className="text-xs text-muted-foreground/70 hover:text-primary transition-colors flex items-center gap-1 mt-1">
                       <Receipt className="w-3 h-3" />查看支付记录
