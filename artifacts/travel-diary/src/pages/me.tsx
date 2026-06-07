@@ -495,7 +495,7 @@ export default function Me() {
                   <Pencil className="w-3.5 h-3.5 text-amber-500" />
                   <span className="text-xs text-muted-foreground">AI 优化本月用量</span>
                   <span className="text-xs font-semibold text-foreground">
-                    {sub.aiEnhancedThisMonth} / {sub.aiEnhanceLimit === 999999 ? "无限" : sub.aiEnhanceLimit}
+                    {sub.aiEnhancedThisMonth} / {sub.aiEnhanceLimit >= 999999 ? "无限" : sub.aiEnhanceLimit}
                   </span>
                 </div>
                 {sub.aiEnhanceLimit < 999999 && (
