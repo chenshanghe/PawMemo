@@ -193,26 +193,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         )}
         {/* Desktop top-right: theme switcher + notification bell */}
-        <div className="hidden md:flex items-center gap-2 justify-end px-8 pt-5 pb-0">
-          {/* Sign out — desktop */}
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground border border-border/50 bg-muted/40 transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5 shrink-0" />
-            <span>退出系统</span>
-          </button>
-          <Link
-            href="/notifications"
-            className={`relative p-2 rounded-full transition-colors ${isNotifs ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
-          >
-            <Bell className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            )}
-          </Link>
+        <div className="hidden md:flex pt-5 pb-0 px-8">
+          <div className="max-w-5xl mx-auto w-full flex items-center gap-2 justify-end">
+            {/* Sign out — desktop */}
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground border border-border/50 bg-muted/40 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5 shrink-0" />
+              <span>退出系统</span>
+            </button>
+            <Link
+              href="/notifications"
+              className={`relative p-2 rounded-full transition-colors ${isNotifs ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Link>
+          </div>
         </div>
         <SwUpdateBanner />
         <NotifPermissionBanner unreadCount={unreadCount} />
