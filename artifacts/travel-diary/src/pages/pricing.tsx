@@ -191,17 +191,19 @@ export default function Pricing() {
                 {/* CTA */}
                 <div className="p-5 pt-0">
                   {isCurrent ? (
-                    <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
-                      当前套餐 ✓
-                    </div>
-                  ) : isBelowCurrent && plan.tier !== "free" ? (
                     <div className="space-y-1">
                       <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
-                        已超出此套餐
+                        当前套餐 ✓
                       </div>
-                      <p className="text-[10px] text-center text-muted-foreground/70 scale-90 origin-center">
-                        如需取消订阅，请前往 <Link href="/me" className="text-primary hover:underline">我 → 账号与订阅</Link> 操作
-                      </p>
+                      {plan.tier !== "free" && (
+                        <p className="text-[10px] text-center text-muted-foreground/70 scale-90 origin-center">
+                          如需取消订阅，请前往 <Link href="/me" className="text-primary hover:underline">我 → 账号与订阅</Link> 操作
+                        </p>
+                      )}
+                    </div>
+                  ) : isBelowCurrent && plan.tier !== "free" ? (
+                    <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
+                      已超出此套餐
                     </div>
                   ) : plan.ctaDisabled ? (
                     <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
