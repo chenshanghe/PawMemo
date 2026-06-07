@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Layout } from "@/components/layout";
 import { Link, useLocation, useSearch } from "wouter";
-import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal, ArrowUpDown, Pencil, Copy, Check } from "lucide-react";
+import { Loader2, Trash2, Navigation, MapPin, Calendar, Users, ChevronRight, SlidersHorizontal, ArrowUpDown, Pencil, Copy, Check, RotateCcw } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -758,6 +758,16 @@ export default function PlanListPage() {
                               {need}
                             </span>
                           ))}
+                        </div>
+
+                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/20">
+                          <span className="text-[11px] text-muted-foreground/50">点击卡片查看完整行程</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setLocation(`/plan?load=${plan.id}&replan=1`); }}
+                            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-lg hover:bg-primary/5"
+                          >
+                            <RotateCcw className="w-3 h-3" />重新规划
+                          </button>
                         </div>
                       </div>
 

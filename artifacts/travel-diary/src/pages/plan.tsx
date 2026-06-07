@@ -417,15 +417,17 @@ export default function PlanPage() {
   }, []);
 
   // Load a plan from ?load= query param (e.g. navigated from /plan/list)
+  // If ?replan=1 is also set, skip the result view and go straight to replan form
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const loadId = params.get("load");
+    const openReplan = params.get("replan") === "1";
     if (!loadId) return;
     const id = parseInt(loadId);
     if (isNaN(id)) return;
     // Remove query param from URL without triggering re-render
     window.history.replaceState({}, "", window.location.pathname);
-    handleLoadSaved(id);
+    handleLoadSaved(id, openReplan);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClearPrefs = () => {
@@ -536,7 +538,7 @@ export default function PlanPage() {
     }
   };
 
-  const handleLoadSaved = async (id: number) => {
+  const handleLoadSaved = async (id: number, openReplan = false) => {
     setLoadingPlanId(id);
     try {
       const res = await apiFetch(`/api/plan/saved/${id}`);
@@ -590,9 +592,16 @@ export default function PlanPage() {
         groupType: loadedGroupType,
         specialNeeds: loadedSpecialNeeds,
       });
-      setSavedId(id);
       setActiveDay(0);
-      setState("result");
+      if (openReplan) {
+        setSavedId(null);
+        setIsReplanMode(true);
+        setReplanBannerDismissed(false);
+        setState("form");
+      } else {
+        setSavedId(id);
+        setState("result");
+      }
       setSavedOpen(false);
     } catch {
       setError("加载失败，请重试");
