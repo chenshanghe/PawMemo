@@ -358,6 +358,9 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   };
 
   const anyBusy = queue.some((i) => i.status !== "done" && i.status !== "error");
+  const doneCount = queue.filter((i) => i.status === "done").length;
+  const errorCount = queue.filter((i) => i.status === "error").length;
+  const totalCount = queue.length;
 
   const statusLabel = (item: QueueItem) => {
     switch (item.status) {
@@ -373,6 +376,41 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
     <div className={cn("space-y-3", className)}>
       <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleInputChange} />
       <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif" capture="environment" className="hidden" onChange={handleInputChange} />
+
+      {/* Aggregate progress summary */}
+      {totalCount > 0 && (
+        <div className={cn(
+          "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors",
+          !anyBusy && errorCount === 0
+            ? "bg-green-50 text-green-700 border border-green-200"
+            : !anyBusy && errorCount > 0
+            ? "bg-red-50 text-red-700 border border-red-200"
+            : "bg-muted/40 text-muted-foreground border border-border/40"
+        )}>
+          {anyBusy ? (
+            <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+          ) : errorCount > 0 ? (
+            <X className="w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+          )}
+          <span>
+            {anyBusy
+              ? `已完成 ${doneCount} / ${totalCount} 张`
+              : errorCount > 0
+              ? `${doneCount} 张成功，${errorCount} 张失败`
+              : `${totalCount} 张全部上传完成`}
+          </span>
+          {anyBusy && (
+            <div className="flex-1 h-1 bg-border/40 rounded-full overflow-hidden ml-1">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Upload queue grid */}
       {queue.length > 0 && (

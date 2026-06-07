@@ -8,24 +8,39 @@ export interface DraftData {
   content: string;
   mood: string;
   rating: number;
+  startDate: string;
+  endDate: string;
+  companions: string;
+  visibility: "private" | "public" | "shared";
+  tagIds: number[];
   savedAt: number;
 }
 
 export function useOfflineDraft(
-  form: { title: string; destination: string; content: string; mood: string; rating: number },
+  form: {
+    title: string;
+    destination: string;
+    content: string;
+    mood: string;
+    rating: number;
+    startDate: string;
+    endDate: string;
+    companions: string;
+    visibility: "private" | "public" | "shared";
+  },
+  tagIds: number[],
   isEditing: boolean
 ) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounced save
   const saveDraft = useCallback(() => {
     if (isEditing) return;
     if (!form.title.trim() && !form.content.trim() && !form.destination.trim()) return;
-    const draft: DraftData = { ...form, savedAt: Date.now() };
+    const draft: DraftData = { ...form, tagIds, savedAt: Date.now() };
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch {}
-  }, [form, isEditing]);
+  }, [form, tagIds, isEditing]);
 
   useEffect(() => {
     if (isEditing) return;
@@ -40,7 +55,6 @@ export function useOfflineDraft(
       const raw = localStorage.getItem(DRAFT_KEY);
       if (!raw) return null;
       const draft = JSON.parse(raw) as DraftData;
-      // Ignore drafts older than 7 days
       if (Date.now() - draft.savedAt > 7 * 24 * 60 * 60 * 1000) {
         localStorage.removeItem(DRAFT_KEY);
         return null;

@@ -86,7 +86,18 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   const [draftRestored, setDraftRestored] = useState(false);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const { loadDraft, clearDraft, hasDraft } = useOfflineDraft(
-    { title: form.title, destination: form.destination, content: form.content, mood: form.mood, rating: form.rating },
+    {
+      title: form.title,
+      destination: form.destination,
+      content: form.content,
+      mood: form.mood,
+      rating: form.rating,
+      startDate: form.startDate,
+      endDate: form.endDate,
+      companions: form.companions,
+      visibility: form.visibility,
+    },
+    selectedTagIds,
     isEditing
   );
 
@@ -320,8 +331,13 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                       destination: draft.destination || f.destination,
                       content: draft.content || f.content,
                       mood: draft.mood || f.mood,
-                      rating: draft.rating || f.rating,
+                      rating: draft.rating ?? f.rating,
+                      startDate: draft.startDate || f.startDate,
+                      endDate: draft.endDate || f.endDate,
+                      companions: draft.companions || f.companions,
+                      visibility: draft.visibility || f.visibility,
                     }));
+                    if (draft.tagIds?.length) setSelectedTagIds(draft.tagIds);
                   }
                   setDraftRestored(true);
                   setShowDraftBanner(false);
