@@ -112,19 +112,22 @@ const VIS_ICON = {
   unlisted: <EyeOff className="w-3 h-3" />,
 };
 
+const D = (style: string, seed: string) =>
+  `/api/proxy/dicebear?style=${style}&seed=${encodeURIComponent(seed)}`;
+
 const PRESET_AVATARS = [
-  { url: "https://api.dicebear.com/9.x/adventurer/svg?seed=lychee",      bg: "bg-pink-50" },
-  { url: "https://api.dicebear.com/9.x/adventurer/svg?seed=bamboo",      bg: "bg-green-50" },
-  { url: "https://api.dicebear.com/9.x/big-smile/svg?seed=journey",      bg: "bg-yellow-50" },
-  { url: "https://api.dicebear.com/9.x/big-smile/svg?seed=wanderer",     bg: "bg-orange-50" },
-  { url: "https://api.dicebear.com/9.x/fun-emoji/svg?seed=traveler",     bg: "bg-blue-50" },
-  { url: "https://api.dicebear.com/9.x/fun-emoji/svg?seed=explorer",     bg: "bg-purple-50" },
-  { url: "https://api.dicebear.com/9.x/micah/svg?seed=nomad",            bg: "bg-teal-50" },
-  { url: "https://api.dicebear.com/9.x/micah/svg?seed=pilgrim",          bg: "bg-indigo-50" },
-  { url: "https://api.dicebear.com/9.x/pixel-art/svg?seed=globe",        bg: "bg-red-50" },
-  { url: "https://api.dicebear.com/9.x/pixel-art/svg?seed=atlas",        bg: "bg-amber-50" },
-  { url: "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=rover",   bg: "bg-cyan-50" },
-  { url: "https://api.dicebear.com/9.x/lorelei/svg?seed=sunset",         bg: "bg-rose-50" },
+  { url: D("adventurer",     "lychee"),    bg: "bg-pink-50" },
+  { url: D("adventurer",     "bamboo"),    bg: "bg-green-50" },
+  { url: D("big-smile",      "journey"),   bg: "bg-yellow-50" },
+  { url: D("big-smile",      "wanderer"),  bg: "bg-orange-50" },
+  { url: D("fun-emoji",      "traveler"),  bg: "bg-blue-50" },
+  { url: D("fun-emoji",      "explorer"),  bg: "bg-purple-50" },
+  { url: D("micah",          "nomad"),     bg: "bg-teal-50" },
+  { url: D("micah",          "pilgrim"),   bg: "bg-indigo-50" },
+  { url: D("pixel-art",      "globe"),     bg: "bg-red-50" },
+  { url: D("pixel-art",      "atlas"),     bg: "bg-amber-50" },
+  { url: D("bottts-neutral", "rover"),     bg: "bg-cyan-50" },
+  { url: D("lorelei",        "sunset"),    bg: "bg-rose-50" },
 ];
 
 interface SubInfo {
@@ -1476,7 +1479,7 @@ function AvatarPickerModal({
               <span className="text-xs text-muted-foreground/60">支持 JPG、PNG、WebP，建议正方形</span>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];

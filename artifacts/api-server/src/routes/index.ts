@@ -19,6 +19,7 @@ import prefsRouter from "./prefs";
 import feedbackRouter from "./feedback";
 import safetyRouter from "./safety";
 import downloadsRouter from "./downloads";
+import proxyRouter from "./proxy";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(prefsRouter);
 router.use(feedbackRouter);
 router.use(safetyRouter);
 router.use(downloadsRouter);
+router.use(proxyRouter);
 
 export default router;

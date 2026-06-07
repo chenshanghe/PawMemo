@@ -38,7 +38,7 @@ router.post("/avatar/ai-suggest", async (req, res) => {
     const raw = JSON.parse(resp.choices[0].message.content ?? "{}");
     const style = STYLES.includes(raw.style) ? raw.style : "adventurer";
     const seed = encodeURIComponent((raw.seed || description.replace(/\s+/g, "-")).slice(0, 30));
-    res.json({ url: `https://api.dicebear.com/9.x/${style}/svg?seed=${seed}` });
+    res.json({ url: `/api/proxy/dicebear?style=${style}&seed=${seed}` });
   } catch {
     res.status(500).json({ error: "AI 生成失败，请重试" });
   }
