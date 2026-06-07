@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ChevronLeft, Sparkles, Loader2, Save, RefreshCw, BookOpen, MapPin,
   CalendarDays, Check, Wand2, Tag, Plus, Trash2, Image as ImageIcon,
-  CheckSquare, Square,
+  CheckSquare, Square, Eye, AlertCircle, X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -81,6 +81,13 @@ export default function ComposeNarrative() {
 
   const narrativeRef = useRef<HTMLTextAreaElement>(null);
 
+  // Compose error + prompt preview
+  const [composeError, setComposeError] = useState<string | null>(null);
+  const [showPromptDialog, setShowPromptDialog] = useState(false);
+  const [promptData, setPromptData] = useState<{ systemPrompt: string; userPrompt: string } | null>(null);
+  const [loadingPrompt, setLoadingPrompt] = useState(false);
+  const [editedUserPrompt, setEditedUserPrompt] = useState("");
+
   // ── Load sources + presets ──────────────────────────────────────────────────
   useEffect(() => {
     if (!ids.length) { navigate("/entries"); return; }
@@ -136,19 +143,28 @@ export default function ComposeNarrative() {
   }, [narrative]);
 
   // ── Compose ─────────────────────────────────────────────────────────────────
-  const compose = useCallback(async () => {
+  const compose = useCallback(async (overrideUserPrompt?: string) => {
     if (streaming || !sources.length) return;
     setStreaming(true);
     setDone(false);
     setNarrative("");
+    setComposeError(null);
     setSaved(false);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90_000);
 
     try {
       const res = await fetch(`${BASE}/api/ai/compose`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryIds: ids, style: style.trim() || undefined }),
+        body: JSON.stringify({
+          entryIds: ids,
+          style: style.trim() || undefined,
+          ...(overrideUserPrompt !== undefined ? { customUserPrompt: overrideUserPrompt } : {}),
+        }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -157,19 +173,19 @@ export default function ComposeNarrative() {
           setDone(true);
           return;
         }
-        setNarrative(`[错误] ${err.error ?? "AI 服务异常"}`);
+        setComposeError(err.error ?? "AI 服务异常，请稍后重试");
         setDone(true);
         return;
       }
       if (!res.body) {
-        setNarrative("[错误] AI 服务异常");
+        setComposeError("AI 服务异常，请稍后重试");
         setDone(true);
         return;
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
-      while (true) {
+      outer: while (true) {
         const { value, done: rDone } = await reader.read();
         if (rDone) break;
         buf += decoder.decode(value, { stream: true });
@@ -179,8 +195,8 @@ export default function ComposeNarrative() {
           if (!line.startsWith("data: ")) continue;
           try {
             const p = JSON.parse(line.slice(6));
-            if (p.done) { setDone(true); break; }
-            if (p.error) { setNarrative((prev) => prev + `\n[错误] ${p.error}`); break; }
+            if (p.done) { setDone(true); break outer; }
+            if (p.error) { setComposeError(p.error); break outer; }
             if (p.text) setNarrative((prev) => prev + p.text);
           } catch {}
         }
@@ -196,12 +212,39 @@ export default function ComposeNarrative() {
       });
       setDone(true);
     } catch (e: any) {
-      setNarrative(`[网络错误] ${e.message}`);
+      if (controller.signal.aborted) {
+        setComposeError("合成超时（等待超过 90 秒），AI 服务可能繁忙，请稍后重试");
+      } else {
+        setComposeError("网络错误，请检查网络连接后重试");
+      }
       setDone(true);
     } finally {
+      clearTimeout(timeoutId);
       setStreaming(false);
     }
   }, [streaming, sources, ids, style]);
+
+  // ── Prompt preview ───────────────────────────────────────────────────────────
+  const loadPromptPreview = async () => {
+    if (!ids.length) return;
+    setPromptData(null);
+    setLoadingPrompt(true);
+    setShowPromptDialog(true);
+    try {
+      const res = await fetch(`${BASE}/api/ai/compose-prompt`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryIds: ids, style: style.trim() || undefined }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPromptData(data);
+        setEditedUserPrompt(data.userPrompt);
+      }
+    } catch {}
+    setLoadingPrompt(false);
+  };
 
   // ── Style presets ────────────────────────────────────────────────────────────
   const savePreset = async () => {
@@ -464,21 +507,49 @@ export default function ComposeNarrative() {
           )}
         </div>
 
-        {/* Compose button */}
-        {!done ? (
-          <Button onClick={compose} disabled={streaming} className="w-full gap-2 rounded-xl h-11 text-base font-semibold shadow-md">
-            {streaming
-              ? <><Loader2 className="w-4 h-4 animate-spin" />正在生成…</>
-              : <><Wand2 className="w-4 h-4" />开始 AI 合成</>
-            }
-          </Button>
-        ) : (
+        {/* Compose button + prompt preview */}
+        <div className="flex items-center gap-2">
+          {!done ? (
+            <Button onClick={() => compose()} disabled={streaming} className="flex-1 gap-2 rounded-xl h-11 text-base font-semibold shadow-md">
+              {streaming
+                ? <><Loader2 className="w-4 h-4 animate-spin" />正在生成…</>
+                : <><Wand2 className="w-4 h-4" />开始 AI 合成</>
+              }
+            </Button>
+          ) : (
+            <button
+              onClick={() => { setComposeError(null); setDone(false); setNarrative(""); setSaved(false); compose(); }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border/50 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />重新生成
+            </button>
+          )}
           <button
-            onClick={() => { setDone(false); setNarrative(""); setSaved(false); compose(); }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border/50 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+            onClick={loadPromptPreview}
+            disabled={streaming || !sources.length}
+            title="查看并微调 AI 提示词"
+            className="flex items-center gap-1.5 px-3 h-11 rounded-xl border border-border/50 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
           >
-            <RefreshCw className="w-3.5 h-3.5" />重新生成
+            <Eye className="w-4 h-4" />
+            <span className="text-xs">提示词</span>
           </button>
+        </div>
+
+        {/* Compose error card */}
+        {composeError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 p-4 flex items-start gap-3">
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-400">合成失败</p>
+              <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">{composeError}</p>
+            </div>
+            <button
+              onClick={() => { setComposeError(null); setDone(false); setNarrative(""); compose(); }}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" />重试
+            </button>
+          </div>
         )}
 
         {/* Streaming output */}
@@ -618,6 +689,93 @@ export default function ComposeNarrative() {
           limit={upgradeInfo.limit}
           onClose={() => setUpgradeInfo(null)}
         />
+      )}
+
+      {/* Prompt preview / edit dialog */}
+      {showPromptDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPromptDialog(false); }}
+        >
+          <div className="bg-background rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between p-5 border-b border-border/40 shrink-0">
+              <div>
+                <h3 className="font-semibold text-foreground">AI 提示词预览</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">查看将要发给 AI 的内容，可在此微调后再合成</p>
+              </div>
+              <button
+                onClick={() => setShowPromptDialog(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 min-h-0">
+              {loadingPrompt ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                </div>
+              ) : promptData ? (
+                <>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                      系统指令（只读）
+                    </label>
+                    <Textarea
+                      value={promptData.systemPrompt}
+                      readOnly
+                      rows={8}
+                      className="bg-muted/40 border-border/40 rounded-xl text-xs font-mono leading-relaxed resize-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">
+                      用户提示词（可编辑）
+                    </label>
+                    <p className="text-[11px] text-muted-foreground mb-1.5">
+                      日记正文已嵌入末尾；你可在开头添加额外要求，或直接修改后点击「以此合成」
+                    </p>
+                    <Textarea
+                      value={editedUserPrompt}
+                      onChange={(e) => setEditedUserPrompt(e.target.value)}
+                      rows={14}
+                      className="bg-card border-border/50 rounded-xl text-xs font-mono leading-relaxed resize-none"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+                  加载提示词失败，请关闭后重试
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-border/40 flex items-center justify-end gap-2 shrink-0">
+              <button
+                onClick={() => setShowPromptDialog(false)}
+                className="px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                关闭
+              </button>
+              <Button
+                disabled={loadingPrompt || !editedUserPrompt.trim()}
+                onClick={() => {
+                  setShowPromptDialog(false);
+                  setComposeError(null);
+                  setDone(false);
+                  setNarrative("");
+                  setSaved(false);
+                  compose(editedUserPrompt);
+                }}
+                className="gap-2 rounded-xl"
+              >
+                <Wand2 className="w-4 h-4" />
+                以此合成
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </Layout>
   );

@@ -25,16 +25,25 @@ const API_STALE_MS = 5 * 60 * 1000; // 5 min
 // Max number of images to keep in the image cache
 const IMAGE_CACHE_MAX = 500;
 
-// ── Install ────────────────────────────────────────────────────────────────────
+// ── Install — pre-cache shell assets, then wait in "installed" state ──────────
+// We do NOT call skipWaiting() here so the new SW stays in "waiting" state
+// until the user explicitly clicks "立即刷新" (which sends SKIP_WAITING below).
+// This prevents version skew where the old page runs against new SW caches.
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(SHELL_CACHE)
       .then((c) => c.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
   );
 });
 
-// ── Activate — delete old caches, then notify all clients to reload ────────────
+// ── Message — let the page trigger skipWaiting when the user is ready ─────────
+self.addEventListener("message", (e) => {
+  if (e.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// ── Activate — delete old caches, claim all clients ───────────────────────────
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
@@ -44,14 +53,6 @@ self.addEventListener("activate", (e) => {
           .map((k) => caches.delete(k))
       )
     ).then(() => self.clients.claim())
-      .then(() => {
-        // Tell every open tab that a new version is active
-        return self.clients.matchAll({ type: "window" }).then((clients) => {
-          clients.forEach((client) =>
-            client.postMessage({ type: "SW_UPDATED", version: CACHE_VER })
-          );
-        });
-      })
   );
 });
 

@@ -44,10 +44,77 @@ router.post("/avatar/ai-suggest", async (req, res) => {
   }
 });
 
+// ── Shared prompt builder ──────────────────────────────────────────────────────
+function buildComposePrompts(
+  rows: (typeof diaryEntriesTable.$inferSelect)[],
+  style?: string
+): { systemPrompt: string; userPrompt: string } {
+  const sections = rows.map((e, i) => {
+    const date = e.endDate ? `${e.startDate} 至 ${e.endDate}` : e.startDate;
+    return `【第${i + 1}篇：${e.title}】\n目的地：${e.destination}\n日期：${date}${e.mood ? `\n心情：${e.mood}` : ""}\n\n${e.content ?? "（无正文）"}`;
+  }).join("\n\n---\n\n");
+
+  const sectionCount = rows.length;
+  const separatorExample = rows.map((_, i) => `第${i + 1}段正文…`).join("\n[===]\n");
+
+  const systemPrompt = `你是一位擅长写游记的中文旅行作家，文笔优美、情感细腻。
+将旅行者提供的多篇按时间标记的随记，整合成一篇结构完整、行文流畅的游记。
+要求：
+1. 严格按照时间先后顺序组织全文
+2. 忠实于原随记内容，不得编造任何人物、地点、情节、对话或心理活动；仅可使用原随记中明确出现的信息
+3. 可以添加必要的连接词、过渡句让文章自然连贯，也可以适当润色语句，但不得增添原文未提及的景物、事件或感受
+4. 将原随记中的时间标记自然地融入游记叙事中，避免罗列式的"某日某时"写法
+5. 【标题】综合所有随记的目的地、行程与主题，拟定一个反映整段旅程的标题。输出的第一行必须是 【标题】xxx（xxx 为标题文字），之后空一行，再开始正文
+6. 【重要·分段规则】正文必须严格分为 ${sectionCount} 段，每段对应一篇原始日记。相邻两段之间必须单独另起一行输出分隔符 [===]，前后各空一行，共 ${sectionCount - 1} 个分隔符。输出格式示例：
+【标题】xxx
+
+${separatorExample}
+7. 除标题行和 [===] 分隔符外，不要输出任何序号或说明文字
+8. 正文字数建议 800-2000 字（不含标题行）`;
+
+  const userPrompt = style?.trim()
+    ? `请按照以下风格要求：${style.trim()}\n\n将下面这些日记合成为一篇游记：\n\n${sections}`
+    : `请将下面这些日记合成为一篇完整的游记：\n\n${sections}`;
+
+  return { systemPrompt, userPrompt };
+}
+
+// POST /ai/compose-prompt — preview rendered prompts without calling AI (no quota)
+router.post("/compose-prompt", async (req, res) => {
+  const userId = (req as AuthedRequest).userId;
+  const { entryIds, style } = req.body as { entryIds: number[]; style?: string };
+
+  if (!Array.isArray(entryIds) || entryIds.length < 2) {
+    res.status(400).json({ error: "至少选择 2 篇日记" });
+    return;
+  }
+  if (entryIds.length > 10) {
+    res.status(400).json({ error: "最多选择 10 篇日记" });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(diaryEntriesTable)
+    .where(and(inArray(diaryEntriesTable.id, entryIds), eq(diaryEntriesTable.userId, userId)));
+
+  if (rows.length < 2) {
+    res.status(400).json({ error: "找不到足够的日记，请检查权限" });
+    return;
+  }
+
+  rows.sort((a, b) => a.startDate.localeCompare(b.startDate));
+  res.json(buildComposePrompts(rows, style));
+});
+
 // POST /ai/compose — merge multiple owned entries into a narrative (SSE stream)
 router.post("/compose", async (req, res) => {
   const userId = (req as AuthedRequest).userId;
-  const { entryIds, style } = req.body as { entryIds: number[]; style?: string };
+  const { entryIds, style, customUserPrompt } = req.body as {
+    entryIds: number[];
+    style?: string;
+    customUserPrompt?: string;
+  };
 
   if (!Array.isArray(entryIds) || entryIds.length < 2) {
     res.status(400).json({ error: "至少选择 2 篇日记" });
@@ -79,37 +146,8 @@ router.post("/compose", async (req, res) => {
   // Sort by date
   rows.sort((a, b) => a.startDate.localeCompare(b.startDate));
 
-  // Build prompt sections
-  const sections = rows.map((e, i) => {
-    const date = e.endDate
-      ? `${e.startDate} 至 ${e.endDate}`
-      : e.startDate;
-    return `【第${i + 1}篇：${e.title}】\n目的地：${e.destination}\n日期：${date}${e.mood ? `\n心情：${e.mood}` : ""}\n\n${e.content ?? "（无正文）"}`;
-  }).join("\n\n---\n\n");
-
-  const sectionCount = rows.length;
-  // Build an explicit example to make the [===] placement unambiguous
-  const separatorExample = rows
-    .map((_, i) => `第${i + 1}段正文…`)
-    .join("\n[===]\n");
-  const systemPrompt = `你是一位擅长写游记的中文旅行作家，文笔优美、情感细腻。
-将旅行者提供的多篇按时间标记的随记，整合成一篇结构完整、行文流畅的游记。
-要求：
-1. 严格按照时间先后顺序组织全文
-2. 忠实于原随记内容，不得编造任何人物、地点、情节、对话或心理活动；仅可使用原随记中明确出现的信息
-3. 可以添加必要的连接词、过渡句让文章自然连贯，也可以适当润色语句，但不得增添原文未提及的景物、事件或感受
-4. 将原随记中的时间标记自然地融入游记叙事中，避免罗列式的"某日某时"写法
-5. 【标题】综合所有随记的目的地、行程与主题，拟定一个反映整段旅程的标题。输出的第一行必须是 【标题】xxx（xxx 为标题文字），之后空一行，再开始正文
-6. 【重要·分段规则】正文必须严格分为 ${sectionCount} 段，每段对应一篇原始日记。相邻两段之间必须单独另起一行输出分隔符 [===]，前后各空一行，共 ${sectionCount - 1} 个分隔符。输出格式示例：
-【标题】xxx
-
-${separatorExample}
-7. 除标题行和 [===] 分隔符外，不要输出任何序号或说明文字
-8. 正文字数建议 800-2000 字（不含标题行）`;
-
-  const userPrompt = style?.trim()
-    ? `请按照以下风格要求：${style.trim()}\n\n将下面这些日记合成为一篇游记：\n\n${sections}`
-    : `请将下面这些日记合成为一篇完整的游记：\n\n${sections}`;
+  const { systemPrompt, userPrompt: builtUserPrompt } = buildComposePrompts(rows, style);
+  const userPrompt = customUserPrompt?.trim() || builtUserPrompt;
 
   try {
     res.setHeader("Content-Type", "text/event-stream");

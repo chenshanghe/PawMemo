@@ -4,6 +4,7 @@ import { subscriptionOrdersTable, userProfilesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import crypto from "crypto";
+import { sendEmail, buildPaymentSuccessEmail } from "../lib/email";
 
 const router = Router();
 
@@ -259,6 +260,22 @@ async function fulfillOrder(outTradeNo: string, tradeNo: string) {
   await db.update(userProfilesTable)
     .set({ subscriptionTier: order.tier, subscriptionExpiresAt: expiresAt })
     .where(eq(userProfilesTable.userId, order.userId));
+
+  // Fire-and-forget: send payment confirmation email
+  db.select().from(userProfilesTable)
+    .where(eq(userProfilesTable.userId, order.userId))
+    .then(([profile]) => {
+      if (!profile?.email) return;
+      const { subject, html } = buildPaymentSuccessEmail({
+        name: profile.name || profile.email,
+        tier: order.tier,
+        period: order.period,
+        amountCents: order.amountCents,
+        expiresAt,
+      });
+      sendEmail({ to: profile.email, subject, html });
+    })
+    .catch(() => {});
 }
 
 export default router;

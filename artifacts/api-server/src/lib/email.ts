@@ -149,6 +149,75 @@ export function buildWeeklyDigestEmail({
   };
 }
 
+export function buildPaymentSuccessEmail({
+  name,
+  tier,
+  period,
+  amountCents,
+  expiresAt,
+}: {
+  name: string;
+  tier: string;
+  period: string;
+  amountCents: number;
+  expiresAt: Date;
+}) {
+  const appUrl = process.env.APP_URL ?? "https://urchins.life";
+  const tierNames: Record<string, string> = { pro: "探索家 Pro", plus: "旅记大师 Plus" };
+  const periodNames: Record<string, string> = { monthly: "月度", yearly: "年度" };
+  const tierName = tierNames[tier] ?? tier;
+  const periodName = periodNames[period] ?? period;
+  const amount = (amountCents / 100).toFixed(2);
+  const expiresStr = expiresAt.toLocaleDateString("zh-CN", {
+    year: "numeric", month: "long", day: "numeric",
+  });
+  return {
+    subject: `顽童记 · ${tierName}订阅开通成功`,
+    html: `
+<!DOCTYPE html>
+<html lang="zh">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#faf9f7;font-family:'PingFang SC',system-ui,sans-serif;color:#333;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07)">
+    <tr><td style="background:linear-gradient(135deg,#f97316,#ea580c);padding:32px 36px 28px;text-align:center">
+      <div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">顽童记</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:6px">✈️ 记录每一段旅途</div>
+    </td></tr>
+    <tr><td style="padding:32px 36px">
+      <p style="margin:0 0 8px;font-size:15px">你好，<strong>${name}</strong>！</p>
+      <p style="margin:0 0 24px;font-size:15px;color:#555">你的 <strong>${tierName}</strong> 订阅已成功开通 🎉</p>
+      <div style="background:#fef3ec;border-radius:12px;padding:20px 24px;margin-bottom:28px">
+        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#555">
+          <tr>
+            <td style="padding:5px 0;color:#999">套餐</td>
+            <td style="padding:5px 0;text-align:right;font-weight:600;color:#333">${tierName}</td>
+          </tr>
+          <tr>
+            <td style="padding:5px 0;color:#999">计费周期</td>
+            <td style="padding:5px 0;text-align:right;font-weight:600;color:#333">${periodName}</td>
+          </tr>
+          <tr>
+            <td style="padding:5px 0;color:#999">支付金额</td>
+            <td style="padding:5px 0;text-align:right;font-weight:600;color:#f97316">¥${amount}</td>
+          </tr>
+          <tr>
+            <td style="padding:5px 0;color:#999">有效期至</td>
+            <td style="padding:5px 0;text-align:right;font-weight:600;color:#333">${expiresStr}</td>
+          </tr>
+        </table>
+      </div>
+      <a href="${appUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:15px;font-weight:600">开始使用 →</a>
+    </td></tr>
+    <tr><td style="padding:20px 36px 28px;text-align:center;color:#aaa;font-size:12px;border-top:1px solid #f3f0ec">
+      如有疑问请访问 <a href="${appUrl}/me" style="color:#f97316;text-decoration:none">账号设置</a> 查看订阅详情。<br>
+      © 2025 顽童记
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  };
+}
+
 export function buildLikeEmail({
   ownerName,
   likerName,
