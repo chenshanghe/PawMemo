@@ -742,6 +742,15 @@ export default function Me() {
             </button>
           </div>
 
+          {/* ── Sign out (mobile only) ─────────────────────────────────── */}
+          <button
+            onClick={handleSignOut}
+            className="md:hidden mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border/40 text-sm text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/5 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            退出登录
+          </button>
+
           {/* ── Tabs ───────────────────────────────────────────────────── */}
           <div className="mt-6 border-b border-border/40 flex gap-2 -mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto scrollbar-none pb-2">
             {([
