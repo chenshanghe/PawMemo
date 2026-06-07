@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, WifiOff, Download } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, WifiOff, Download, Share2, Smartphone } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
@@ -170,13 +170,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-0.5">{unreadCount > 9 ? "9+" : unreadCount}</span>
             )}
           </Link>
-          {user && (
-            <Link href="/me">
-              <div className="w-8 h-8 rounded-full bg-primary/15 overflow-hidden flex items-center justify-center text-primary font-bold text-sm ring-2 ring-primary/20 shadow-sm cursor-pointer">
-                {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : <span className="text-xs">{displayName[0]}</span>}
-              </div>
-            </Link>
-          )}
+          <button
+            className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            onClick={async () => {
+              if (canInstall) {
+                await install();
+              } else if (typeof navigator.share === "function") {
+                navigator.share({ title: "顽童日记", text: "用顽童日记记录你的每段旅行故事", url: "https://urchins.life" }).catch(() => {});
+              } else {
+                await navigator.clipboard.writeText("https://urchins.life").catch(() => {});
+              }
+            }}
+          >
+            {canInstall ? <Smartphone className="w-5 h-5" /> : <Share2 className="w-5 h-5" />}
+          </button>
           <Link href="/entries/new" className="w-8 h-8 flex items-center justify-center bg-primary text-primary-foreground rounded-full shadow-sm hover:bg-primary/90 transition-colors">
             <Plus className="w-4 h-4" />
           </Link>
