@@ -6,7 +6,7 @@ import {
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
   Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, MessageSquare,
-  AlertTriangle, Trash2, Shield, FileText, Zap, Receipt, Ban,
+  AlertTriangle, Trash2, Shield, FileText, Zap, Receipt, Ban, Share2, Smartphone,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -18,6 +18,7 @@ import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { PayDialog } from "@/components/pay-dialog";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -151,6 +152,8 @@ export default function Me() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const [, navigate] = useLocation();
+
+  const { canInstall, install } = usePWAInstall();
 
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [stats, setStats] = useState<SummaryStats | null>(null);
@@ -744,6 +747,43 @@ export default function Me() {
               <p className="text-[10px] text-muted-foreground leading-tight">告诉我们你的想法或遇到的问题</p>
             </button>
           </div>
+
+          {/* ── Install / Share (desktop only) ─────────────────────────── */}
+          <button
+            className="hidden md:flex mt-3 w-full items-center gap-3 p-3.5 rounded-2xl border border-border/40 bg-card/40 hover:bg-muted/50 transition-colors text-left"
+            onClick={async () => {
+              if (canInstall) {
+                await install();
+              } else if (typeof navigator.share === "function") {
+                navigator.share({
+                  title: "顽童日记",
+                  text: "用顽童日记记录你的每段旅行故事",
+                  url: "https://urchins.life",
+                }).catch(() => {});
+              } else {
+                await navigator.clipboard.writeText("https://urchins.life");
+                toast({ description: "链接已复制，发给朋友吧 🎉" });
+              }
+            }}
+          >
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              {canInstall ? (
+                <Smartphone className="w-4 h-4 text-primary" />
+              ) : (
+                <Share2 className="w-4 h-4 text-primary" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-foreground">
+                {canInstall ? "安装到桌面" : "分享给朋友"}
+              </p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                {canInstall
+                  ? "添加到桌面，随时一键打开"
+                  : "把顽童日记推荐给朋友一起记录旅行"}
+              </p>
+            </div>
+          </button>
 
           {/* ── Tabs ───────────────────────────────────────────────────── */}
           <div className="mt-6 border-b border-border/40 flex gap-2 -mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto scrollbar-none pb-2">
