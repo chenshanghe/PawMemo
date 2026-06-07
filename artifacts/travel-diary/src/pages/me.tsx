@@ -506,14 +506,16 @@ export default function Me() {
                     />
                   </div>
                 )}
-                {sub.tier !== "free" && sub.expiresAt && (
+                {sub.tier !== "free" && (
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      {sub.cancelAtPeriodEnd 
-                        ? `将于 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，不再续费`
-                        : `套餐到期：${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`
-                      }
-                    </p>
+                    {sub.expiresAt && (
+                      <p className="text-xs text-muted-foreground">
+                        {sub.cancelAtPeriodEnd 
+                          ? `将于 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，不再续费`
+                          : `套餐到期：${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`
+                        }
+                      </p>
+                    )}
                     <Link href="/orders" className="text-xs text-muted-foreground/70 hover:text-primary transition-colors flex items-center gap-1 mt-1">
                       <Receipt className="w-3 h-3" />查看支付记录
                     </Link>
@@ -551,7 +553,7 @@ export default function Me() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>取消订阅</AlertDialogTitle>
                               <AlertDialogDescription>
-                                取消后，您的 {sub.tierName} 将在 {format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，到期前功能不受影响，到期后自动降回免费版。订阅费用不予退款。
+                                取消后，您的 {sub.tierName}{sub.expiresAt ? `将在 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，` : ""}到期前功能不受影响，到期后自动降回免费版。订阅费用不予退款。
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
