@@ -182,20 +182,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
           </Link>
           {user && (
-            <>
-              <Link href="/me">
-                <div className="w-8 h-8 rounded-full bg-primary/15 overflow-hidden flex items-center justify-center text-primary font-bold text-sm ring-2 ring-primary/20 shadow-sm cursor-pointer">
-                  {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : <span className="text-xs">{displayName[0]}</span>}
-                </div>
-              </Link>
-              <button
-                onClick={handleSignOut}
-                title="退出登录"
-                className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </>
+            <Link href="/me">
+              <div className="w-8 h-8 rounded-full bg-primary/15 overflow-hidden flex items-center justify-center text-primary font-bold text-sm ring-2 ring-primary/20 shadow-sm cursor-pointer">
+                {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : <span className="text-xs">{displayName[0]}</span>}
+              </div>
+            </Link>
           )}
           <Link href="/entries/new" className="w-8 h-8 flex items-center justify-center bg-primary text-primary-foreground rounded-full shadow-sm hover:bg-primary/90 transition-colors">
             <Plus className="w-4 h-4" />
