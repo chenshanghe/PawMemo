@@ -6,7 +6,7 @@ import {
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
   Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, MessageSquare,
-  AlertTriangle, Trash2, Shield, FileText, Zap, Receipt,
+  AlertTriangle, Trash2, Shield, FileText, Zap, Receipt, Ban,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -548,8 +548,8 @@ export default function Me() {
                       ) : (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 px-3 text-[11px] text-muted-foreground hover:text-destructive">
-                              取消订阅
+                            <Button variant="ghost" size="sm" className="h-7 px-3 text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1">
+                              <Ban className="w-3 h-3" />取消订阅
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
