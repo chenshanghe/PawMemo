@@ -195,8 +195,13 @@ export default function Pricing() {
                       当前套餐 ✓
                     </div>
                   ) : isBelowCurrent && plan.tier !== "free" ? (
-                    <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
-                      已超出此套餐
+                    <div className="space-y-1">
+                      <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">
+                        已超出此套餐
+                      </div>
+                      <p className="text-[10px] text-center text-muted-foreground/70 scale-90 origin-center">
+                        如需取消订阅，请前往 <Link href="/me" className="text-primary hover:underline">我 → 账号与订阅</Link> 操作
+                      </p>
                     </div>
                   ) : plan.ctaDisabled ? (
                     <div className="w-full py-2.5 text-center text-sm font-medium text-muted-foreground bg-muted/50 rounded-xl">

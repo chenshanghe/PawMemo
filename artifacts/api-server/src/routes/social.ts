@@ -14,6 +14,7 @@ import {
   composeStylesTable,
   notificationsTable,
   userBlocksTable,
+  subscriptionOrdersTable,
 } from "@workspace/db";
 import { eq, sql, and, desc, inArray, notInArray, count } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
@@ -1106,18 +1107,54 @@ router.get("/me/subscription", requireAuth, async (req, res) => {
     getAiEnhanceUsage(userId),
   ]);
   const [profile] = await db
-    .select({ subscriptionExpiresAt: userProfilesTable.subscriptionExpiresAt })
+    .select({ 
+      subscriptionExpiresAt: userProfilesTable.subscriptionExpiresAt,
+      cancelAtPeriodEnd: userProfilesTable.cancelAtPeriodEnd,
+    })
     .from(userProfilesTable)
     .where(eq(userProfilesTable.userId, userId));
   res.json({
     tier,
     tierName: TIER_NAMES[tier],
     expiresAt: profile?.subscriptionExpiresAt ?? null,
+    cancelAtPeriodEnd: profile?.cancelAtPeriodEnd ?? false,
     aiComposedThisMonth: compose.used,
     aiComposeLimit: compose.limit,
     aiEnhancedThisMonth: enhance.used,
     aiEnhanceLimit: enhance.limit,
   });
+});
+
+// POST /api/me/subscription/cancel
+router.post("/me/subscription/cancel", requireAuth, async (req, res) => {
+  const userId = (req as unknown as AuthedRequest).userId;
+  const [profile] = await db
+    .select()
+    .from(userProfilesTable)
+    .where(eq(userProfilesTable.userId, userId));
+  
+  if (!profile || profile.subscriptionTier === "free") {
+    res.status(400).json({ error: "No active subscription to cancel" });
+    return;
+  }
+
+  await db
+    .update(userProfilesTable)
+    .set({ cancelAtPeriodEnd: true, updatedAt: new Date() })
+    .where(eq(userProfilesTable.userId, userId));
+
+  res.json({ ok: true, expiresAt: profile.subscriptionExpiresAt });
+});
+
+// POST /api/me/subscription/restore
+router.post("/me/subscription/restore", requireAuth, async (req, res) => {
+  const userId = (req as unknown as AuthedRequest).userId;
+  await db
+    .update(userProfilesTable)
+    .set({ cancelAtPeriodEnd: false, updatedAt: new Date() })
+    .where(eq(userProfilesTable.userId, userId));
+
+  res.json({ ok: true });
 });
 
 // DELETE /api/me/compose-styles/:id
@@ -1129,6 +1166,28 @@ router.delete("/me/compose-styles/:id", requireAuth, async (req, res) => {
     .delete(composeStylesTable)
     .where(and(eq(composeStylesTable.id, id), eq(composeStylesTable.userId, userId)));
   res.json({ ok: true });
+});
+
+// GET /api/me/orders
+router.get("/me/orders", requireAuth, async (req, res) => {
+  const userId = (req as unknown as AuthedRequest).userId;
+  const orders = await db
+    .select({
+      id: subscriptionOrdersTable.id,
+      outTradeNo: subscriptionOrdersTable.outTradeNo,
+      tier: subscriptionOrdersTable.tier,
+      period: subscriptionOrdersTable.period,
+      amountCents: subscriptionOrdersTable.amountCents,
+      status: subscriptionOrdersTable.status,
+      paidAt: subscriptionOrdersTable.paidAt,
+      expiresAt: subscriptionOrdersTable.expiresAt,
+      createdAt: subscriptionOrdersTable.createdAt,
+    })
+    .from(subscriptionOrdersTable)
+    .where(eq(subscriptionOrdersTable.userId, userId))
+    .orderBy(desc(subscriptionOrdersTable.createdAt));
+
+  res.json(orders);
 });
 
 export default router;

@@ -100,6 +100,7 @@ export const userProfilesTable = pgTable("user_profiles", {
   aiEnhanceUsed: integer("ai_enhance_used").notNull().default(0),
   aiEnhanceResetAt: timestamp("ai_enhance_reset_at"),
   weeklyDigest: boolean("weekly_digest").notNull().default(false),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

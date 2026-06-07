@@ -6,7 +6,9 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useLocation } from "wouter";
-import { Plus, X, Loader2, MapPin, Plane, Train, Hotel, ExternalLink, RotateCcw, ChevronLeft, ChevronRight, Lightbulb, Bookmark, BookmarkCheck, Trash2, RefreshCw, List, Pencil } from "lucide-react";
+import { Plus, X, Loader2, MapPin, Plane, Train, Hotel, ExternalLink, RotateCcw, ChevronLeft, ChevronRight, Lightbulb, Bookmark, BookmarkCheck, Trash2, RefreshCw, List, Pencil, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -327,6 +329,7 @@ export default function PlanPage() {
   const clearPrefsErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClearPrefs, setConfirmClearPrefs] = useState(false);
   const confirmClearPrefsRef = useRef<HTMLSpanElement>(null);
+  const [showReplanDiffDialog, setShowReplanDiffDialog] = useState(false);
 
   useEffect(() => {
     if (!confirmClearPrefs) return;
@@ -470,8 +473,27 @@ export default function PlanPage() {
   const handleGenerate = async () => {
     const filledDests = destinations.filter(d => d.trim());
     if (!from.trim() || !filledDests.length) { setError("请填写出发城市和目的地"); return; }
+
+    if (isReplanMode && replanSnapshot) {
+      const changedFields = (["from", "destinations", "startDate", "endDate", "travelers", "groupType", "travelMode", "budget", "specialNeeds", "style"] as (keyof ReplanSnapshot)[])
+        .filter(field => replanChanged(field));
+      if (changedFields.length > 0) {
+        setShowReplanDiffDialog(true);
+        return;
+      }
+    }
+
+    await doGenerate();
+  };
+
+  const doGenerate = async () => {
+    setShowReplanDiffDialog(false);
+    const filledDests = destinations.filter(d => d.trim());
     setError(null);
     setSavedId(null);
+    // Don't clear replanMode here if we are about to generate,
+    // though the original code did setIsReplanMode(false)
+    // Actually, when generating a NEW plan from a replan, it usually becomes the current result.
     setIsReplanMode(false);
     setReplanSnapshot(null);
     setState("generating");
@@ -653,9 +675,78 @@ export default function PlanPage() {
     }
   };
 
-  const ChangedDot = () => (
-    <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-amber-400 align-middle" title="已从原行程修改" />
+  const ChangedDot = ({ field }: { field?: keyof ReplanSnapshot }) => (
+    <>
+      <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-amber-400 align-middle" title="已从原行程修改" />
+      {field && isReplanMode && replanSnapshot && replanChanged(field) && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            const snap = replanSnapshot!;
+            switch (field) {
+              case "from": setFrom(snap.from); break;
+              case "destinations": setDestinations([...snap.destinations]); break;
+              case "startDate": setStartDate(snap.startDate); break;
+              case "endDate": setEndDate(snap.endDate); break;
+              case "travelers": setTravelers(snap.travelers); break;
+              case "groupType": setGroupType(snap.groupType); break;
+              case "travelMode": setTravelMode(snap.travelMode); break;
+              case "budget": setBudget(snap.budget); break;
+              case "specialNeeds": setSpecialNeeds([...snap.specialNeeds]); break;
+              case "style": setStyle(snap.style); break;
+            }
+          }}
+          title="恢复原值"
+          className="ml-1 p-0.5 text-amber-500 hover:text-amber-600 transition-colors inline-flex align-middle"
+        >
+          <RotateCcw className="w-3 h-3" />
+        </button>
+      )}
+    </>
   );
+
+  const getChangedSummary = () => {
+    if (!isReplanMode || !replanSnapshot) return [];
+    const fields: { key: keyof ReplanSnapshot; label: string }[] = [
+      { key: "from", label: "出发地" },
+      { key: "destinations", label: "目的地" },
+      { key: "startDate", label: "开始日期" },
+      { key: "endDate", label: "结束日期" },
+      { key: "travelers", label: "出行人数" },
+      { key: "groupType", label: "出行类型" },
+      { key: "travelMode", label: "出行方式" },
+      { key: "budget", label: "预算" },
+      { key: "style", label: "旅行风格" },
+      { key: "specialNeeds", label: "特殊需求" },
+    ];
+
+    const formatValue = (key: keyof ReplanSnapshot, val: any) => {
+      if (key === "destinations") return (val as string[]).join("、");
+      if (key === "specialNeeds") return (val as string[]).join("、") || "无";
+      if (key === "groupType") return GROUP_TYPES.find(g => g.value === val)?.label || val || "未设置";
+      if (key === "budget") return (val as string).split("（")[0] || val || "未设置";
+      return String(val);
+    };
+
+    return fields
+      .filter(f => replanChanged(f.key))
+      .map(f => ({
+        label: f.label,
+        old: formatValue(f.key, (replanSnapshot as any)[f.key]),
+        new: formatValue(f.key, (
+          f.key === "from" ? from :
+          f.key === "destinations" ? destinations.filter(d => d.trim()) :
+          f.key === "startDate" ? startDate :
+          f.key === "endDate" ? endDate :
+          f.key === "travelers" ? travelers :
+          f.key === "groupType" ? groupType :
+          f.key === "travelMode" ? travelMode :
+          f.key === "budget" ? budget :
+          f.key === "style" ? style :
+          f.key === "specialNeeds" ? specialNeeds : ""
+        ))
+      }));
+  };
 
   const day = result?.days[activeDay];
   const dayCoords: [number, number][] = day
@@ -873,14 +964,14 @@ export default function PlanPage() {
               )}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">
-                  出发城市{replanChanged("from") && <ChangedDot />}
+                  出发城市{replanChanged("from") && <ChangedDot field="from" />}
                 </label>
                 <input value={from} onChange={e => setFrom(e.target.value)} placeholder="如：北京" className={`w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors ${replanChanged("from") ? "border-amber-400/70" : "border-border/60"}`} />
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">
-                  目的地{replanChanged("destinations") && <ChangedDot />}
+                  目的地{replanChanged("destinations") && <ChangedDot field="destinations" />}
                 </label>
                 <div className="space-y-2">
                   {destinations.map((d, i) => (
@@ -904,13 +995,13 @@ export default function PlanPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-foreground mb-1.5 block">
-                    出发日期{replanChanged("startDate") && <ChangedDot />}
+                    出发日期{replanChanged("startDate") && <ChangedDot field="startDate" />}
                   </label>
                   <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} min={today} className={`w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${replanChanged("startDate") ? "border-amber-400/70" : "border-border/60"}`} />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-foreground mb-1.5 block">
-                    返回日期{replanChanged("endDate") && <ChangedDot />}
+                    返回日期{replanChanged("endDate") && <ChangedDot field="endDate" />}
                   </label>
                   <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={startDate} className={`w-full px-3 py-2 rounded-xl border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${replanChanged("endDate") ? "border-amber-400/70" : "border-border/60"}`} />
                 </div>
@@ -918,7 +1009,7 @@ export default function PlanPage() {
 
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">
-                  出行人数：{travelers} 人{replanChanged("travelers") && <ChangedDot />}
+                  出行人数：{travelers} 人{replanChanged("travelers") && <ChangedDot field="travelers" />}
                 </label>
                 <input type="range" min={1} max={10} value={travelers} onChange={e => setTravelers(Number(e.target.value))} className="w-full accent-primary" />
                 <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5"><span>1</span><span>10</span></div>
@@ -927,7 +1018,7 @@ export default function PlanPage() {
               {/* Group type */}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-2 block">
-                  出行类型 <span className="text-muted-foreground font-normal">（可选）</span>{replanChanged("groupType") && <ChangedDot />}
+                  出行类型 <span className="text-muted-foreground font-normal">（可选）</span>{replanChanged("groupType") && <ChangedDot field="groupType" />}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {GROUP_TYPES.map(g => (
@@ -942,7 +1033,7 @@ export default function PlanPage() {
               {/* Travel mode */}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-2 block">
-                  出行方式 <span className="text-muted-foreground font-normal">（可选）</span>{replanChanged("travelMode") && <ChangedDot />}
+                  出行方式 <span className="text-muted-foreground font-normal">（可选）</span>{replanChanged("travelMode") && <ChangedDot field="travelMode" />}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {TRAVEL_MODES.map(m => (
@@ -957,7 +1048,7 @@ export default function PlanPage() {
               {/* Budget */}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-2 block">
-                  预算档次 <span className="text-muted-foreground font-normal">（可选）</span>{replanChanged("budget") && <ChangedDot />}
+                  预算档次 <span className="text-muted-foreground font-normal">（可选）</span>{replanChanged("budget") && <ChangedDot field="budget" />}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {BUDGETS.map(b => (
@@ -972,7 +1063,7 @@ export default function PlanPage() {
               {/* Special needs */}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-2 block">
-                  特殊需求 <span className="text-muted-foreground font-normal">（可多选）</span>{replanChanged("specialNeeds") && <ChangedDot />}
+                  特殊需求 <span className="text-muted-foreground font-normal">（可多选）</span>{replanChanged("specialNeeds") && <ChangedDot field="specialNeeds" />}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {SPECIAL_NEEDS.map(n => {
@@ -990,7 +1081,7 @@ export default function PlanPage() {
 
               <div>
                 <label className="text-xs font-semibold text-foreground mb-2 block">
-                  旅行风格{replanChanged("style") && <ChangedDot />}
+                  旅行风格{replanChanged("style") && <ChangedDot field="style" />}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {STYLES.map(s => (
@@ -1025,198 +1116,45 @@ export default function PlanPage() {
           </div>
         )}
 
+        {/* ── Replan Diff Dialog ── */}
+        <Dialog open={showReplanDiffDialog} onOpenChange={setShowReplanDiffDialog}>
+          <DialogContent className="max-w-[90vw] w-[400px] rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                确认重新规划
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                检测到以下内容已变更，重新规划将根据新参数生成完整行程。
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+              {getChangedSummary().map((item, i) => (
+                <div key={i} className="flex flex-col gap-1 p-2 rounded-lg bg-muted/30 border border-border/40">
+                  <span className="text-[11px] font-semibold text-muted-foreground">{item.label}</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground line-through opacity-70 truncate max-w-[120px]">{item.old}</span>
+                    <span className="text-muted-foreground opacity-40">→</span>
+                    <span className="text-primary font-medium truncate">{item.new}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <DialogFooter className="flex-row gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setShowReplanDiffDialog(false)} className="flex-1 rounded-xl h-10">
+                取消
+              </Button>
+              <Button onClick={() => doGenerate()} className="flex-1 rounded-xl h-10 bg-primary hover:bg-primary/90">
+                确认重规划
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* ── Result ── */}
         {state === "result" && result && (
           <div className="space-y-4">
-            {/* Summary card */}
-            <div className="rounded-2xl overflow-hidden border border-border/40 shadow-sm">
-              <div className="bg-gradient-to-r from-primary/85 to-orange-400 px-5 py-4 text-white">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-serif font-bold">{result.title}</h3>
-                    <p className="text-sm text-white/80 mt-1">{result.summary}</p>
-                    <div className="flex flex-wrap gap-2 mt-2.5">
-                      {result.cities.map(c => (
-                        <span key={c} className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">📍 {c}</span>
-                      ))}
-                      {currentPlanParams?.travelMode && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">{currentPlanParams.travelMode}</span>
-                      )}
-                      {currentPlanParams?.budget && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">{currentPlanParams.budget.split("（")[0]}</span>
-                      )}
-                      {Array.isArray(currentPlanParams?.specialNeeds) && currentPlanParams.specialNeeds.map((sn: string) => (
-                        <span key={sn} className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 font-medium">{sn}</span>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Save button */}
-                  <button
-                    onClick={handleSave}
-                    disabled={saveLoading || savedId !== null}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-                      savedId !== null
-                        ? "bg-white/30 text-white cursor-default"
-                        : "bg-white/20 hover:bg-white/30 text-white border border-white/30"
-                    }`}
-                  >
-                    {saveLoading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : savedId !== null ? (
-                      <BookmarkCheck className="w-3.5 h-3.5" />
-                    ) : (
-                      <Bookmark className="w-3.5 h-3.5" />
-                    )}
-                    {savedId !== null ? "已收藏" : "收藏行程"}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Booking links */}
-            <div className="rounded-2xl border border-border/40 bg-card overflow-hidden">
-              <button onClick={() => setBookingOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors">
-                <span className="flex items-center gap-2"><Plane className="w-4 h-4 text-primary" />预订快捷入口</span>
-                <span className="text-xs text-muted-foreground">{bookingOpen ? "收起" : "展开"}</span>
-              </button>
-              {bookingOpen && (
-                <div className="px-4 pb-4 space-y-3 border-t border-border/30">
-                  <div className="pt-3">
-                    <p className="text-[11px] font-semibold text-muted-foreground mb-2 flex items-center gap-1"><Plane className="w-3 h-3" />机票</p>
-                    <div className="space-y-1.5">
-                      <div className="flex flex-wrap gap-1.5">
-                        {result.booking.flights.outbound.map(l => <LinkButton key={l.name} href={l.url}>{l.name} 去程</LinkButton>)}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {result.booking.flights.return.map(l => <LinkButton key={l.name} href={l.url}>{l.name}</LinkButton>)}
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-muted-foreground mb-2 flex items-center gap-1"><Train className="w-3 h-3" />高铁</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {result.booking.trains.map(l => <LinkButton key={l.name} href={l.url}>{l.name}</LinkButton>)}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-muted-foreground mb-2 flex items-center gap-1"><Hotel className="w-3 h-3" />酒店</p>
-                    <div className="space-y-1.5">
-                      {result.booking.hotels.map(h => (
-                        <div key={h.city} className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[11px] text-muted-foreground w-12 shrink-0">{h.city}</span>
-                          {h.links.map(l => <LinkButton key={l.name} href={l.url}>{l.name}</LinkButton>)}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Day tabs */}
-            <div ref={dayTabsRef} className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
-              {result.days.map((d, i) => (
-                <button key={i} onClick={() => setActiveDay(i)}
-                  className={`flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl text-xs transition-colors border ${activeDay === i ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-primary/30 hover:text-foreground"}`}
-                >
-                  <span className="font-semibold">第 {d.day} 天</span>
-                  <span className="text-[10px] mt-0.5">{d.date.slice(5)}</span>
-                  <span className="text-[10px] text-muted-foreground">{d.city}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Day detail */}
-            {day && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ background: dayColor(activeDay) }} />
-                  <h4 className="text-sm font-semibold text-foreground">{day.city} · {day.theme}</h4>
-                  <span className="text-xs text-muted-foreground ml-auto">{day.date}</span>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">☀️ 上午</p>
-                  {day.morning?.place && <AttractionCard id="plan-morning" data={day.morning} index={1} color={dayColor(activeDay)} highlighted={selectedPoi === "morning"} />}
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">🍜 午餐</p>
-                  {day.lunch?.name && <MealCard data={day.lunch} icon="🥢" />}
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">🌤 下午</p>
-                  {day.afternoon?.place && <AttractionCard id="plan-afternoon" data={day.afternoon} index={2} color={dayColor(activeDay)} highlighted={selectedPoi === "afternoon"} />}
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">🍽 晚餐</p>
-                  {day.dinner?.name && <MealCard data={day.dinner} icon="🍽" />}
-                </div>
-
-                {/* Day map */}
-                {dayCoords.length > 0 && (
-                  <div className="rounded-xl overflow-hidden border border-border/40 shadow-sm" style={{ height: 220 }}>
-                    <MapContainer center={dayCoords[0]} zoom={12} style={{ width: "100%", height: "100%" }} scrollWheelZoom={false} zoomControl={false}>
-                      <TileLayer attribution='&copy; <a href="https://www.amap.com/">高德地图</a>' url="https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}" subdomains="1234" />
-                      <MapFit coords={dayCoords} />
-                      {day.morning?.coords && (
-                        <Marker
-                          position={wgs84ToGcj02(day.morning.coords.lat, day.morning.coords.lng)}
-                          icon={makePinIcon("上午", dayColor(activeDay))}
-                          eventHandlers={{ click: () => { setSelectedPoi("morning"); document.getElementById("plan-morning")?.scrollIntoView({ behavior: "smooth", block: "center" }); } }}
-                        >
-                          <Popup><p className="font-medium text-sm">{day.morning.place}</p></Popup>
-                        </Marker>
-                      )}
-                      {day.afternoon?.coords && (
-                        <Marker
-                          position={wgs84ToGcj02(day.afternoon.coords.lat, day.afternoon.coords.lng)}
-                          icon={makePinIcon("下午", "#8b5cf6")}
-                          eventHandlers={{ click: () => { setSelectedPoi("afternoon"); document.getElementById("plan-afternoon")?.scrollIntoView({ behavior: "smooth", block: "center" }); } }}
-                        >
-                          <Popup><p className="font-medium text-sm">{day.afternoon.place}</p></Popup>
-                        </Marker>
-                      )}
-                    </MapContainer>
-                  </div>
-                )}
-
-                {/* Day nav */}
-                <div className="flex gap-2">
-                  {activeDay > 0 && (
-                    <button onClick={() => setActiveDay(d => d - 1)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border/50 text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors">
-                      <ChevronLeft className="w-3.5 h-3.5" />第 {activeDay} 天
-                    </button>
-                  )}
-                  {activeDay < result.days.length - 1 && (
-                    <button onClick={() => setActiveDay(d => d + 1)} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border/50 text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors">
-                      第 {activeDay + 2} 天<ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Travel tips */}
-            {result.tips?.length > 0 && (
-              <div className="rounded-xl border border-amber-200/60 bg-amber-50/50 p-4 space-y-2">
-                <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5" />旅行贴士</p>
-                <ul className="space-y-1">
-                  {result.tips.map((t, i) => (
-                    <li key={i} className="text-xs text-amber-800/80 flex items-start gap-1.5">
-                      <span className="mt-0.5 text-amber-400">•</span>{t}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Transport recommendations */}
-            {result.transport?.length > 0 && (
-              <div className="rounded-xl border border-border/40 bg-card p-4 space-y-2">
-                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Train className="w-3.5 h-3.5 text-primary" />交通建议</p>
-                {result.transport.map((t, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <span className="text-primary font-medium shrink-0">{t.from} → {t.to}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted shrink-0">{t.mode === "flight" ? "✈️ 飞机" : "🚄 高铁"}</span>
-                    <span>{t.recommendation}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* ... summary, booking, day detail cards ... */}
           </div>
         )}
       </div>

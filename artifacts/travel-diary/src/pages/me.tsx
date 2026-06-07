@@ -6,7 +6,7 @@ import {
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
   Camera, Upload, Wand2, Check, Sparkles, BarChart2,
   Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, MessageSquare,
-  AlertTriangle, Trash2, Shield, FileText, Zap,
+  AlertTriangle, Trash2, Shield, FileText, Zap, Receipt,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -21,6 +21,18 @@ import { PayDialog } from "@/components/pay-dialog";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -123,6 +135,7 @@ interface SubInfo {
   aiEnhancedThisMonth: number;
   aiEnhanceLimit: number;
   expiresAt: string | null;
+  cancelAtPeriodEnd: boolean;
 }
 
 const TIER_BADGE: Record<string, { label: string; cls: string }> = {
@@ -494,9 +507,79 @@ export default function Me() {
                   </div>
                 )}
                 {sub.tier !== "free" && sub.expiresAt && (
-                  <p className="text-xs text-muted-foreground">
-                    套餐到期：{format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      {sub.cancelAtPeriodEnd 
+                        ? `将于 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，不再续费`
+                        : `套餐到期：${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`
+                      }
+                    </p>
+                    <Link href="/orders" className="text-xs text-muted-foreground/70 hover:text-primary transition-colors flex items-center gap-1 mt-1">
+                      <Receipt className="w-3 h-3" />查看支付记录
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      {sub.cancelAtPeriodEnd ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-3 text-[11px]"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`${BASE}/api/me/subscription/restore`, {
+                                method: "POST",
+                                credentials: "include",
+                              });
+                              if (res.ok) {
+                                toast({ title: "订阅已恢复" });
+                                fetchProfile();
+                              }
+                            } catch (e) {
+                              toast({ title: "恢复失败", variant: "destructive" });
+                            }
+                          }}
+                        >
+                          恢复订阅
+                        </Button>
+                      ) : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-7 px-3 text-[11px] text-muted-foreground hover:text-destructive">
+                              取消订阅
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>取消订阅</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                取消后，您的 {sub.tierName} 将在 {format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，到期前功能不受影响，到期后自动降回免费版。订阅费用不予退款。
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>取消</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(`${BASE}/api/me/subscription/cancel`, {
+                                      method: "POST",
+                                      credentials: "include",
+                                    });
+                                    if (res.ok) {
+                                      toast({ title: "订阅已取消" });
+                                      fetchProfile();
+                                    }
+                                  } catch (e) {
+                                    toast({ title: "操作失败", variant: "destructive" });
+                                  }
+                                }}
+                              >
+                                确认取消
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </div>
                 )}
                 {sub.tier === "free" && (
                   <div className="flex items-center justify-between pt-0.5">

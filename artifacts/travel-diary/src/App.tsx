@@ -30,6 +30,7 @@ import Photos from "@/pages/photos";
 import PlanPage from "@/pages/plan";
 import NotificationsPage from "@/pages/notifications";
 import AchievementsPage from "@/pages/achievements";
+import OrdersPage from "@/pages/orders";
 import PlanListPage from "@/pages/plan-list";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
@@ -303,6 +304,7 @@ function AppRouter() {
       <Route path="/plan/list">{() => <ProtectedRoute component={PlanListPage} />}</Route>
       <Route path="/notifications">{() => <ProtectedRoute component={NotificationsPage} />}</Route>
       <Route path="/achievements">{() => <ProtectedRoute component={AchievementsPage} />}</Route>
+      <Route path="/orders">{() => <ProtectedRoute component={OrdersPage} />}</Route>
       <Route path="/entries/:id/print">
         {(params) => <ProtectedRoute component={EntryPrintPage} params={params as { id: string }} />}
       </Route>

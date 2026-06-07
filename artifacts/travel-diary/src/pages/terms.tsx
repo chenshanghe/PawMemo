@@ -76,7 +76,8 @@ export default function TermsPage() {
           <ul className="space-y-2 text-muted-foreground list-disc list-inside">
             <li>部分高级功能需要订阅付费计划（Pro 或 Plus）</li>
             <li>订阅费用按月或按年收取，在您取消前将自动续费</li>
-            <li>取消订阅后，当前计费周期内的权益仍可继续使用至到期</li>
+            <li>取消订阅后，当前计费周期内的权益仍可继续使用至到期，到期后自动降回免费版</li>
+            <li><strong>所有订阅费用均不予退款。</strong>取消订阅不影响剩余订阅期内的功能使用，亦不产生任何额外费用</li>
             <li>如对扣费有异议，请通过应用内反馈联系我们</li>
           </ul>
         </Section>
