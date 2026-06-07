@@ -243,12 +243,12 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
                 <button
                   onClick={checkNow}
                   disabled={checking || creating || !qrCodeUrl}
-                  className="w-full py-2.5 rounded-xl bg-[#07c160] text-white text-sm font-medium flex items-center justify-center gap-2 hover:bg-[#06ad56] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 rounded-xl border-2 border-[#07c160] text-[#07c160] bg-transparent text-sm font-medium flex items-center justify-center gap-2 hover:bg-[#07c160]/8 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {checking ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" />正在确认支付…</>
+                    <><Loader2 className="w-4 h-4 animate-spin" />正在验证支付…</>
                   ) : (
-                    <><CheckCircle2 className="w-4 h-4" />已完成支付</>
+                    <>扫码付款后，点此验证</>
                   )}
                 </button>
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50">
