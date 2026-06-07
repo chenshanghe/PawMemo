@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/react";
-import { X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { X, Loader2, CheckCircle2, AlertCircle, SmartphoneNfc } from "lucide-react";
+
+function useIsMobile() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -36,12 +40,14 @@ const PAY_TYPES: { id: PayType; label: string; bgColor: string; icon: string }[]
 
 export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) {
   const { getToken } = useAuth();
+  const isMobile = useIsMobile();
   const [payType, setPayType]         = useState<PayType>("wechat");
   const [step, setStep]               = useState<Step>("qr");
   const [qrCodeUrl, setQrCodeUrl]     = useState<string | null>(null);
   const [errorMsg, setErrorMsg]       = useState("");
   const [amountYuan, setAmountYuan]   = useState("");
   const [creating, setCreating]       = useState(false);
+  const [checking, setChecking]       = useState(false);
 
   const pollRef          = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef       = useRef(true);
@@ -105,24 +111,38 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
     }
   }
 
+  async function queryOnce(tradeNo: string): Promise<boolean> {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${BASE}/api/pay/hupi/query/${tradeNo}`, {
+        credentials: "include",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      const data = await res.json();
+      if (!mountedRef.current || currentTradeRef.current !== tradeNo) return false;
+      if (data.status === "paid") {
+        stopPolling();
+        setStep("success");
+        setTimeout(() => onSuccess(data.tier ?? tier), 1500);
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+
   function startPolling(tradeNo: string) {
-    pollRef.current = setInterval(async () => {
+    pollRef.current = setInterval(() => {
       if (!mountedRef.current || currentTradeRef.current !== tradeNo) return;
-      try {
-        const token = await getToken();
-        const res = await fetch(`${BASE}/api/pay/hupi/query/${tradeNo}`, {
-          credentials: "include",
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        });
-        const data = await res.json();
-        if (!mountedRef.current || currentTradeRef.current !== tradeNo) return;
-        if (data.status === "paid") {
-          stopPolling();
-          setStep("success");
-          setTimeout(() => onSuccess(data.tier ?? tier), 1500);
-        }
-      } catch {}
+      queryOnce(tradeNo);
     }, 3000);
+  }
+
+  async function checkNow() {
+    const tradeNo = currentTradeRef.current;
+    if (!tradeNo || checking) return;
+    setChecking(true);
+    await queryOnce(tradeNo);
+    if (mountedRef.current) setChecking(false);
   }
 
   const planName   = PLAN_NAMES[tier];
@@ -194,21 +214,47 @@ export function PayDialog({ tier, period, onClose, onSuccess }: PayDialogProps) 
                 )}
               </div>
 
-              {/* Instructions */}
-              <div className="text-center space-y-1">
-                <div className="flex items-center justify-center gap-1.5">
-                  <img src={activeType.icon} alt="" className="w-4 h-4 rounded-sm object-contain" />
-                  <p className="text-sm font-medium text-foreground">
-                    打开{activeType.label}扫码付款
+              {/* Instructions — mobile vs desktop */}
+              {isMobile ? (
+                <div className="text-center space-y-2 w-full">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <SmartphoneNfc className="w-4 h-4 text-[#07c160]" />
+                    <p className="text-sm font-medium text-foreground">截图后用微信扫一扫识别</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    长按二维码图片 → 微信「扫一扫」→ 识别图中二维码
                   </p>
+                  <p className="text-xs text-muted-foreground/60">二维码 30 分钟内有效</p>
                 </div>
-                <p className="text-xs text-muted-foreground">支付成功后自动升级，二维码 30 分钟内有效</p>
-              </div>
+              ) : (
+                <div className="text-center space-y-1">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <img src={activeType.icon} alt="" className="w-4 h-4 rounded-sm object-contain" />
+                    <p className="text-sm font-medium text-foreground">
+                      打开{activeType.label}扫码付款
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">支付成功后自动升级，二维码 30 分钟内有效</p>
+                </div>
+              )}
 
-              {/* Live indicator */}
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                等待支付中，每 3 秒自动检测
+              {/* "I already paid" button + live indicator */}
+              <div className="flex flex-col items-center gap-2 w-full">
+                <button
+                  onClick={checkNow}
+                  disabled={checking || creating || !qrCodeUrl}
+                  className="w-full py-2.5 rounded-xl bg-[#07c160] text-white text-sm font-medium flex items-center justify-center gap-2 hover:bg-[#06ad56] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {checking ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" />正在确认支付…</>
+                  ) : (
+                    <><CheckCircle2 className="w-4 h-4" />已完成支付</>
+                  )}
+                </button>
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  后台每 3 秒自动检测
+                </div>
               </div>
             </div>
           )}
