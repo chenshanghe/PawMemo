@@ -164,8 +164,8 @@ export default function Square() {
             <h2 className="text-2xl font-serif font-bold text-foreground">旅行广场</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
               {activeTag
-                ? `#${activeTag} · ${total} 篇`
-                : total > 0 ? `共 ${total} 篇公开日记` : "还没有公开的日记"}
+                ? `#${activeTag} · ${total} 篇游记`
+                : total > 0 ? `${total} 篇公开旅行日记` : "探索旅行者的精彩旅程"}
             </p>
           </div>
           <button
@@ -179,33 +179,36 @@ export default function Square() {
 
         {/* Tag chips */}
         {popularTags.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-            <button
-              onClick={() => handleTagSelect(null)}
-              className={cn(
-                "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                activeTag === null
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border/60 text-muted-foreground hover:border-primary/50 hover:text-foreground bg-background",
-              )}
-            >
-              全部
-            </button>
-            {popularTags.map((tag) => (
+          <div className="relative">
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
               <button
-                key={tag.id}
-                onClick={() => handleTagSelect(tag.name)}
+                onClick={() => handleTagSelect(null)}
                 className={cn(
-                  "shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                  activeTag === tag.name
-                    ? "bg-primary text-primary-foreground border-primary"
+                  "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                  activeTag === null
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
                     : "border-border/60 text-muted-foreground hover:border-primary/50 hover:text-foreground bg-background",
                 )}
               >
-                <span className="opacity-60">#</span>{tag.name}
-                <span className="opacity-50 text-[10px]">{tag.count}</span>
+                全部
               </button>
-            ))}
+              {popularTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => handleTagSelect(tag.name)}
+                  className={cn(
+                    "shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                    activeTag === tag.name
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "border-border/60 text-muted-foreground hover:border-primary/50 hover:text-foreground bg-background",
+                  )}
+                >
+                  <span className="opacity-60">#</span>{tag.name}
+                  <span className={cn("text-[10px]", activeTag === tag.name ? "opacity-70" : "opacity-40")}>{tag.count}</span>
+                </button>
+              ))}
+            </div>
+            <div className="pointer-events-none absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-background to-transparent md:hidden" />
           </div>
         )}
 
@@ -235,12 +238,21 @@ export default function Square() {
               const travelDays = entry.endDate
                 ? Math.max(1, Math.ceil((new Date(entry.endDate).getTime() - new Date(entry.startDate).getTime()) / 86400000) + 1)
                 : 1;
+              const destInitial = entry.destination.slice(0, 1);
+              const placeholderGradients = [
+                "from-orange-100 to-amber-50",
+                "from-sky-100 to-blue-50",
+                "from-emerald-100 to-teal-50",
+                "from-violet-100 to-purple-50",
+                "from-pink-100 to-rose-50",
+              ];
+              const gradientIdx = entry.id % placeholderGradients.length;
 
               return (
                 <Link key={entry.id} href={`/public/${entry.id}`}>
-                  <div className="group rounded-2xl border border-border/50 bg-card overflow-hidden cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 flex flex-col">
+                  <div className="group rounded-2xl border border-border/50 bg-card overflow-hidden cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0 flex flex-col">
                     {/* Cover */}
-                    <div className="relative h-44 bg-muted/30 overflow-hidden shrink-0">
+                    <div className="relative h-44 overflow-hidden shrink-0">
                       {entry.coverPhotoUrl ? (
                         <img
                           src={entry.coverPhotoUrl}
@@ -250,17 +262,17 @@ export default function Square() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="w-10 h-10 text-muted-foreground/20" />
+                        <div className={cn("w-full h-full flex items-center justify-center bg-gradient-to-br", placeholderGradients[gradientIdx])}>
+                          <span className="text-6xl font-serif font-bold text-foreground/10 select-none">{destInitial}</span>
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                      <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-semibold shadow-sm">
-                        <MapPin className="w-3 h-3 text-primary" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                      <div className="absolute bottom-2.5 left-2.5 flex items-center gap-1 bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-semibold text-white shadow-sm">
+                        <MapPin className="w-3 h-3 text-white/80" />
                         {entry.destination}
                       </div>
                       {entry.mood && (
-                        <div className={cn("absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full text-xs font-medium", MOODS[entry.mood] ?? "bg-muted text-muted-foreground")}>
+                        <div className={cn("absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full text-xs font-medium shadow-sm", MOODS[entry.mood] ?? "bg-muted text-muted-foreground")}>
                           {entry.mood}
                         </div>
                       )}
@@ -270,8 +282,10 @@ export default function Square() {
                           disabled={favPending === entry.id}
                           title={favMap[entry.id] ? "取消收藏" : "收藏"}
                           className={cn(
-                            "absolute top-2.5 right-2.5 p-1.5 rounded-full backdrop-blur-sm transition-colors shadow-sm",
-                            favMap[entry.id] ? "bg-amber-100/90 text-amber-600" : "bg-background/90 text-muted-foreground hover:text-amber-500",
+                            "absolute top-2.5 right-2.5 p-1.5 rounded-full backdrop-blur-sm transition-all shadow-sm",
+                            favMap[entry.id]
+                              ? "bg-amber-100/90 text-amber-600 scale-110"
+                              : "bg-black/30 text-white/80 hover:bg-amber-100/90 hover:text-amber-600",
                           )}
                         >
                           {favPending === entry.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bookmark className={cn("w-3.5 h-3.5", favMap[entry.id] && "fill-amber-500")} />}
@@ -281,14 +295,14 @@ export default function Square() {
 
                     {/* Body */}
                     <div className="p-3.5 flex flex-col gap-2 flex-1">
-                      <h3 className="font-serif font-semibold text-foreground text-sm leading-snug line-clamp-2">
+                      <h3 className="font-serif font-semibold text-foreground text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                         {entry.title}
                       </h3>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <CalendarDays className="w-3 h-3 shrink-0" />
                         <span>
                           {format(new Date(entry.startDate), "yyyy.MM.dd")}
-                          {entry.endDate && ` · ${travelDays}天`}
+                          {entry.endDate && ` · ${travelDays} 天`}
                         </span>
                       </div>
                       {entry.content && (
@@ -312,7 +326,7 @@ export default function Square() {
                           ))}
                         </div>
                       )}
-                      <div className="mt-auto pt-2 border-t border-border/30 flex items-center justify-between">
+                      <div className="mt-auto pt-2 border-t border-border/30 flex items-center justify-between gap-2">
                         <button
                           onClick={(e) => handleLike(entry.id, e)}
                           disabled={!isSignedIn || likePending === entry.id}
@@ -322,17 +336,27 @@ export default function Square() {
                             !isSignedIn && "cursor-default",
                           )}
                         >
-                          <Heart className={cn("w-3.5 h-3.5", liked?.liked && "fill-red-500")} />
+                          <Heart className={cn("w-3.5 h-3.5 transition-transform", liked?.liked && "fill-red-500 scale-110")} />
                           <span>{liked?.count ?? entry.likeCount}</span>
                         </button>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <MessageCircle className="w-3.5 h-3.5" />
                           <span>{entry.commentCount}</span>
                         </div>
-                        <div className="flex items-center gap-0.5 text-xs text-primary/70 group-hover:text-primary transition-colors">
-                          <span>阅读</span>
-                          <ChevronRight className="w-3 h-3" />
-                        </div>
+                        {entry.author ? (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto min-w-0">
+                            {entry.author.avatar ? (
+                              <img src={entry.author.avatar} alt={entry.author.name} className="w-4 h-4 rounded-full object-cover shrink-0 ring-1 ring-border/50" />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                <span className="text-[8px] font-bold text-primary">{entry.author.name.slice(0, 1)}</span>
+                              </div>
+                            )}
+                            <span className="truncate max-w-[60px]">{entry.author.name}</span>
+                          </div>
+                        ) : (
+                          <div className="ml-auto" />
+                        )}
                       </div>
                     </div>
                   </div>

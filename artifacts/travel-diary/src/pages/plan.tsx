@@ -971,6 +971,13 @@ export default function PlanPage() {
                   同步失败，请重试
                 </div>
               )}
+              {/* ── Section: 行程路线 ── */}
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground -mb-1">
+                <span className="h-px bg-border/40 w-4 shrink-0" />
+                <span className="shrink-0">📍 行程路线</span>
+                <span className="h-px bg-border/40 flex-1" />
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">
                   出发城市{replanChanged("from") && <ChangedDot field="from" />}
@@ -1016,6 +1023,13 @@ export default function PlanPage() {
                 </div>
               </div>
 
+              {/* ── Section: 出行信息 ── */}
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground -mb-1">
+                <span className="h-px bg-border/40 w-4 shrink-0" />
+                <span className="shrink-0">👥 出行信息</span>
+                <span className="h-px bg-border/40 flex-1" />
+              </div>
+
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">
                   出行人数：{travelers} 人{replanChanged("travelers") && <ChangedDot field="travelers" />}
@@ -1037,6 +1051,13 @@ export default function PlanPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* ── Section: 出行偏好 ── */}
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground -mb-1">
+                <span className="h-px bg-border/40 w-4 shrink-0" />
+                <span className="shrink-0">🎨 出行偏好</span>
+                <span className="h-px bg-border/40 flex-1" />
               </div>
 
               {/* Travel mode */}
@@ -1103,8 +1124,9 @@ export default function PlanPage() {
 
               {error && <p className="text-xs text-destructive bg-destructive/5 rounded-lg px-3 py-2">{error}</p>}
 
-              <button onClick={handleGenerate} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all hover:shadow-md active:scale-[0.98]">
-                ✨ 生成 AI 行程
+              <button onClick={handleGenerate} className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary to-orange-500 text-primary-foreground font-semibold text-sm hover:opacity-90 transition-all hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2">
+                <span className="text-base">✨</span>
+                生成 AI 行程
               </button>
             </div>
           </div>
@@ -1112,15 +1134,30 @@ export default function PlanPage() {
 
         {/* ── Generating ── */}
         {state === "generating" && (
-          <div className="rounded-2xl border border-border/50 bg-card p-12 text-center space-y-4">
-            <div className="relative w-16 h-16 mx-auto">
-              <div className="absolute inset-0 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-              <div className="absolute inset-3 flex items-center justify-center text-2xl">✈️</div>
+          <div className="rounded-2xl border border-border/50 bg-card px-6 py-14 text-center space-y-6">
+            <div className="relative w-20 h-20 mx-auto">
+              <div className="absolute inset-0 rounded-full border-4 border-primary/15 border-t-primary animate-spin" />
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-b-orange-300/60 animate-spin [animation-duration:1.8s] [animation-direction:reverse]" />
+              <div className="absolute inset-4 flex items-center justify-center text-3xl">✈️</div>
             </div>
             <div>
-              <p className="text-base font-semibold text-foreground">AI 正在规划行程</p>
-              <p className="text-sm text-muted-foreground mt-1">正在生成景点、餐厅推荐并获取地图坐标…</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">通常需要 15-30 秒</p>
+              <p className="text-base font-semibold text-foreground">AI 正在规划专属行程</p>
+              <p className="text-sm text-muted-foreground mt-1.5">正在生成景点、餐厅推荐并获取地图坐标…</p>
+              <p className="text-xs text-muted-foreground/50 mt-1">通常需要 15–30 秒</p>
+            </div>
+            <div className="flex items-center justify-center gap-8 text-xs text-muted-foreground/60">
+              <span className="flex flex-col items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                分析需求
+              </span>
+              <span className="flex flex-col items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-primary/60 animate-pulse [animation-delay:400ms]" />
+                规划行程
+              </span>
+              <span className="flex flex-col items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-primary/30 animate-pulse [animation-delay:800ms]" />
+                生成攻略
+              </span>
             </div>
           </div>
         )}

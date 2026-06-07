@@ -14,7 +14,6 @@ import {
   getGetEntryQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -283,34 +282,29 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   if (isEditing && loadingEntry) {
     return (
       <Layout>
-        <div className="max-w-2xl space-y-6">
-          <Skeleton className="h-8 w-48 bg-muted/40" />
-          <Skeleton className="h-64 w-full rounded-xl bg-muted/40" />
+        <div className="max-w-2xl space-y-5">
+          <Skeleton className="h-10 w-full rounded-2xl bg-muted/40" />
+          <Skeleton className="h-48 w-full rounded-2xl bg-muted/40" />
+          <Skeleton className="h-36 w-full rounded-2xl bg-muted/40" />
+          <Skeleton className="h-64 w-full rounded-2xl bg-muted/40" />
         </div>
       </Layout>
     );
   }
 
+  const sc = "rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden";
+  const sh = "flex items-center gap-2 px-5 py-3 border-b border-border/30 bg-muted/20";
+  const sb = "p-5 space-y-5";
+
   return (
     <Layout>
-      <div className="max-w-2xl space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex items-center gap-4">
-          <Link href={isEditing ? `/entries/${entryId}` : "/entries"}>
-            <Button variant="ghost" className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
-              <ArrowLeft className="w-4 h-4" />
-              {isEditing ? "返回日记" : "返回列表"}
-            </Button>
-          </Link>
-        </div>
-
-        <div>
-          <h2 className="text-3xl font-serif font-bold text-foreground">
-            {isEditing ? "编辑日记" : "写随记"}
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            {isEditing ? "修改你的旅行记忆" : "记录这段珍贵的旅程"}
-          </p>
-        </div>
+      <div className="max-w-2xl space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <Link href={isEditing ? `/entries/${entryId}` : "/entries"}>
+          <Button variant="ghost" className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
+            <ArrowLeft className="w-4 h-4" />
+            {isEditing ? "返回日记" : "返回列表"}
+          </Button>
+        </Link>
 
         {showDraftBanner && !isEditing && (
           <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
@@ -342,9 +336,26 @@ export default function EntryForm({ entryId }: EntryFormProps) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <Card className="border-border/40 bg-card/80 shadow-sm">
-            <CardContent className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ─── Header card ─── */}
+          <div className="rounded-2xl overflow-hidden shadow-sm border border-border/40">
+            <div className="bg-gradient-to-r from-primary/90 to-orange-400 px-5 py-4">
+              <h2 className="text-lg font-serif font-bold text-white">
+                {isEditing ? "✏️ 编辑日记" : "📝 写新随记"}
+              </h2>
+              <p className="text-xs text-white/70 mt-0.5">
+                {isEditing ? "修改你的旅行记忆" : "记录这段珍贵的旅程"}
+              </p>
+            </div>
+          </div>
+
+          {/* ─── Section 1: 基本信息 ─── */}
+          <div className={sc}>
+            <div className={sh}>
+              <span className="text-base">📍</span>
+              <span className="text-sm font-semibold text-foreground">基本信息</span>
+            </div>
+            <div className={sb}>
               {/* Title */}
               <div className="space-y-2">
                 <Label htmlFor="title" className="text-sm font-medium">日记标题 *</Label>
@@ -394,45 +405,6 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                 </div>
               </div>
 
-              {/* Companions */}
-              <div className="space-y-2">
-                <Label htmlFor="companions" className="text-sm font-medium">同行人物</Label>
-                <Input
-                  id="companions"
-                  placeholder="和谁一起？（如：老伴、儿子一家、老朋友张三）"
-                  value={form.companions}
-                  onChange={(e) => setForm({ ...form, companions: e.target.value })}
-                  className="bg-background border-border/60"
-                />
-              </div>
-
-              {/* Visibility */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">可见范围</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { value: "private", label: "🔒 私密", desc: "仅自己可见" },
-                    { value: "shared",  label: "🔗 分享可见", desc: "持链接可看" },
-                    { value: "public",  label: "🌍 公开",  desc: "所有人可见" },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setForm({ ...form, visibility: opt.value })}
-                      className={`flex flex-col items-center gap-0.5 py-2.5 px-2 rounded-xl text-xs font-medium border transition-all ${
-                        form.visibility === opt.value
-                          ? "bg-primary/10 border-primary/40 text-primary"
-                          : "bg-background border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                      }`}
-                    >
-                      <span className="text-base">{opt.label.split(" ")[0]}</span>
-                      <span>{opt.label.split(" ").slice(1).join(" ")}</span>
-                      <span className="text-[10px] text-muted-foreground font-normal">{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -475,6 +447,54 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                 </div>
               )}
 
+              {/* Companions */}
+              <div className="space-y-2">
+                <Label htmlFor="companions" className="text-sm font-medium">同行人物</Label>
+                <Input
+                  id="companions"
+                  placeholder="和谁一起？（如：老伴、儿子一家、老朋友张三）"
+                  value={form.companions}
+                  onChange={(e) => setForm({ ...form, companions: e.target.value })}
+                  className="bg-background border-border/60"
+                />
+              </div>
+
+              {/* Visibility */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">可见范围</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: "private", label: "🔒 私密", desc: "仅自己可见" },
+                    { value: "shared",  label: "🔗 分享可见", desc: "持链接可看" },
+                    { value: "public",  label: "🌍 公开",  desc: "所有人可见" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, visibility: opt.value })}
+                      className={`flex flex-col items-center gap-0.5 py-2.5 px-2 rounded-xl text-xs font-medium border transition-all ${
+                        form.visibility === opt.value
+                          ? "bg-primary/10 border-primary/40 text-primary"
+                          : "bg-background border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                      }`}
+                    >
+                      <span className="text-base">{opt.label.split(" ")[0]}</span>
+                      <span>{opt.label.split(" ").slice(1).join(" ")}</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── Section 2: 旅途记录 ─── */}
+          <div className={sc}>
+            <div className={sh}>
+              <span className="text-base">📷</span>
+              <span className="text-sm font-semibold text-foreground">旅途记录</span>
+            </div>
+            <div className={sb}>
               {/* Cover Image */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">封面图片</Label>
@@ -600,80 +620,85 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
 
-              {/* Content */}
-              <div className="space-y-2">
-                <Label htmlFor="content" className="text-sm font-medium">日记内容</Label>
-                <Textarea
-                  id="content"
-                  placeholder="写下你的旅行故事、感受和回忆..."
-                  value={form.content}
-                  onChange={(e) => setForm({ ...form, content: e.target.value })}
-                  rows={10}
-                  className="bg-background border-border/60 resize-none font-serif text-base leading-relaxed"
-                />
+          {/* ─── Section 3: 日记内容 ─── */}
+          <div className={sc}>
+            <div className={sh}>
+              <span className="text-base">📝</span>
+              <span className="text-sm font-semibold text-foreground">日记内容</span>
+            </div>
+            <div className="p-5 space-y-3">
+              <Textarea
+                id="content"
+                placeholder="写下你的旅行故事、感受和回忆..."
+                value={form.content}
+                onChange={(e) => setForm({ ...form, content: e.target.value })}
+                rows={10}
+                className="bg-background border-border/60 resize-none font-serif text-base leading-relaxed"
+              />
 
-                {/* AI Enhancement Panel — only visible when editing an existing entry */}
-                {isEditing && (
-                  <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-2.5">
-                    <div className="flex gap-2 items-stretch">
-                      <Textarea
-                        placeholder="描述优化要求（留空则自动润色语法和文笔）"
-                        value={aiInstruction}
-                        onChange={(e) => setAiInstruction(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleAiEnhance(); }
-                        }}
-                        disabled={aiLoading}
-                        rows={5}
-                        className="bg-background border-border/60 text-sm min-h-[120px] resize-y flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={aiLoading ? () => abortRef.current?.abort() : handleAiEnhance}
-                        disabled={!form.content.trim()}
-                        className="shrink-0 gap-1.5 self-stretch h-auto"
-                        variant={aiLoading ? "outline" : "default"}
-                      >
-                        {aiLoading ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            停止
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5" />
-                            AI 优化
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    {aiError && (
-                      <p className="text-xs text-destructive">{aiError}</p>
-                    )}
-                    {aiLoading && (
-                      <p className="text-xs text-muted-foreground animate-pulse">正在优化中，内容实时更新...</p>
-                    )}
+              {isEditing && (
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-2.5">
+                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    AI 文笔优化
+                  </p>
+                  <div className="flex gap-2 items-stretch">
+                    <Textarea
+                      placeholder="描述优化要求（留空则自动润色语法和文笔）"
+                      value={aiInstruction}
+                      onChange={(e) => setAiInstruction(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleAiEnhance(); }
+                      }}
+                      disabled={aiLoading}
+                      rows={3}
+                      className="bg-background border-border/60 text-sm min-h-[80px] resize-y flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={aiLoading ? () => abortRef.current?.abort() : handleAiEnhance}
+                      disabled={!form.content.trim()}
+                      className="shrink-0 gap-1.5 self-stretch h-auto"
+                      variant={aiLoading ? "outline" : "default"}
+                    >
+                      {aiLoading ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          停止
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          AI 优化
+                        </>
+                      )}
+                    </Button>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+                  {aiLoading && <p className="text-xs text-muted-foreground animate-pulse">正在优化中，内容实时更新...</p>}
+                </div>
+              )}
+            </div>
+          </div>
 
           {isEditing && entryId && (
-            <div className="pt-2">
-              <CollaboratorsPanel entryId={entryId} />
-            </div>
+            <CollaboratorsPanel entryId={entryId} />
           )}
 
           <div className="flex gap-3 justify-end pb-8">
             <Link href={isEditing ? `/entries/${entryId}` : "/entries"}>
               <Button variant="outline" type="button">取消</Button>
             </Link>
-            <Button type="submit" disabled={isPending} className="gap-2 shadow-sm">
-              <Save className="w-4 h-4" />
-              {isPending ? "保存中..." : isEditing ? "保存修改" : "发布日记"}
+            <Button type="submit" disabled={isPending} className="gap-2 shadow-sm min-w-[110px]">
+              {isPending ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />保存中...</>
+              ) : (
+                <><Save className="w-4 h-4" />{isEditing ? "保存修改" : "发布日记"}</>
+              )}
             </Button>
           </div>
         </form>
