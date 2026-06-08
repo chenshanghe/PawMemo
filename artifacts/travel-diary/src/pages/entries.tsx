@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   MapPin, CalendarDays, Image as ImageIcon, Search, Plus, X,
   MoreHorizontal, Lock, Globe, Link2, CheckSquare, Square, Sparkles, BookOpen,
-  LayoutList, CalendarRange, Map as MapIcon,
+  LayoutList, CalendarRange, Map as MapIcon, ArrowRight,
 } from "lucide-react";
 import { CalendarView } from "./entries-calendar";
 import { format } from "date-fns";
@@ -131,25 +131,32 @@ export default function Entries() {
               </button>
             </div>
             {/* Compose / AI merge */}
-            {!selectMode ? null : (
-              <button onClick={exitSelect} className="px-3 py-1.5 rounded-xl border border-border/60 bg-card text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-                取消
-              </button>
-            )}
-            {selectMode && (
-              <button
-                onClick={goCompose}
-                disabled={selected.size < 2}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
-                  selected.size >= 2
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-                    : "bg-muted text-muted-foreground cursor-not-allowed",
-                )}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                合成 ({selected.size})
-              </button>
+            {selectMode ? (
+              <>
+                <button onClick={exitSelect} className="px-3 py-1.5 rounded-xl border border-border/60 bg-card text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  取消
+                </button>
+                <button
+                  onClick={goCompose}
+                  disabled={selected.size < 2}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                    selected.size >= 2
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                      : "bg-muted text-muted-foreground cursor-not-allowed",
+                  )}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  合成 ({selected.size})
+                </button>
+              </>
+            ) : (
+              <Link href="/entries/new">
+                <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-foreground text-background text-xs font-bold hover:bg-foreground/90 transition-colors shadow-sm">
+                  <Plus className="w-3.5 h-3.5" />
+                  新建旅记
+                </button>
+              </Link>
             )}
           </div>
         </div>
@@ -376,7 +383,7 @@ function EntryCardInner({ entry, travelDays }: { entry: any; travelDays: (e: any
   return (
     <>
       {/* ── Cover image ── */}
-      <div className="relative h-48 md:h-52 overflow-hidden bg-muted/30 shrink-0">
+      <div className="relative h-44 md:h-48 overflow-hidden bg-muted/30 shrink-0">
         {entry.coverImage ? (
           <img
             src={entry.coverImage}
@@ -392,57 +399,64 @@ function EntryCardInner({ entry, travelDays }: { entry: any; travelDays: (e: any
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
 
-        {/* Visibility badge */}
-        <div className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full bg-black/25 backdrop-blur-sm">
+        {/* Visibility badge — top left */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/25 backdrop-blur-sm rounded-full px-2.5 py-1">
           {entry.visibility === "public"
-            ? <Globe className="w-3.5 h-3.5 text-white" />
+            ? <Globe className="w-3 h-3 text-white" />
             : entry.visibility === "shared"
-            ? <Link2 className="w-3.5 h-3.5 text-white" />
-            : <Lock className="w-3.5 h-3.5 text-white/80" />}
+            ? <Link2 className="w-3 h-3 text-white" />
+            : <Lock className="w-3 h-3 text-white/80" />}
+          <MapPin className="w-3 h-3 text-white/80" />
+          <span className="text-[11px] text-white/80 font-semibold leading-none">{entry.destination || "未知地点"}</span>
         </div>
 
-        {/* Title + location overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <MapPin className="w-3 h-3 text-white/80 shrink-0" />
-            <span className="text-[11px] text-white/80 font-semibold">{entry.destination || "未知地点"}</span>
+        {/* Mood badge — top right */}
+        {entry.mood && (
+          <div className="absolute top-3 right-3">
+            <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm", MOODS[entry.mood] ?? "bg-muted text-muted-foreground")}>
+              {entry.mood}
+            </span>
           </div>
-          <h3 className="font-serif font-bold text-lg leading-snug text-white drop-shadow line-clamp-2">
+        )}
+
+        {/* Title overlay — bottom */}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          <h3 className="font-serif font-bold text-[17px] leading-snug text-white drop-shadow-md line-clamp-2">
             {entry.title}
           </h3>
         </div>
       </div>
 
-      {/* ── Body ── */}
-      <div className="p-4 flex flex-col flex-1 bg-[#fcfbf9] dark:bg-card">
-        {plain && (
-          <p className="text-sm text-muted-foreground/80 line-clamp-2 leading-relaxed mb-3 flex-1">
-            {plain.slice(0, 90)}{plain.length > 90 ? "…" : ""}
+      {/* ── Body (desktop only content snippet) ── */}
+      {plain && (
+        <div className="hidden md:block px-4 pt-3 pb-0">
+          <p className="text-[13px] text-muted-foreground/80 line-clamp-2 leading-relaxed italic">
+            "{plain.slice(0, 80)}{plain.length > 80 ? "…" : ""}"
           </p>
-        )}
-        <div className="flex items-center justify-between pt-3 border-t border-border/40 mt-auto">
-          <div className="flex items-center gap-3 text-[11px] font-medium text-muted-foreground">
+        </div>
+      )}
+
+      {/* ── Footer ── */}
+      <div className="px-4 py-3 flex items-center justify-between border-t border-border/40 mt-auto bg-[#fcfbf9] dark:bg-card">
+        <div className="flex items-center gap-3 text-[11px] font-medium text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <CalendarDays className="w-3.5 h-3.5 text-primary/60" />
+            {format(new Date(entry.startDate), "yyyy.MM.dd")}
+          </span>
+          {entry.photoCount > 0 && (
             <span className="flex items-center gap-1">
-              <CalendarDays className="w-3.5 h-3.5 text-primary/60" />
-              {format(new Date(entry.startDate), "yyyy.MM.dd")}
-            </span>
-            <span className="flex items-center gap-1">
-              <CalendarDays className="w-3 h-3 text-muted-foreground/40" />
-              {travelDays(entry)} 天
-            </span>
-            {entry.photoCount > 0 && (
-              <span className="flex items-center gap-1">
-                <ImageIcon className="w-3 h-3 text-muted-foreground/40" />
-                {entry.photoCount}
-              </span>
-            )}
-          </div>
-          {entry.mood && (
-            <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-black/5", MOODS[entry.mood] ?? "bg-muted text-muted-foreground")}>
-              {entry.mood}
+              <ImageIcon className="w-3 h-3 text-muted-foreground/50" />
+              {entry.photoCount} 帧
             </span>
           )}
+          <span className="flex items-center gap-1">
+            <CalendarDays className="w-3 h-3 text-muted-foreground/40" />
+            {travelDays(entry)} 天
+          </span>
         </div>
+        <span className="text-[11px] font-bold text-primary flex items-center gap-0.5 whitespace-nowrap">
+          阅读 <ArrowRight className="w-3 h-3" />
+        </span>
       </div>
     </>
   );
