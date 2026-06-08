@@ -161,6 +161,7 @@ export default function Me() {
   const [sub, setSub] = useState<SubInfo | null>(null);
   const [tab, setTab] = useState<Tab>("notes");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
@@ -402,6 +403,13 @@ export default function Me() {
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/60 bg-card text-xs font-medium text-foreground hover:bg-muted/60 transition-colors shadow-sm"
             >
               <Pencil className="w-3.5 h-3.5" />编辑主页
+            </button>
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="w-8 h-8 rounded-full border border-border/60 bg-card flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5 transition-colors"
+              title="退出登录"
+            >
+              <LogOut className="w-4 h-4" />
             </button>
             <button
               onClick={() => setSettingsOpen(v => !v)}
@@ -771,6 +779,23 @@ export default function Me() {
       {showFeedback && (
         <FeedbackModal onClose={() => setShowFeedback(false)} />
       )}
+
+      {/* ── Logout confirm ───────────────────────────────────────────────── */}
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>退出登录</AlertDialogTitle>
+            <AlertDialogDescription>确定要退出当前账号吗？</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleSignOut}
+            >退出</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Export preview modal ─────────────────────────────────────────── */}
       {showPayDialog && (
