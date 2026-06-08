@@ -3,10 +3,12 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/entries-redesign/DesktopView.tsx": () => import("../components/mockups/entries-redesign/DesktopView.tsx"),
   "./components/mockups/entries-redesign/MobileView.tsx": () => import("../components/mockups/entries-redesign/MobileView.tsx"),
+  "./components/mockups/home-redesign/DesktopView.tsx": () => import("../components/mockups/home-redesign/DesktopView.tsx"),
+  "./components/mockups/home-redesign/HomePage.tsx": () => import("../components/mockups/home-redesign/HomePage.tsx"),
+  "./components/mockups/home-redesign/MobileView.tsx": () => import("../components/mockups/home-redesign/MobileView.tsx"),
   "./components/mockups/map-redesign/DesktopView.tsx": () => import("../components/mockups/map-redesign/DesktopView.tsx"),
   "./components/mockups/map-redesign/MobileView.tsx": () => import("../components/mockups/map-redesign/MobileView.tsx"),
   "./components/mockups/me-page/MePage.tsx": () => import("../components/mockups/me-page/MePage.tsx"),
-  "./components/mockups/home-redesign/DesktopView.tsx": () => import("../components/mockups/home-redesign/DesktopView.tsx"),
-  "./components/mockups/home-redesign/HomePage.tsx": () => import("../components/mockups/home-redesign/HomePage.tsx"),
-  "./components/mockups/home-redesign/MobileView.tsx": () => import("../components/mockups/home-redesign/MobileView.tsx")
+  "./components/mockups/square-redesign/DesktopView.tsx": () => import("../components/mockups/square-redesign/DesktopView.tsx"),
+  "./components/mockups/square-redesign/MobileView.tsx": () => import("../components/mockups/square-redesign/MobileView.tsx")
 };
