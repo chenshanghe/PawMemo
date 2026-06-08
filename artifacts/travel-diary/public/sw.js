@@ -25,14 +25,17 @@ const API_STALE_MS = 5 * 60 * 1000; // 5 min
 // Max number of images to keep in the image cache
 const IMAGE_CACHE_MAX = 500;
 
-// ── Install — pre-cache shell assets, then wait in "installed" state ──────────
-// We do NOT call skipWaiting() here so the new SW stays in "waiting" state
-// until the user explicitly clicks "立即刷新" (which sends SKIP_WAITING below).
-// This prevents version skew where the old page runs against new SW caches.
+// ── Install — pre-cache shell assets, then immediately skip waiting ───────────
+// We call skipWaiting() so the new SW activates right away without needing the
+// user to click "立即刷新". All JS/CSS chunks are content-hashed by Vite so
+// there is no version-skew risk. This also ensures broken deployments self-heal
+// automatically: the new SW takes over even if the page crashed before the
+// update banner could appear.
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(SHELL_CACHE)
       .then((c) => c.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
   );
 });
 
