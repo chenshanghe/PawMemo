@@ -94,15 +94,19 @@ export function HomePage() {
           <span className="font-bold text-gray-800 text-base">最近回忆</span>
           <span className="text-sm text-orange-500 cursor-pointer">查看全部 &gt;</span>
         </div>
-        <div className="grid grid-cols-2 gap-2 h-[210px]">
+        <div className="grid grid-cols-2 gap-2.5 h-[280px]">
           {/* 左侧大图 */}
-          <div className={`rounded-xl bg-gradient-to-br from-teal-200 to-cyan-400 h-full`} />
+          <div className="rounded-2xl bg-gradient-to-br from-teal-300 to-cyan-500 h-full shadow-sm" />
           {/* 右侧 2×2 */}
-          <div className="grid grid-rows-2 gap-2">
-            {PHOTO_COLORS.slice(1).map((c, i) => (
-              <div key={i} className={`rounded-xl bg-gradient-to-br ${c}`} />
-            ))}
+          <div className="grid grid-rows-2 gap-2.5">
+            <div className="rounded-2xl bg-gradient-to-br from-pink-300 to-rose-400 shadow-sm" />
+            <div className="rounded-2xl bg-gradient-to-br from-violet-300 to-purple-400 shadow-sm" />
           </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="rounded-2xl bg-gradient-to-br from-amber-300 to-orange-400 h-24 shadow-sm" />
+          <div className="rounded-2xl bg-gradient-to-br from-green-300 to-emerald-400 h-24 shadow-sm" />
+          <div className="rounded-2xl bg-gradient-to-br from-sky-300 to-blue-400 h-24 shadow-sm" />
         </div>
       </div>
 
