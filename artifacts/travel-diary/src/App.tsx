@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Sentry, sentryEnabled } from "@/lib/sentry";
 import { ThemeProvider } from "next-themes";
 import { HelmetProvider } from "react-helmet-async";
@@ -9,34 +9,36 @@ import { Switch, Route, useLocation, Router as WouterRouter, Redirect, Link } fr
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
-import Landing from "@/pages/landing";
-import Home from "@/pages/home";
-import Entries from "@/pages/entries";
-import EntryDetail from "@/pages/entry-detail";
-import EntryForm from "@/pages/entry-form";
-import ShareView from "@/pages/share-view";
-import Square from "@/pages/square";
-import PublicEntry from "@/pages/public-entry";
-import MyFavorites from "@/pages/my-favorites";
-import MyFeed from "@/pages/my-feed";
-import Me from "@/pages/me";
-import UserProfile from "@/pages/user-profile";
-import ComposeNarrative from "@/pages/compose-narrative";
-import Pricing from "@/pages/pricing";
-import MapPage from "@/pages/map";
-import { EntryPrintPage } from "@/pages/entry-print";
-import Photos from "@/pages/photos";
-import PlanPage from "@/pages/plan";
-import NotificationsPage from "@/pages/notifications";
-import AchievementsPage from "@/pages/achievements";
-import OrdersPage from "@/pages/orders";
-import PlanListPage from "@/pages/plan-list";
-import PrivacyPage from "@/pages/privacy";
-import TermsPage from "@/pages/terms";
-import DownloadsPage from "@/pages/downloads";
+import { PageSkeleton } from "@/components/page-skeleton";
 import LegalBottomSheet from "@/components/LegalBottomSheet";
 import { Onboarding } from "@/components/onboarding";
+
+const NotFound         = lazy(() => import("@/pages/not-found"));
+const Landing          = lazy(() => import("@/pages/landing"));
+const Home             = lazy(() => import("@/pages/home"));
+const Entries          = lazy(() => import("@/pages/entries"));
+const EntryDetail      = lazy(() => import("@/pages/entry-detail"));
+const EntryForm        = lazy(() => import("@/pages/entry-form"));
+const ShareView        = lazy(() => import("@/pages/share-view"));
+const Square           = lazy(() => import("@/pages/square"));
+const PublicEntry      = lazy(() => import("@/pages/public-entry"));
+const MyFavorites      = lazy(() => import("@/pages/my-favorites"));
+const MyFeed           = lazy(() => import("@/pages/my-feed"));
+const Me               = lazy(() => import("@/pages/me"));
+const UserProfile      = lazy(() => import("@/pages/user-profile"));
+const ComposeNarrative = lazy(() => import("@/pages/compose-narrative"));
+const Pricing          = lazy(() => import("@/pages/pricing"));
+const MapPage          = lazy(() => import("@/pages/map"));
+const Photos           = lazy(() => import("@/pages/photos"));
+const PlanPage         = lazy(() => import("@/pages/plan"));
+const NotificationsPage = lazy(() => import("@/pages/notifications"));
+const AchievementsPage = lazy(() => import("@/pages/achievements"));
+const OrdersPage       = lazy(() => import("@/pages/orders"));
+const PlanListPage     = lazy(() => import("@/pages/plan-list"));
+const PrivacyPage      = lazy(() => import("@/pages/privacy"));
+const TermsPage        = lazy(() => import("@/pages/terms"));
+const DownloadsPage    = lazy(() => import("@/pages/downloads"));
+const EntryPrintPage   = lazy(() => import("@/pages/entry-print").then(m => ({ default: m.EntryPrintPage })));
 
 const queryClient = new QueryClient();
 
@@ -270,6 +272,7 @@ function SignUpPage() {
 
 function AppRouter() {
   return (
+    <Suspense fallback={<PageSkeleton />}>
     <Switch>
       <Route path="/" component={HomeRedirect} />
       <Route path="/sign-in/*?" component={SignInPage} />
@@ -313,6 +316,7 @@ function AppRouter() {
       <Route path="/downloads">{() => <DownloadsPage />}</Route>
       <Route component={NotFound} />
     </Switch>
+    </Suspense>
   );
 }
 
