@@ -4,7 +4,7 @@ import { useUser, useClerk } from "@clerk/react";
 import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
-  Camera, Upload, Wand2, Check, Sparkles, BarChart2, Plus, Map,
+  Camera, Upload, Wand2, Check, Sparkles, BarChart2,
   Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, MessageSquare,
   AlertTriangle, Trash2, Shield, FileText, Zap, Receipt, Ban, Share2, Smartphone,
 } from "lucide-react";
@@ -96,7 +96,7 @@ interface FollowItem {
   avatar: string | null;
 }
 
-type Tab = "notes" | "favorites" | "following" | "followers" | "plans" | "data";
+type Tab = "notes" | "favorites" | "following" | "followers" | "data";
 
 const MOODS: Record<string, string> = {
   开心: "bg-yellow-100 text-yellow-700",
@@ -148,28 +148,6 @@ const TIER_BADGE: Record<string, { label: string; cls: string }> = {
   plus: { label: "Plus",   cls: "bg-amber-100 text-amber-700" },
 };
 
-interface SavedPlan {
-  id: number;
-  title: string;
-  summary: string | null;
-  from: string;
-  destinations: string[];
-  startDate: string;
-  endDate: string;
-  travelers: number;
-  style: string | null;
-  travelMode: string | null;
-  budget: string | null;
-  groupType: string | null;
-  createdAt: string;
-}
-
-const GROUP_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
-  solo:    { label: "🧍 独自",   cls: "bg-violet-50 text-violet-600" },
-  couple:  { label: "💑 情侣",   cls: "bg-pink-50 text-pink-600" },
-  family:  { label: "👨‍👩‍👧 家庭",  cls: "bg-amber-50 text-amber-600" },
-  friends: { label: "👫 朋友",   cls: "bg-teal-50 text-teal-600" },
-};
 
 export default function Me() {
   const { user } = useUser();
@@ -183,8 +161,6 @@ export default function Me() {
   const [sub, setSub] = useState<SubInfo | null>(null);
   const [tab, setTab] = useState<Tab>("notes");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
-  const [savedPlansLoaded, setSavedPlansLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
@@ -341,13 +317,7 @@ export default function Me() {
         })
         .catch(() => setExportLoaded(true));
     }
-    if (tab === "plans" && !savedPlansLoaded) {
-      fetch(`${BASE}/api/plans`, { credentials: "include" }).then(async (r) => {
-        if (r.ok) setSavedPlans(await r.json());
-        setSavedPlansLoaded(true);
-      }).catch(() => setSavedPlansLoaded(true));
-    }
-  }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded, statsLoaded, exportLoaded, savedPlansLoaded]);
+  }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded, statsLoaded, exportLoaded]);
 
   const handleSignOut = () => signOut();
 
@@ -403,16 +373,6 @@ export default function Me() {
     setTimeout(() => { window.print(); setPrinting(false); }, 300);
   };
 
-  const handleDeletePlan = async (id: number) => {
-    setSavedPlans(prev => prev.filter(p => p.id !== id));
-    try {
-      await fetch(`${BASE}/api/plans/${id}`, { method: "DELETE", credentials: "include" });
-    } catch {
-      fetch(`${BASE}/api/plans`, { credentials: "include" }).then(async r => {
-        if (r.ok) setSavedPlans(await r.json());
-      });
-    }
-  };
 
   if (!profile) {
     return (
@@ -615,12 +575,65 @@ export default function Me() {
               </div>
             </div>
 
+            {/* ── Subscription card ────────────────────────────── */}
+            {sub && sub.tier === "free" && (
+              <div className="rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/8 via-primary/4 to-amber-50/70">
+                <div className="px-4 pt-4 pb-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground tracking-wide">免费版</span>
+                    <Link href="/pricing" className="text-[10px] text-primary hover:underline font-medium">查看全部套餐 →</Link>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground leading-tight">升级，解锁更多功能</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">无限旅记 · 更多照片 · 更多 AI 叙事次数</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setPayDialogTier("pro"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }}
+                      className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 active:scale-95 transition-all"
+                    >Pro · ¥28/月</button>
+                    <button
+                      onClick={() => { setPayDialogTier("plus"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }}
+                      className="flex-1 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-500/90 active:scale-95 transition-all"
+                    >Plus · ¥68/月</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {sub && sub.tier !== "free" && (
+              <Link href="/pricing" className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/50 bg-card hover:border-primary/30 hover:shadow-sm transition-all group">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Zap className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold text-foreground">当前套餐</p>
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", TIER_BADGE[sub.tier]?.cls ?? TIER_BADGE.free.cls)}>
+                      {TIER_BADGE[sub.tier]?.label ?? sub.tier}
+                    </span>
+                    {sub.cancelAtPeriodEnd && (
+                      <span className="text-[10px] text-amber-500 font-medium">将到期</span>
+                    )}
+                  </div>
+                  {sub.expiresAt && (
+                    <p className={cn("text-[10px] mt-0.5", sub.cancelAtPeriodEnd ? "text-amber-500" : "text-muted-foreground")}>
+                      {sub.cancelAtPeriodEnd
+                        ? `${format(new Date(sub.expiresAt), "M 月 d 日")} 到期不续费`
+                        : `有效至 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`}
+                    </p>
+                  )}
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
+              </Link>
+            )}
+
             {/* AI Usage card */}
             {sub && (
               <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
                   <span className="text-xs font-semibold text-foreground">AI 用量</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">本月</span>
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -644,52 +657,6 @@ export default function Me() {
                     </div>
                   )}
                 </div>
-                {sub.tier !== "free" && sub.expiresAt && (
-                  <div className="pt-1 border-t border-border/40 space-y-1.5">
-                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <CalendarDays className="w-3 h-3 shrink-0" />
-                      <span>{sub.cancelAtPeriodEnd ? `将于 ${format(new Date(sub.expiresAt), "M 月 d 日")} 到期，不再续费` : `到期：${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`}</span>
-                    </div>
-                    <div>
-                      {sub.cancelAtPeriodEnd ? (
-                        <Button variant="outline" size="sm" className="h-7 px-3 text-[11px]"
-                          onClick={async () => {
-                            try { const res = await fetch(`${BASE}/api/me/subscription/restore`, { method: "POST", credentials: "include" }); if (res.ok) { toast({ title: "订阅已恢复" }); fetchProfile(); } }
-                            catch { toast({ title: "恢复失败", variant: "destructive" }); }
-                          }}
-                        >恢复订阅</Button>
-                      ) : (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 px-3 text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1">
-                              <Ban className="w-3 h-3" />取消订阅
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>取消订阅</AlertDialogTitle>
-                              <AlertDialogDescription>取消后，您的 {sub.tierName}{sub.expiresAt ? `将在 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，` : ""}到期前功能不受影响，到期后自动降回免费版。订阅费用不予退款。</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>取消</AlertDialogCancel>
-                              <AlertDialogAction onClick={async () => {
-                                try { const res = await fetch(`${BASE}/api/me/subscription/cancel`, { method: "POST", credentials: "include" }); if (res.ok) { toast({ title: "订阅已取消" }); fetchProfile(); } }
-                                catch { toast({ title: "操作失败", variant: "destructive" }); }
-                              }}>确认取消</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {sub.tier === "free" && (
-                  <div className="flex gap-2 pt-1 border-t border-border/40">
-                    <button onClick={() => { setPayDialogTier("pro"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }} className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 transition-colors">Pro · ¥28/月</button>
-                    <button onClick={() => { setPayDialogTier("plus"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }} className="flex-1 py-1.5 rounded-lg bg-amber-500 text-white text-[11px] font-semibold hover:bg-amber-500/90 transition-colors">Plus · ¥68/月</button>
-                    <Link href="/pricing" className="flex items-center justify-center px-2 py-1.5 rounded-lg border border-border/50 text-[11px] text-muted-foreground hover:bg-muted/40 transition-colors whitespace-nowrap">对比</Link>
-                  </div>
-                )}
               </div>
             )}
 
@@ -736,7 +703,6 @@ export default function Me() {
                 ["favorites", "收藏",  Bookmark,  null],
                 ["following", "关注",  Users,     profile.followingCount],
                 ["followers", "粉丝",  Users,     profile.followerCount],
-                ["plans",     "规划",  Map,       null],
                 ["data",      "数据",  BarChart2, null],
               ] as const).map(([k, label, Icon, count]) => (
                 <button
@@ -762,14 +728,6 @@ export default function Me() {
               {tab === "favorites" && <FavoritesGrid favs={favorites} loaded={favoritesLoaded} />}
               {tab === "following" && <UsersList users={following} loaded={followingLoaded} emptyHint="还没有关注任何旅行者" ctaHref="/square" ctaLabel="去广场发现旅行者" />}
               {tab === "followers" && <UsersList users={followers} loaded={followersLoaded} emptyHint="还没有粉丝 — 多发几篇公开日记吧" ctaHref="/entries/new" ctaLabel="写一篇公开日记" />}
-              {tab === "plans" && (
-                <MePlansTab
-                  plans={savedPlans}
-                  loaded={savedPlansLoaded}
-                  onNavigate={() => navigate("/plan")}
-                  onDelete={handleDeletePlan}
-                />
-              )}
               {tab === "data" && (
                 <>
                   {stats && (
@@ -974,89 +932,6 @@ export default function Me() {
         </div>
       )}
     </Layout>
-  );
-}
-
-/* ── MePlansTab ───────────────────────────────────────────────────────────── */
-function MePlansTab({
-  plans, loaded, onNavigate, onDelete,
-}: {
-  plans: SavedPlan[];
-  loaded: boolean;
-  onNavigate: () => void;
-  onDelete: (id: number) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      {/* CTA */}
-      <button
-        onClick={onNavigate}
-        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-amber-50 border border-primary/20 hover:border-primary/40 hover:shadow-sm transition-all text-left group"
-      >
-        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
-          <Plus className="w-5 h-5 text-primary-foreground" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">新建 AI 旅行规划</p>
-          <p className="text-xs text-muted-foreground mt-0.5">输入目的地，AI 自动生成逐日行程与餐厅推荐</p>
-        </div>
-        <ChevronRight className="w-4 h-4 text-primary/60 shrink-0" />
-      </button>
-
-      {/* Plans list */}
-      {!loaded ? (
-        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary/60" /></div>
-      ) : plans.length === 0 ? (
-        <div className="flex flex-col items-center py-12 text-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-2xl">✈️</div>
-          <p className="text-sm text-muted-foreground">还没有保存的规划</p>
-          <p className="text-xs text-muted-foreground/70">点击上方按钮，让 AI 为你规划第一段旅程</p>
-        </div>
-      ) : (
-        <>
-          <p className="text-xs text-muted-foreground">已保存的规划 · {plans.length} 份</p>
-          <div className="space-y-3">
-            {plans.map(plan => {
-              const nights = Math.round(
-                (new Date(plan.endDate).getTime() - new Date(plan.startDate).getTime()) / 86400000
-              );
-              return (
-                <div
-                  key={plan.id}
-                  onClick={onNavigate}
-                  className="flex items-start gap-3 p-4 rounded-2xl border border-border/40 bg-card hover:border-primary/30 hover:shadow-sm transition-all group cursor-pointer"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 text-lg">✈️</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{plan.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {plan.from} → {plan.destinations.join("、")} · {nights > 0 ? `${nights} 晚` : "当天"}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      <span className="text-[10px] text-muted-foreground/70">{plan.startDate.slice(0, 7)}</span>
-                      {plan.groupType && GROUP_TYPE_BADGE[plan.groupType] && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${GROUP_TYPE_BADGE[plan.groupType].cls}`}>
-                          {GROUP_TYPE_BADGE[plan.groupType].label}
-                        </span>
-                      )}
-                      {plan.travelMode && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600">{plan.travelMode}</span>}
-                      {plan.budget && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">{plan.budget.split("（")[0]}</span>}
-                      {plan.style && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{plan.style}</span>}
-                    </div>
-                  </div>
-                  <button
-                    onClick={e => { e.stopPropagation(); onDelete(plan.id); }}
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
   );
 }
 
