@@ -46,16 +46,20 @@ export default function MobileView() {
       {/* ── Cover gradient ── */}
       <div style={{ height: 120, background: `linear-gradient(135deg, ${P}88 0%, #F4A261 60%, #FBD28A 100%)`, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(245,240,232,0.95) 0%, transparent 60%)" }} />
-        {/* Header title */}
-        <div style={{ position: "absolute", top: 16, left: 16 }}>
+        {/* Header bar: title left, edit button right */}
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px" }}>
           <span style={{ color: "#fff", fontSize: 20, fontWeight: 900, fontFamily: "Georgia, serif", textShadow: "0 1px 4px rgba(0,0,0,.2)" }}>我的</span>
+          <button style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.22)", backdropFilter: "blur(6px)", fontSize: 11, fontWeight: 600, color: "#fff" }}>
+            <Pencil style={{ width: 11, height: 11 }} />
+            编辑主页
+          </button>
         </div>
       </div>
 
       {/* ── Identity ── */}
       <div style={{ padding: "0 16px", marginTop: -52 }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 12 }}>
-          {/* Avatar */}
+          {/* Avatar only — edit button moved to top-right header */}
           <div style={{ position: "relative", flexShrink: 0 }}>
             <div style={{ width: 76, height: 76, borderRadius: "50%", background: `linear-gradient(135deg, ${P}33, #FBD28A55)`, border: `3.5px solid ${BG}`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, color: P, boxShadow: "0 2px 12px rgba(0,0,0,.12)" }}>
               旅
@@ -63,13 +67,6 @@ export default function MobileView() {
             <div style={{ position: "absolute", bottom: 0, right: -2, width: 24, height: 24, borderRadius: "50%", background: P, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,.2)" }}>
               <Camera style={{ width: 12, height: 12, color: "#fff" }} />
             </div>
-          </div>
-          {/* Edit button */}
-          <div style={{ flex: 1, paddingBottom: 4, display: "flex", justifyContent: "flex-end" }}>
-            <button style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 999, border: `1px solid ${BOR}`, background: CARD, fontSize: 11, fontWeight: 600, color: FG, boxShadow: "0 1px 3px rgba(0,0,0,.06)" }}>
-              <Pencil style={{ width: 11, height: 11 }} />
-              编辑主页
-            </button>
           </div>
         </div>
 
