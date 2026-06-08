@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, WifiOff, Download, Share2, Smartphone } from "lucide-react";
+import { Compass, BookText, Globe, Plus, LogOut, Bell, Users, UserCircle2, Map, Images, Navigation, WifiOff, Download, Share2, Smartphone } from "lucide-react";
 import { useClerk, useUser } from "@clerk/react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
