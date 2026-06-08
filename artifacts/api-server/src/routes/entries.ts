@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { setPrivateCache } from "../lib/cache";
 import { db } from "@workspace/db";
 import {
   diaryEntriesTable,
@@ -132,6 +133,7 @@ router.get("/", async (req, res) => {
     })
   );
 
+  setPrivateCache(res, 30);
   res.json(result);
 });
 

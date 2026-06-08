@@ -40,7 +40,14 @@ const TermsPage        = lazy(() => import("@/pages/terms"));
 const DownloadsPage    = lazy(() => import("@/pages/downloads"));
 const EntryPrintPage   = lazy(() => import("@/pages/entry-print").then(m => ({ default: m.EntryPrintPage })));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+    },
+  },
+});
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,

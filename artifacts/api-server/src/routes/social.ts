@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { setPrivateCache } from "../lib/cache";
 import { db } from "@workspace/db";
 import {
   diaryEntriesTable,
@@ -619,6 +620,7 @@ router.get("/me/profile", requireAuth, async (req, res) => {
       .where(eq(diaryEntriesTable.userId, userId)),
   ]);
 
+  setPrivateCache(res, 60);
   res.json({
     ...profile,
     entryCount: entryCount ?? 0,
@@ -1113,6 +1115,7 @@ router.get("/me/subscription", requireAuth, async (req, res) => {
     })
     .from(userProfilesTable)
     .where(eq(userProfilesTable.userId, userId));
+  setPrivateCache(res, 60);
   res.json({
     tier,
     tierName: TIER_NAMES[tier],

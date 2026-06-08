@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { setPrivateCache } from "../lib/cache";
 import { db } from "@workspace/db";
 import { diaryEntriesTable, photosTable, entryTagsTable, tagsTable } from "@workspace/db";
 import { sql, eq, and } from "drizzle-orm";
@@ -58,6 +59,7 @@ router.get("/summary", async (req, res) => {
     .orderBy(sql`count(*) desc`)
     .limit(5);
 
+  setPrivateCache(res, 120);
   res.json({
     totalEntries: entryStats?.totalEntries ?? 0,
     totalDestinations: entryStats?.totalDestinations ?? 0,
@@ -95,6 +97,7 @@ router.get("/monthly", async (req, res) => {
     .orderBy(sql`to_char(${diaryEntriesTable.startDate}, 'YYYY-MM')`);
 
   const countMap = new Map(rows.map((r) => [r.month, r.count]));
+  setPrivateCache(res, 120);
   res.json(months.map((m) => ({ month: m, count: countMap.get(m) ?? 0 })));
 });
 
@@ -123,6 +126,7 @@ router.get("/recent", async (req, res) => {
       return { ...entry, tags, photoCount: count };
     })
   );
+  setPrivateCache(res, 60);
   res.json(result);
 });
 
@@ -136,6 +140,7 @@ router.get("/destinations", async (req, res) => {
     .where(eq(diaryEntriesTable.userId, userId))
     .groupBy(diaryEntriesTable.destination)
     .orderBy(sql`count(*) desc`);
+  setPrivateCache(res, 120);
   res.json(rows);
 });
 
