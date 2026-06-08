@@ -6,6 +6,7 @@ import {
   tagsTable,
   entryTagsTable,
   photosTable,
+  entryCollaboratorsTable,
 } from "@workspace/db";
 import { eq, sql, and, count } from "drizzle-orm";
 import {
@@ -203,14 +204,21 @@ router.get("/:id", async (req, res) => {
     return;
   }
   const { id } = parsed.data;
-  const [entry] = await db
+  let [entry] = await db
     .select()
     .from(diaryEntriesTable)
     .where(and(eq(diaryEntriesTable.id, id), eq(diaryEntriesTable.userId, userId)));
   if (!entry) {
-    res.status(404).json({ error: "Not found" });
-    return;
+    const [collab] = await db.select().from(entryCollaboratorsTable)
+      .where(and(
+        eq(entryCollaboratorsTable.entryId, id),
+        eq(entryCollaboratorsTable.userId, userId),
+        eq(entryCollaboratorsTable.status, "accepted"),
+      ));
+    if (!collab) { res.status(404).json({ error: "Not found" }); return; }
+    [entry] = await db.select().from(diaryEntriesTable).where(eq(diaryEntriesTable.id, id));
   }
+  if (!entry) { res.status(404).json({ error: "Not found" }); return; }
   const [tags, photos] = await Promise.all([
     getEntryTags(id),
     db.select().from(photosTable).where(eq(photosTable.entryId, id)).orderBy(photosTable.createdAt, photosTable.id),
@@ -250,11 +258,22 @@ router.patch("/:id", async (req, res) => {
   if (data.weather !== undefined) updateData.weather = data.weather;
   if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl;
 
-  const [entry] = await db
+  let [entry] = await db
     .update(diaryEntriesTable)
     .set(updateData)
     .where(and(eq(diaryEntriesTable.id, id), eq(diaryEntriesTable.userId, userId)))
     .returning();
+  if (!entry) {
+    const [collab] = await db.select().from(entryCollaboratorsTable)
+      .where(and(
+        eq(entryCollaboratorsTable.entryId, id),
+        eq(entryCollaboratorsTable.userId, userId),
+        eq(entryCollaboratorsTable.status, "accepted"),
+      ));
+    if (!collab) { res.status(404).json({ error: "Not found" }); return; }
+    [entry] = await db.update(diaryEntriesTable).set(updateData)
+      .where(eq(diaryEntriesTable.id, id)).returning();
+  }
   if (!entry) {
     res.status(404).json({ error: "Not found" });
     return;

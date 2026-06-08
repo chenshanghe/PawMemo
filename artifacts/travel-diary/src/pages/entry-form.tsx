@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@clerk/react";
+import { useAuth, useUser } from "@clerk/react";
 import { Layout } from "@/components/layout";
 import { UpgradeDialog } from "@/components/upgrade-dialog";
 import { useOfflineDraft } from "@/hooks/useOfflineDraft";
@@ -39,6 +39,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
+  const { user } = useUser();
   const isEditing = !!entryId;
 
   const { data: existingEntry, isLoading: loadingEntry } = useGetEntry(entryId!, {
@@ -701,7 +702,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
             </div>
           </div>
 
-          {isEditing && entryId && (
+          {isEditing && entryId && existingEntry && user && (existingEntry as any).userId === user.id && (
             <CollaboratorsPanel entryId={entryId} />
           )}
 

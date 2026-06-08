@@ -39,6 +39,7 @@ const PrivacyPage      = lazy(() => import("@/pages/privacy"));
 const TermsPage        = lazy(() => import("@/pages/terms"));
 const DownloadsPage    = lazy(() => import("@/pages/downloads"));
 const EntryPrintPage   = lazy(() => import("@/pages/entry-print").then(m => ({ default: m.EntryPrintPage })));
+const CollabAccept     = lazy(() => import("@/pages/collab-accept"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -317,6 +318,9 @@ function AppRouter() {
       <Route path="/orders">{() => <ProtectedRoute component={OrdersPage} />}</Route>
       <Route path="/entries/:id/print">
         {(params) => <ProtectedRoute component={EntryPrintPage} params={params as { id: string }} />}
+      </Route>
+      <Route path="/collab/:token">
+        {(params) => <ProtectedRoute component={CollabAccept} params={params as { token: string }} />}
       </Route>
       <Route path="/privacy">{() => <PrivacyPage />}</Route>
       <Route path="/terms">{() => <TermsPage />}</Route>
