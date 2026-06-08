@@ -100,7 +100,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Navigation className="w-4.5 h-4.5" />规划
           </Link>
           <Link href="/me" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isMe ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
-            <UserCircle2 className="w-4.5 h-4.5" />我
+            <UserCircle2 className="w-4.5 h-4.5" />我的
           </Link>
         </nav>
 
@@ -234,7 +234,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ? <img src={avatar} alt="" className={`w-5 h-5 rounded-full object-cover ${isMe ? "ring-2 ring-primary" : ""}`} />
             : <UserCircle2 className="w-5 h-5" />
           }
-          <span className="text-[10px] font-medium">我</span>
+          <span className="text-[10px] font-medium">我的</span>
         </Link>
       </nav>
     </div>
