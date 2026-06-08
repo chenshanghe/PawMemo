@@ -4,7 +4,7 @@ import { useUser, useClerk } from "@clerk/react";
 import {
   Pencil, Settings, LogOut, Loader2, Bookmark, Users, BookText, Heart,
   MapPin, CalendarDays, Image as ImageIcon, Lock, Globe, EyeOff, X, ChevronRight,
-  Camera, Upload, Wand2, Check, Sparkles, BarChart2,
+  Camera, Upload, Wand2, Check, Sparkles, BarChart2, Plus, Map,
   Bell, Award, Download, TrendingUp, Smile, Tag, Star, Printer, MessageSquare,
   AlertTriangle, Trash2, Shield, FileText, Zap, Receipt, Ban, Share2, Smartphone,
 } from "lucide-react";
@@ -96,7 +96,7 @@ interface FollowItem {
   avatar: string | null;
 }
 
-type Tab = "notes" | "favorites" | "following" | "followers" | "data";
+type Tab = "notes" | "favorites" | "following" | "followers" | "plans" | "data";
 
 const MOODS: Record<string, string> = {
   开心: "bg-yellow-100 text-yellow-700",
@@ -148,6 +148,29 @@ const TIER_BADGE: Record<string, { label: string; cls: string }> = {
   plus: { label: "Plus",   cls: "bg-amber-100 text-amber-700" },
 };
 
+interface SavedPlan {
+  id: number;
+  title: string;
+  summary: string | null;
+  from: string;
+  destinations: string[];
+  startDate: string;
+  endDate: string;
+  travelers: number;
+  style: string | null;
+  travelMode: string | null;
+  budget: string | null;
+  groupType: string | null;
+  createdAt: string;
+}
+
+const GROUP_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
+  solo:    { label: "🧍 独自",   cls: "bg-violet-50 text-violet-600" },
+  couple:  { label: "💑 情侣",   cls: "bg-pink-50 text-pink-600" },
+  family:  { label: "👨‍👩‍👧 家庭",  cls: "bg-amber-50 text-amber-600" },
+  friends: { label: "👫 朋友",   cls: "bg-teal-50 text-teal-600" },
+};
+
 export default function Me() {
   const { user } = useUser();
   const { signOut } = useClerk();
@@ -159,6 +182,9 @@ export default function Me() {
   const [stats, setStats] = useState<SummaryStats | null>(null);
   const [sub, setSub] = useState<SubInfo | null>(null);
   const [tab, setTab] = useState<Tab>("notes");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
+  const [savedPlansLoaded, setSavedPlansLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
@@ -315,7 +341,13 @@ export default function Me() {
         })
         .catch(() => setExportLoaded(true));
     }
-  }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded, statsLoaded, exportLoaded]);
+    if (tab === "plans" && !savedPlansLoaded) {
+      fetch(`${BASE}/api/plans`, { credentials: "include" }).then(async (r) => {
+        if (r.ok) setSavedPlans(await r.json());
+        setSavedPlansLoaded(true);
+      }).catch(() => setSavedPlansLoaded(true));
+    }
+  }, [tab, notesLoaded, favoritesLoaded, followingLoaded, followersLoaded, statsLoaded, exportLoaded, savedPlansLoaded]);
 
   const handleSignOut = () => signOut();
 
@@ -371,6 +403,17 @@ export default function Me() {
     setTimeout(() => { window.print(); setPrinting(false); }, 300);
   };
 
+  const handleDeletePlan = async (id: number) => {
+    setSavedPlans(prev => prev.filter(p => p.id !== id));
+    try {
+      await fetch(`${BASE}/api/plans/${id}`, { method: "DELETE", credentials: "include" });
+    } catch {
+      fetch(`${BASE}/api/plans`, { credentials: "include" }).then(async r => {
+        if (r.ok) setSavedPlans(await r.json());
+      });
+    }
+  };
+
   if (!profile) {
     return (
       <Layout>
@@ -383,174 +426,238 @@ export default function Me() {
 
   return (
     <Layout>
+      {/* ── Settings dropdown backdrop ─────────────────────────────────── */}
+      {settingsOpen && (
+        <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
+      )}
+
       <div className="-mt-4 md:-mt-4 -mx-4 md:-mx-8 animate-in fade-in duration-300">
-        {/* ── Cover ─────────────────────────────────────────────────────── */}
-        <div className="relative h-28 md:h-36 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/60 via-orange-300 to-amber-200" />
-          {profile.avatar && (
-            <img src={profile.avatar} alt="" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
-        </div>
 
-        {/* ── Identity ──────────────────────────────────────────────────── */}
-        <div className="px-4 md:px-8 -mt-12 relative">
-          <div className="flex items-end gap-4">
-            <div className="relative shrink-0 group">
-              <div className="w-24 h-24 rounded-full ring-4 ring-background bg-primary/20 overflow-hidden flex items-center justify-center text-3xl font-serif font-bold text-primary shadow-md">
-                {profile.avatar ? (
-                  <img src={profile.avatar} alt="" decoding="async" className="w-full h-full object-cover" />
-                ) : (
-                  profile.name[0]
+        {/* ── STICKY HEADER ─────────────────────────────────────────────── */}
+        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/40 flex items-center justify-between px-4 md:px-8 h-12">
+          <h1 className="font-serif font-bold text-lg text-foreground">我的</h1>
+          <div className="flex gap-2 items-center relative">
+            <button
+              onClick={() => setEditing(true)}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/60 bg-card text-xs font-medium text-foreground hover:bg-muted/60 transition-colors shadow-sm"
+            >
+              <Pencil className="w-3.5 h-3.5" />编辑主页
+            </button>
+            <button
+              onClick={() => setSettingsOpen(v => !v)}
+              className={cn(
+                "w-8 h-8 rounded-full border flex items-center justify-center transition-colors",
+                settingsOpen ? "bg-primary/10 border-primary/30 text-primary" : "border-border/60 bg-card text-muted-foreground hover:bg-muted/60"
+              )}
+            >
+              {settingsOpen ? <X className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+            </button>
+
+            {/* Settings Dropdown */}
+            {settingsOpen && (
+              <div
+                className="absolute right-0 top-[calc(100%+8px)] bg-card border border-border/60 rounded-2xl shadow-xl min-w-[224px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-50"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <FileText className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-foreground">每周旅行回顾</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">
+                      {profile.weeklyDigest ? "每周日晚 9 点收到摘要邮件" : "订阅后每周收到精华摘要"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleToggleDigest}
+                    className={cn("relative rounded-full flex-shrink-0 transition-colors duration-200", profile.weeklyDigest ? "bg-primary" : "bg-muted-foreground/30")}
+                    style={{ height: "22px", width: "40px" }}
+                  >
+                    <span className="absolute top-0.5 left-0.5 w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200" style={{ transform: profile.weeklyDigest ? "translateX(18px)" : "translateX(0)" }} />
+                  </button>
+                </div>
+                {profile.weeklyDigest && (
+                  <button onClick={() => { handleSendDigest(); setSettingsOpen(false); }} disabled={digestSending} className="flex items-center gap-2.5 w-full px-4 py-3 border-b border-border/40 hover:bg-muted/50 transition-colors text-left disabled:opacity-50">
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Zap className="w-3.5 h-3.5 text-primary" /></div>
+                    <span className="text-xs font-medium text-foreground">{digestSending ? "发送中…" : "立即发送本周回顾"}</span>
+                  </button>
                 )}
-              </div>
-              <button
-                onClick={() => setShowAvatarPicker(true)}
-                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-              >
-                <Camera className="w-6 h-6 text-white" />
-              </button>
-              <button
-                onClick={() => setShowAvatarPicker(true)}
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
-              >
-                <Camera className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-          </div>
-
-          <div className="mt-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-serif font-bold text-foreground">{profile.name}</h2>
-              {sub && (
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${TIER_BADGE[sub.tier]?.cls ?? TIER_BADGE.free.cls}`}>
-                  {TIER_BADGE[sub.tier]?.label ?? "免费版"}
-                </span>
-              )}
-              <button
-                onClick={() => setEditing(true)}
-                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/60 bg-background text-xs font-medium text-foreground hover:bg-muted/60 transition-colors shadow-sm"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                编辑主页
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              旅行号：{profile.userId.slice(-10)}
-            </p>
-            <div className="flex items-center gap-2 mt-2">
-              {profile.bio ? (
-                <p className="text-sm text-foreground/80 leading-relaxed flex-1 min-w-0">{profile.bio}</p>
-              ) : (
-                <button onClick={() => setEditing(true)} className="text-sm text-muted-foreground/70 hover:text-primary transition-colors flex-1 text-left">
-                  还没有简介，去写一句吧 →
-                </button>
-              )}
-              <div className="flex items-center gap-1.5 shrink-0">
+                <Link href="/achievements" onClick={() => setSettingsOpen(false)} className="flex items-center gap-2.5 w-full px-4 py-3 border-b border-border/40 hover:bg-muted/50 transition-colors">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Award className="w-3.5 h-3.5 text-primary" /></div>
+                  <div className="flex-1"><p className="text-xs font-semibold text-foreground">旅行成就</p><p className="text-[10px] text-muted-foreground">解锁专属旅行勋章</p></div>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+                </Link>
+                <Link href="/orders" onClick={() => setSettingsOpen(false)} className="flex items-center gap-2.5 w-full px-4 py-3 border-b border-border/40 hover:bg-muted/50 transition-colors">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Receipt className="w-3.5 h-3.5 text-primary" /></div>
+                  <div className="flex-1"><p className="text-xs font-semibold text-foreground">支付记录</p><p className="text-[10px] text-muted-foreground">历史订单与发票</p></div>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+                </Link>
+                <Link href="/pricing" onClick={() => setSettingsOpen(false)} className="flex items-center gap-2.5 w-full px-4 py-3 border-b border-border/40 hover:bg-muted/50 transition-colors">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Zap className="w-3.5 h-3.5 text-primary" /></div>
+                  <div className="flex-1"><p className="text-xs font-semibold text-foreground">管理套餐</p><p className="text-[10px] text-muted-foreground">查看当前套餐与续费选项</p></div>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+                </Link>
                 <button
                   disabled={exportSummaryLoading}
                   onClick={async () => {
+                    setSettingsOpen(false);
                     setExportSummaryLoading(true);
                     try {
                       const res = await fetch(`${BASE}/api/me/export/summary`, { credentials: "include" });
-                      if (res.ok) {
-                        const data = await res.json();
-                        setExportSummary(data);
-                        setShowExportPreview(true);
-                      } else {
-                        toast({ title: "获取数据失败", description: "请稍后再试", variant: "destructive" });
-                      }
-                    } catch {
-                      toast({ title: "网络错误", description: "无法连接服务器，请检查网络后重试", variant: "destructive" });
-                    } finally { setExportSummaryLoading(false); }
+                      if (res.ok) { setExportSummary(await res.json()); setShowExportPreview(true); }
+                      else { toast({ title: "获取数据失败", description: "请稍后再试", variant: "destructive" }); }
+                    } catch { toast({ title: "网络错误", description: "请检查网络后重试", variant: "destructive" }); }
+                    finally { setExportSummaryLoading(false); }
                   }}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-border/50 bg-card/40 text-[11px] text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2.5 w-full px-4 py-3 border-b border-border/40 hover:bg-muted/50 transition-colors disabled:opacity-50 text-left"
                 >
-                  {exportSummaryLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                  导出
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    {exportSummaryLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> : <Download className="w-3.5 h-3.5 text-primary" />}
+                  </div>
+                  <div className="flex-1"><p className="text-xs font-semibold text-foreground">导出数据</p><p className="text-[10px] text-muted-foreground">备份日记、照片与收藏</p></div>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+                </button>
+                <button onClick={() => { setShowFeedback(true); setSettingsOpen(false); }} className="flex items-center gap-2.5 w-full px-4 py-3 border-b border-border/40 hover:bg-muted/50 transition-colors text-left">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><MessageSquare className="w-3.5 h-3.5 text-primary" /></div>
+                  <div className="flex-1"><p className="text-xs font-semibold text-foreground">意见反馈</p><p className="text-[10px] text-muted-foreground">告诉我们你的想法或遇到的问题</p></div>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
                 </button>
                 <button
-                  onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); }}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-destructive/20 bg-card/40 text-[11px] text-destructive/60 hover:bg-destructive/5 hover:text-destructive transition-colors"
+                  onClick={async () => {
+                    setSettingsOpen(false);
+                    if (canInstall) { await install(); }
+                    else if (typeof navigator.share === "function") { navigator.share({ title: "顽童日记", text: "用顽童日记记录你的每段旅行故事", url: "https://urchins.life" }).catch(() => {}); }
+                    else { await navigator.clipboard.writeText("https://urchins.life"); toast({ description: "链接已复制，发给朋友吧 🎉" }); }
+                  }}
+                  className="flex items-center gap-2.5 w-full px-4 py-3 border-b border-border/40 hover:bg-muted/50 transition-colors text-left"
                 >
-                  <Trash2 className="w-3 h-3" />
-                  注销
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    {canInstall ? <Smartphone className="w-3.5 h-3.5 text-primary" /> : <Share2 className="w-3.5 h-3.5 text-primary" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-foreground">{canInstall ? "安装到桌面" : "分享给朋友"}</p>
+                    <p className="text-[10px] text-muted-foreground">{canInstall ? "添加到桌面，随时一键打开" : "把顽童日记推荐给朋友"}</p>
+                  </div>
+                </button>
+                <button onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); setDeleteError(null); setSettingsOpen(false); }} className="flex items-center gap-2.5 w-full px-4 py-3 border-b border-border/40 hover:bg-destructive/5 transition-colors text-left">
+                  <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0"><Trash2 className="w-3.5 h-3.5 text-destructive" /></div>
+                  <div className="flex-1"><p className="text-xs font-semibold text-destructive">注销账号</p><p className="text-[10px] text-muted-foreground">永久删除所有数据</p></div>
+                </button>
+                <button onClick={() => { handleSignOut(); setSettingsOpen(false); }} className="flex items-center gap-2.5 w-full px-4 py-3 hover:bg-destructive/5 transition-colors text-left">
+                  <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0"><LogOut className="w-3.5 h-3.5 text-destructive" /></div>
+                  <p className="text-xs font-semibold text-destructive">退出登录</p>
                 </button>
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── BODY: mobile stack / desktop 2-col ────────────────────────── */}
+        <div className="p-4 md:p-8 md:grid md:grid-cols-[280px_1fr] md:gap-6 md:items-start">
+
+          {/* ═══ LEFT SIDEBAR ═══ */}
+          <div className="flex flex-col gap-3 mb-6 md:mb-0 md:sticky md:top-16">
+
+            {/* Profile card */}
+            <div className="rounded-2xl overflow-hidden border border-border/60 bg-card">
+              <div className="h-20 relative overflow-hidden bg-gradient-to-br from-primary/60 via-orange-300 to-amber-200">
+                {profile.avatar && (
+                  <img src={profile.avatar} alt="" decoding="async" loading="lazy" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110" />
+                )}
+              </div>
+              <div className="px-4 pb-4 -mt-10">
+                <div className="relative w-20 h-20 mb-2 group">
+                  <div className="w-20 h-20 rounded-full ring-4 ring-card bg-primary/20 overflow-hidden flex items-center justify-center text-2xl font-serif font-bold text-primary shadow-md">
+                    {profile.avatar ? (
+                      <img src={profile.avatar} alt="" decoding="async" className="w-full h-full object-cover" />
+                    ) : profile.name[0]}
+                  </div>
+                  <button onClick={() => setShowAvatarPicker(true)} className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-white" />
+                  </button>
+                  <button onClick={() => setShowAvatarPicker(true)} className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors">
+                    <Camera className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg font-serif font-bold text-foreground leading-tight">{profile.name}</h2>
+                  {sub && (
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", TIER_BADGE[sub.tier]?.cls ?? TIER_BADGE.free.cls)}>
+                      {TIER_BADGE[sub.tier]?.label ?? "免费版"}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">旅行号：{profile.userId.slice(-10)}</p>
+                {profile.bio ? (
+                  <p className="text-sm text-foreground/80 leading-relaxed mt-1.5 line-clamp-3">{profile.bio}</p>
+                ) : (
+                  <button onClick={() => setEditing(true)} className="text-sm text-muted-foreground/60 hover:text-primary transition-colors mt-1.5 text-left">还没有简介，去写一句吧 →</button>
+                )}
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <Link href="/entries" className="rounded-xl border border-border/40 bg-muted/30 py-2 px-2 text-center hover:bg-muted/50 transition-colors">
+                    <div className="font-serif font-bold text-foreground text-base leading-none">{profile.entryCount}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">日记</div>
+                  </Link>
+                  <div className="rounded-xl border border-border/40 bg-muted/30 py-2 px-2 text-center">
+                    <div className="font-serif font-bold text-foreground text-base leading-none">{stats?.totalDestinations ?? "—"}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">城市</div>
+                  </div>
+                  <button onClick={() => setTab("following")} className="rounded-xl border border-border/40 bg-muted/30 py-2 px-2 text-center hover:bg-muted/50 transition-colors">
+                    <div className="font-serif font-bold text-foreground text-base leading-none">{profile.followingCount}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">关注</div>
+                  </button>
+                  <button onClick={() => setTab("followers")} className="rounded-xl border border-border/40 bg-muted/30 py-2 px-2 text-center hover:bg-muted/50 transition-colors">
+                    <div className="font-serif font-bold text-foreground text-base leading-none">{profile.followerCount}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">粉丝</div>
+                  </button>
+                </div>
+              </div>
             </div>
-            {/* AI 叙事用量进度 + 套餐管理 */}
+
+            {/* AI Usage card */}
             {sub && (
-              <div className="mt-3 p-3 rounded-xl bg-muted/40 border border-border/30 space-y-2">
+              <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-xs text-muted-foreground">AI 叙事本月用量</span>
-                  <span className="text-xs font-semibold text-foreground">
-                    {sub.aiComposedThisMonth} / {sub.aiComposeLimit === 999999 ? "无限" : sub.aiComposeLimit}
-                  </span>
+                  <span className="text-xs font-semibold text-foreground">AI 用量</span>
                 </div>
-                {sub.aiComposeLimit < 999999 && (
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${Math.min(100, (sub.aiComposedThisMonth / sub.aiComposeLimit) * 100)}%` }}
-                    />
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] text-muted-foreground">AI 叙事</span>
+                    <span className="text-[11px] font-semibold text-foreground">{sub.aiComposedThisMonth} / {sub.aiComposeLimit >= 999999 ? "无限" : sub.aiComposeLimit}</span>
                   </div>
-                )}
-                <div className="flex items-center gap-2 mt-2">
-                  <Pencil className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="text-xs text-muted-foreground">AI 优化本月用量</span>
-                  <span className="text-xs font-semibold text-foreground">
-                    {sub.aiEnhancedThisMonth} / {sub.aiEnhanceLimit >= 999999 ? "无限" : sub.aiEnhanceLimit}
-                  </span>
+                  {sub.aiComposeLimit < 999999 && (
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, (sub.aiComposedThisMonth / sub.aiComposeLimit) * 100)}%` }} />
+                    </div>
+                  )}
                 </div>
-                {sub.aiEnhanceLimit < 999999 && (
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-amber-400 transition-all"
-                      style={{ width: `${Math.min(100, (sub.aiEnhancedThisMonth / sub.aiEnhanceLimit) * 100)}%` }}
-                    />
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] text-muted-foreground">AI 优化</span>
+                    <span className="text-[11px] font-semibold text-foreground">{sub.aiEnhancedThisMonth} / {sub.aiEnhanceLimit >= 999999 ? "无限" : sub.aiEnhanceLimit}</span>
                   </div>
-                )}
-                {sub.tier !== "free" && (
-                  <div className="space-y-2">
-                    {sub.expiresAt && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <CalendarDays className="w-3 h-3 shrink-0" />
-                        <span>
-                          {sub.cancelAtPeriodEnd 
-                            ? `将于 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，不再续费`
-                            : `套餐到期：${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`
-                          }
-                        </span>
-                      </div>
-                    )}
-                    <Link href="/orders" className="text-xs text-muted-foreground/70 hover:text-primary transition-colors flex items-center gap-1 mt-1">
-                      <Receipt className="w-3 h-3" />查看支付记录
-                    </Link>
-                    <div className="flex items-center gap-2">
+                  {sub.aiEnhanceLimit < 999999 && (
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${Math.min(100, (sub.aiEnhancedThisMonth / sub.aiEnhanceLimit) * 100)}%` }} />
+                    </div>
+                  )}
+                </div>
+                {sub.tier !== "free" && sub.expiresAt && (
+                  <div className="pt-1 border-t border-border/40 space-y-1.5">
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <CalendarDays className="w-3 h-3 shrink-0" />
+                      <span>{sub.cancelAtPeriodEnd ? `将于 ${format(new Date(sub.expiresAt), "M 月 d 日")} 到期，不再续费` : `到期：${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`}</span>
+                    </div>
+                    <div>
                       {sub.cancelAtPeriodEnd ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-3 text-[11px]"
+                        <Button variant="outline" size="sm" className="h-7 px-3 text-[11px]"
                           onClick={async () => {
-                            try {
-                              const res = await fetch(`${BASE}/api/me/subscription/restore`, {
-                                method: "POST",
-                                credentials: "include",
-                              });
-                              if (res.ok) {
-                                toast({ title: "订阅已恢复" });
-                                fetchProfile();
-                              }
-                            } catch (e) {
-                              toast({ title: "恢复失败", variant: "destructive" });
-                            }
+                            try { const res = await fetch(`${BASE}/api/me/subscription/restore`, { method: "POST", credentials: "include" }); if (res.ok) { toast({ title: "订阅已恢复" }); fetchProfile(); } }
+                            catch { toast({ title: "恢复失败", variant: "destructive" }); }
                           }}
-                        >
-                          恢复订阅
-                        </Button>
+                        >恢复订阅</Button>
                       ) : (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -561,30 +668,14 @@ export default function Me() {
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>取消订阅</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                取消后，您的 {sub.tierName}{sub.expiresAt ? `将在 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，` : ""}到期前功能不受影响，到期后自动降回免费版。订阅费用不予退款。
-                              </AlertDialogDescription>
+                              <AlertDialogDescription>取消后，您的 {sub.tierName}{sub.expiresAt ? `将在 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} 到期，` : ""}到期前功能不受影响，到期后自动降回免费版。订阅费用不予退款。</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>取消</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={async () => {
-                                  try {
-                                    const res = await fetch(`${BASE}/api/me/subscription/cancel`, {
-                                      method: "POST",
-                                      credentials: "include",
-                                    });
-                                    if (res.ok) {
-                                      toast({ title: "订阅已取消" });
-                                      fetchProfile();
-                                    }
-                                  } catch (e) {
-                                    toast({ title: "操作失败", variant: "destructive" });
-                                  }
-                                }}
-                              >
-                                确认取消
-                              </AlertDialogAction>
+                              <AlertDialogAction onClick={async () => {
+                                try { const res = await fetch(`${BASE}/api/me/subscription/cancel`, { method: "POST", credentials: "include" }); if (res.ok) { toast({ title: "订阅已取消" }); fetchProfile(); } }
+                                catch { toast({ title: "操作失败", variant: "destructive" }); }
+                              }}>确认取消</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
@@ -593,262 +684,112 @@ export default function Me() {
                   </div>
                 )}
                 {sub.tier === "free" && (
-                  <div className="flex items-center justify-between pt-0.5">
-                    <a href="/pricing" className="text-xs font-semibold text-primary hover:underline">升级以获得更多次数 →</a>
+                  <div className="flex gap-2 pt-1 border-t border-border/40">
+                    <button onClick={() => { setPayDialogTier("pro"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }} className="flex-1 py-1.5 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 transition-colors">Pro · ¥28/月</button>
+                    <button onClick={() => { setPayDialogTier("plus"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }} className="flex-1 py-1.5 rounded-lg bg-amber-500 text-white text-[11px] font-semibold hover:bg-amber-500/90 transition-colors">Plus · ¥68/月</button>
+                    <Link href="/pricing" className="flex items-center justify-center px-2 py-1.5 rounded-lg border border-border/50 text-[11px] text-muted-foreground hover:bg-muted/40 transition-colors whitespace-nowrap">对比</Link>
                   </div>
                 )}
               </div>
             )}
-          </div>
 
-          {/* Stats triple */}
-          <div className="grid grid-cols-3 gap-2 mt-4">
-            <Link href="/entries" className="rounded-xl border border-border/40 bg-card/40 py-2.5 px-2 text-center hover:bg-muted/50 transition-colors">
-              <div className="font-serif font-bold text-foreground text-lg leading-none">{profile.entryCount}</div>
-              <div className="text-[10px] text-muted-foreground mt-1">日记</div>
-            </Link>
-            <button onClick={() => setTab("following")} className="rounded-xl border border-border/40 bg-card/40 py-2.5 px-2 text-center hover:bg-muted/50 transition-colors">
-              <div className="font-serif font-bold text-foreground text-lg leading-none">{profile.followingCount}</div>
-              <div className="text-[10px] text-muted-foreground mt-1">关注</div>
-            </button>
-            <button onClick={() => setTab("followers")} className="rounded-xl border border-border/40 bg-card/40 py-2.5 px-2 text-center hover:bg-muted/50 transition-colors">
-              <div className="font-serif font-bold text-foreground text-lg leading-none">{profile.followerCount}</div>
-              <div className="text-[10px] text-muted-foreground mt-1">粉丝</div>
-            </button>
-          </div>
-
-          {/* Quick cards */}
-          {stats && (
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              <div className="rounded-xl border border-border/50 bg-card/40 p-3 text-center">
-                <div className="text-lg font-serif font-bold text-foreground">{stats.totalDestinations}</div>
-                <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground mt-0.5"><MapPin className="w-3 h-3" />去过的城市</div>
-              </div>
-              <div className="rounded-xl border border-border/50 bg-card/40 p-3 text-center">
-                <div className="text-lg font-serif font-bold text-foreground">{stats.totalTravelDays}</div>
-                <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground mt-0.5"><CalendarDays className="w-3 h-3" />旅行天数</div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Upgrade Banner (free users only) ───────────────────────── */}
-          {sub && sub.tier === "free" && (
-            <div className="mt-4 rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/8 via-primary/5 to-amber-50/60 dark:to-amber-900/10">
-              <div className="px-4 pt-4 pb-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">升级解锁更多旅行空间</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                      无限日记 · 更多照片 · 更多 AI 叙事次数
-                    </p>
-                  </div>
+            {/* Extra stats */}
+            {stats && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
+                  <div className="text-base font-serif font-bold text-foreground">{stats.totalTravelDays}</div>
+                  <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground mt-0.5"><CalendarDays className="w-3 h-3" />旅行天数</div>
                 </div>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => { setPayDialogTier("pro"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }}
-                    className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-                  >
-                    Pro · ¥28/月
-                  </button>
-                  <button
-                    onClick={() => { setPayDialogTier("plus"); setPayDialogPeriod("monthly"); setShowPayDialog(true); }}
-                    className="flex-1 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-500/90 transition-colors"
-                  >
-                    Plus · ¥68/月
-                  </button>
-                  <Link href="/pricing" className="flex items-center justify-center px-3 py-2 rounded-xl border border-border/50 text-xs text-muted-foreground hover:bg-muted/40 transition-colors whitespace-nowrap">
-                    对比套餐
-                  </Link>
+                <div className="rounded-xl border border-border/40 bg-card p-3 text-center">
+                  <div className="text-base font-serif font-bold text-foreground">{stats.totalPhotos}</div>
+                  <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground mt-0.5"><ImageIcon className="w-3 h-3" />照片总数</div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ── Weekly Digest ──────────────────────────────────────────── */}
-          <div className="mt-4 p-3 rounded-xl border border-border/40 bg-muted/20">
-            <div className="flex items-center justify-between gap-3">
+            {/* PWA / Share */}
+            <button
+              className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/40 bg-card hover:bg-muted/50 transition-colors text-left w-full"
+              onClick={async () => {
+                if (canInstall) { await install(); }
+                else if (typeof navigator.share === "function") { navigator.share({ title: "顽童日记", text: "用顽童日记记录你的每段旅行故事", url: "https://urchins.life" }).catch(() => {}); }
+                else { await navigator.clipboard.writeText("https://urchins.life"); toast({ description: "链接已复制，发给朋友吧 🎉" }); }
+              }}
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                {canInstall ? <Smartphone className="w-4 h-4 text-primary" /> : <Share2 className="w-4 h-4 text-primary" />}
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                  <FileText className="w-3.5 h-3.5 text-primary" />
-                  每周旅行回顾
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                  {profile.weeklyDigest
-                    ? "每周日晚 9 点收到本周日记摘要邮件"
-                    : "订阅后每周日收到上周旅行精华摘要"}
-                </p>
+                <p className="text-xs font-semibold text-foreground">{canInstall ? "安装到桌面" : "分享给朋友"}</p>
+                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{canInstall ? "添加到桌面，随时一键打开" : "把顽童日记推荐给朋友一起记录旅行"}</p>
               </div>
-              <button
-                onClick={handleToggleDigest}
-                className={`relative w-10 h-5.5 rounded-full flex-shrink-0 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
-                  profile.weeklyDigest ? "bg-primary" : "bg-muted-foreground/30"
-                }`}
-                style={{ height: "22px", width: "40px" }}
-                aria-label="切换每周邮件"
-              >
-                <span
-                  className="absolute top-0.5 left-0.5 w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200"
-                  style={{ transform: profile.weeklyDigest ? "translateX(18px)" : "translateX(0)" }}
-                />
-              </button>
-            </div>
-            {profile.weeklyDigest && (
-              <div className="mt-2.5 flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+            </button>
+          </div>
+
+          {/* ═══ RIGHT CONTENT ═══ */}
+          <div className="min-w-0">
+            {/* Tab bar */}
+            <div className="flex border-b border-border/40 -mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto scrollbar-none pb-px mb-5">
+              {([
+                ["notes",     "旅记",  BookText,  profile.entryCount],
+                ["favorites", "收藏",  Bookmark,  null],
+                ["following", "关注",  Users,     profile.followingCount],
+                ["followers", "粉丝",  Users,     profile.followerCount],
+                ["plans",     "规划",  Map,       null],
+                ["data",      "数据",  BarChart2, null],
+              ] as const).map(([k, label, Icon, count]) => (
                 <button
-                  onClick={handleSendDigest}
-                  disabled={digestSending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  key={k}
+                  onClick={() => setTab(k as Tab)}
+                  className={cn(
+                    "relative flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-all shrink-0 border-b-2",
+                    tab === k ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
                 >
-                  {digestSending ? (
-                    <><span className="inline-block w-3 h-3 border-2 border-primary/40 border-t-primary rounded-full animate-spin" /> 发送中…</>
-                  ) : (
-                    <><Zap className="w-3 h-3" /> 立即发送本周回顾</>
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
+                  {count != null && count > 0 && (
+                    <span className={cn("text-[10px]", tab === k ? "text-primary/70" : "text-muted-foreground/50")}>{count}</span>
                   )}
                 </button>
-                {!profile.email && (
-                  <span className="text-[11px] text-amber-600">⚠️ 未绑定邮箱</span>
-                )}
-              </div>
-            )}
-            {digestToast && (
-              <p className="mt-2 text-[11px] text-muted-foreground leading-tight">{digestToast}</p>
-            )}
-          </div>
+              ))}
+            </div>
 
-          {/* ── Quick Links ────────────────────────────────────────────── */}
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            {sub && sub.tier !== "free" && (
-              <Link href="/pricing" className="flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-border/40 bg-card/40 hover:bg-muted/50 transition-colors text-center">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-primary" />
-                </div>
-                <p className="text-xs font-semibold text-foreground leading-tight">管理套餐</p>
-                <p className="text-[10px] text-muted-foreground leading-tight">查看当前套餐与续费选项</p>
-              </Link>
-            )}
-            <Link href="/achievements" className="flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-border/40 bg-card/40 hover:bg-muted/50 transition-colors text-center">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                <Award className="w-4 h-4 text-primary" />
-              </div>
-              <p className="text-xs font-semibold text-foreground leading-tight">旅行成就</p>
-              <p className="text-[10px] text-muted-foreground leading-tight">解锁你的专属旅行勋章</p>
-            </Link>
-            <button
-              onClick={() => setShowFeedback(true)}
-              className="flex flex-col items-center gap-2 p-3.5 rounded-2xl border border-border/40 bg-card/40 hover:bg-muted/50 transition-colors text-center"
-            >
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                <MessageSquare className="w-4 h-4 text-primary" />
-              </div>
-              <p className="text-xs font-semibold text-foreground leading-tight">意见反馈</p>
-              <p className="text-[10px] text-muted-foreground leading-tight">告诉我们你的想法或遇到的问题</p>
-            </button>
-          </div>
-
-          {/* ── Install / Share (desktop only) ─────────────────────────── */}
-          <button
-            className="hidden md:flex mt-3 w-full items-center gap-3 p-3.5 rounded-2xl border border-border/40 bg-card/40 hover:bg-muted/50 transition-colors text-left"
-            onClick={async () => {
-              if (canInstall) {
-                await install();
-              } else if (typeof navigator.share === "function") {
-                navigator.share({
-                  title: "顽童日记",
-                  text: "用顽童日记记录你的每段旅行故事",
-                  url: "https://urchins.life",
-                }).catch(() => {});
-              } else {
-                await navigator.clipboard.writeText("https://urchins.life");
-                toast({ description: "链接已复制，发给朋友吧 🎉" });
-              }
-            }}
-          >
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              {canInstall ? (
-                <Smartphone className="w-4 h-4 text-primary" />
-              ) : (
-                <Share2 className="w-4 h-4 text-primary" />
+            {/* Tab content */}
+            <div className="pb-24 md:pb-6">
+              {tab === "notes" && <NotesGrid notes={notes} loaded={notesLoaded} />}
+              {tab === "favorites" && <FavoritesGrid favs={favorites} loaded={favoritesLoaded} />}
+              {tab === "following" && <UsersList users={following} loaded={followingLoaded} emptyHint="还没有关注任何旅行者" ctaHref="/square" ctaLabel="去广场发现旅行者" />}
+              {tab === "followers" && <UsersList users={followers} loaded={followersLoaded} emptyHint="还没有粉丝 — 多发几篇公开日记吧" ctaHref="/entries/new" ctaLabel="写一篇公开日记" />}
+              {tab === "plans" && (
+                <MePlansTab
+                  plans={savedPlans}
+                  loaded={savedPlansLoaded}
+                  onNavigate={() => navigate("/plan")}
+                  onDelete={handleDeletePlan}
+                />
+              )}
+              {tab === "data" && (
+                <>
+                  {stats && (
+                    <ReportTab
+                      stats={stats}
+                      monthlyData={monthlyData}
+                      tags={tags}
+                      recs={recs}
+                      recsLoading={recsLoading}
+                      recsLoaded={recsLoaded}
+                      loaded={statsLoaded}
+                      onGetRecs={handleGetRecs}
+                    />
+                  )}
+                  <div className="mt-4">
+                    <ExportTab entries={exportEntries} loaded={exportLoaded} printing={printing} onPrint={handlePrint} />
+                  </div>
+                </>
               )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-foreground">
-                {canInstall ? "安装到桌面" : "分享给朋友"}
-              </p>
-              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                {canInstall
-                  ? "添加到桌面，随时一键打开"
-                  : "把顽童日记推荐给朋友一起记录旅行"}
-              </p>
-            </div>
-          </button>
-
-          {/* ── Tabs ───────────────────────────────────────────────────── */}
-          <div className="mt-6 border-b border-border/40 flex gap-2 -mx-4 md:mx-0 px-4 md:px-0 overflow-x-auto scrollbar-none pb-2">
-            {([
-              ["notes", "笔记", BookText, profile.entryCount],
-              ["favorites", "收藏", Bookmark, null],
-              ["following", "关注", Users, profile.followingCount],
-              ["followers", "粉丝", Users, profile.followerCount],
-              ["data", "数据", BarChart2, null],
-            ] as const).map(([k, label, Icon, count]) => (
-              <button
-                key={k}
-                onClick={() => setTab(k as Tab)}
-                className={cn(
-                  "relative px-4 py-2 text-sm font-medium transition-all duration-300 flex items-center gap-1.5 shrink-0 rounded-full",
-                  tab === k ? "bg-primary text-primary-foreground shadow-sm" : "bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                )}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-                {count !== null && count > 0 && (
-                  <span className={cn(
-                    "text-[10px]",
-                    tab === k ? "text-primary-foreground/80" : "text-muted-foreground/70"
-                  )}>
-                    ({count})
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* ── Tab content ────────────────────────────────────────────── */}
-          <div className="py-5 pb-24 md:pb-6">
-            {tab === "notes" && (
-              <NotesGrid notes={notes} loaded={notesLoaded} />
-            )}
-            {tab === "favorites" && (
-              <FavoritesGrid favs={favorites} loaded={favoritesLoaded} />
-            )}
-            {tab === "following" && (
-              <UsersList users={following} loaded={followingLoaded} emptyHint="还没有关注任何旅行者" ctaHref="/square" ctaLabel="去广场发现旅行者" />
-            )}
-            {tab === "followers" && (
-              <UsersList users={followers} loaded={followersLoaded} emptyHint="还没有粉丝 — 多发几篇公开日记吧" ctaHref="/entries/new" ctaLabel="写一篇公开日记" />
-            )}
-            {tab === "data" && (
-              <>
-                {stats && (
-                  <ReportTab
-                    stats={stats}
-                    monthlyData={monthlyData}
-                    tags={tags}
-                    recs={recs}
-                    recsLoading={recsLoading}
-                    recsLoaded={recsLoaded}
-                    loaded={statsLoaded}
-                    onGetRecs={handleGetRecs}
-                  />
-                )}
-                <div className="mt-4">
-                  <ExportTab entries={exportEntries} loaded={exportLoaded} printing={printing} onPrint={handlePrint} />
-                </div>
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -1033,6 +974,89 @@ export default function Me() {
         </div>
       )}
     </Layout>
+  );
+}
+
+/* ── MePlansTab ───────────────────────────────────────────────────────────── */
+function MePlansTab({
+  plans, loaded, onNavigate, onDelete,
+}: {
+  plans: SavedPlan[];
+  loaded: boolean;
+  onNavigate: () => void;
+  onDelete: (id: number) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      {/* CTA */}
+      <button
+        onClick={onNavigate}
+        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-amber-50 border border-primary/20 hover:border-primary/40 hover:shadow-sm transition-all text-left group"
+      >
+        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
+          <Plus className="w-5 h-5 text-primary-foreground" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">新建 AI 旅行规划</p>
+          <p className="text-xs text-muted-foreground mt-0.5">输入目的地，AI 自动生成逐日行程与餐厅推荐</p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-primary/60 shrink-0" />
+      </button>
+
+      {/* Plans list */}
+      {!loaded ? (
+        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary/60" /></div>
+      ) : plans.length === 0 ? (
+        <div className="flex flex-col items-center py-12 text-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-2xl">✈️</div>
+          <p className="text-sm text-muted-foreground">还没有保存的规划</p>
+          <p className="text-xs text-muted-foreground/70">点击上方按钮，让 AI 为你规划第一段旅程</p>
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">已保存的规划 · {plans.length} 份</p>
+          <div className="space-y-3">
+            {plans.map(plan => {
+              const nights = Math.round(
+                (new Date(plan.endDate).getTime() - new Date(plan.startDate).getTime()) / 86400000
+              );
+              return (
+                <div
+                  key={plan.id}
+                  onClick={onNavigate}
+                  className="flex items-start gap-3 p-4 rounded-2xl border border-border/40 bg-card hover:border-primary/30 hover:shadow-sm transition-all group cursor-pointer"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 text-lg">✈️</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{plan.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {plan.from} → {plan.destinations.join("、")} · {nights > 0 ? `${nights} 晚` : "当天"}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground/70">{plan.startDate.slice(0, 7)}</span>
+                      {plan.groupType && GROUP_TYPE_BADGE[plan.groupType] && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${GROUP_TYPE_BADGE[plan.groupType].cls}`}>
+                          {GROUP_TYPE_BADGE[plan.groupType].label}
+                        </span>
+                      )}
+                      {plan.travelMode && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600">{plan.travelMode}</span>}
+                      {plan.budget && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">{plan.budget.split("（")[0]}</span>}
+                      {plan.style && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{plan.style}</span>}
+                    </div>
+                  </div>
+                  <button
+                    onClick={e => { e.stopPropagation(); onDelete(plan.id); }}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
