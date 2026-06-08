@@ -1,255 +1,236 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { useGetStatsSummary, useGetRecentEntries } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, Image as ImageIcon, CalendarDays, BookOpen, ChevronRight, Plus, Camera, Map as MapIcon, Send } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
-import { zhCN } from "date-fns/locale";
+import { BookOpen, Image as ImageIcon, MapPin, Heart, Plus } from "lucide-react";
+import { useUser } from "@clerk/react";
 
-function getHeroText() {
-  const h = new Date().getHours();
-  if (h < 6) return "夜深了，旅途的故事还在继续";
-  if (h < 11) return "清晨，准备好迎接新的风景了吗？";
-  if (h < 14) return "午后阳光正好，适合记录回忆";
-  if (h < 18) return "傍晚的微风，带来远方的思念";
-  return "夜幕降临，沉淀今天的感动";
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function MountainSVG() {
+  return (
+    <svg viewBox="0 0 140 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <ellipse cx="70" cy="108" rx="68" ry="12" fill="#fed7aa" opacity="0.4" />
+      <path d="M0 90 Q35 30 70 55 Q105 30 140 90Z" fill="#fb923c" opacity="0.15" />
+      <path d="M20 90 Q50 45 80 62 Q110 42 140 90Z" fill="#f97316" opacity="0.2" />
+      <path d="M0 90 Q25 55 50 68 Q70 50 90 60 Q115 40 140 90Z" fill="#ea580c" opacity="0.18" />
+      <path d="M30 95 Q55 72 80 80 Q105 68 120 95Z" fill="#c2410c" opacity="0.2" />
+      <path d="M0 95 Q70 115 140 95 L140 120 L0 120Z" fill="#fde8d0" opacity="0.6" />
+      <path d="M0 100 Q70 108 140 100 L140 120 L0 120Z" fill="#fed7aa" opacity="0.5" />
+      <path d="M25 42 Q30 35 35 42" stroke="#fdba74" strokeWidth="1.2" fill="none" opacity="0.7" />
+      <path d="M60 28 Q65 21 70 28" stroke="#fdba74" strokeWidth="1.2" fill="none" opacity="0.7" />
+      <path d="M90 35 Q95 28 100 35" stroke="#fdba74" strokeWidth="1.2" fill="none" opacity="0.6" />
+    </svg>
+  );
 }
 
+function RobotSVG() {
+  return (
+    <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" width="52" height="52">
+      <rect x="10" y="16" width="36" height="28" rx="8" fill="#fed7aa" />
+      <rect x="10" y="16" width="36" height="28" rx="8" stroke="#f97316" strokeWidth="1.5" />
+      <rect x="20" y="24" width="6" height="6" rx="3" fill="#f97316" />
+      <rect x="30" y="24" width="6" height="6" rx="3" fill="#f97316" />
+      <path d="M22 35 Q28 39 34 35" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+      <rect x="26" y="8" width="4" height="8" rx="2" fill="#f97316" />
+      <circle cx="28" cy="7" r="3" fill="#fed7aa" stroke="#f97316" strokeWidth="1.5" />
+      <rect x="4" y="22" width="6" height="10" rx="3" fill="#fed7aa" stroke="#f97316" strokeWidth="1.5" />
+      <rect x="46" y="22" width="6" height="10" rx="3" fill="#fed7aa" stroke="#f97316" strokeWidth="1.5" />
+      <rect x="18" y="44" width="6" height="8" rx="3" fill="#fed7aa" stroke="#f97316" strokeWidth="1.5" />
+      <rect x="32" y="44" width="6" height="8" rx="3" fill="#fed7aa" stroke="#f97316" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 6)  return "夜深了";
+  if (h < 11) return "早安";
+  if (h < 14) return "午安";
+  if (h < 18) return "下午好";
+  return "晚安";
+}
+
+function getSunIcon() {
+  const h = new Date().getHours();
+  return h >= 6 && h < 18 ? "🌤️" : "🌙";
+}
+
+function getTodayStr() {
+  const d = new Date();
+  const days = ["日", "一", "二", "三", "四", "五", "六"];
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日  星期${days[d.getDay()]}`;
+}
+
+const FALLBACK_COLORS = [
+  "from-teal-300 to-cyan-400",
+  "from-pink-300 to-rose-400",
+  "from-violet-300 to-purple-400",
+  "from-amber-300 to-orange-400",
+  "from-green-300 to-emerald-400",
+];
+
 export default function Home() {
+  const { user } = useUser();
   const { data: stats, isLoading: statsLoading } = useGetStatsSummary();
   const { data: recent, isLoading: recentLoading } = useGetRecentEntries();
+  const [likesReceived, setLikesReceived] = useState<number | null>(null);
 
-  const hero = getHeroText();
-  const latestEntry = recent?.[0];
+  useEffect(() => {
+    fetch(`${BASE}/api/me/profile`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.likesReceived != null) setLikesReceived(d.likesReceived); })
+      .catch(() => {});
+  }, []);
 
-  const daysAgo = latestEntry
-    ? formatDistanceToNow(new Date(latestEntry.startDate), { locale: zhCN, addSuffix: false })
-    : "";
+  const displayName = user?.firstName || user?.username || "旅行者";
 
-  const travelDays = (entry: typeof latestEntry) => {
-    if (!entry) return 1;
-    if (!entry.endDate) return 1;
-    return Math.max(1, Math.ceil((new Date(entry.endDate).getTime() - new Date(entry.startDate).getTime()) / 86400000) + 1);
-  };
+  const photos = (recent ?? [])
+    .filter(e => e.coverImage)
+    .map(e => ({ src: e.coverImage!, id: e.id, title: e.title }))
+    .slice(0, 5);
+
+  const statItems = [
+    { icon: BookOpen, value: stats?.totalEntries ?? 0,      label: "我的旅记" },
+    { icon: ImageIcon, value: stats?.totalPhotos ?? 0,      label: "珍藏照片" },
+    { icon: MapPin,   value: stats?.totalDestinations ?? 0, label: "足迹城市" },
+    { icon: Heart,    value: likesReceived ?? 0,            label: "收获点赞" },
+  ];
 
   return (
     <Layout>
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out">
+      <div className="space-y-4 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-        {/* ── Hero ── */}
-        <div className="relative pt-6 pb-4">
-          <div className="flex items-start justify-between">
-            <div className="max-w-[70%]">
-              <h2 className="text-3xl md:text-4xl leading-snug font-serif font-bold text-foreground tracking-wide">
-                {hero}
-              </h2>
-              <p className="mt-3 text-muted-foreground font-serif tracking-widest text-sm uppercase opacity-70">
-                Wandering Journal
-              </p>
-            </div>
-            {/* Decorative stamp */}
-            <div className="shrink-0 w-20 h-20 md:w-24 md:h-24 border-2 border-primary/20 rounded-full flex flex-col items-center justify-center gap-1 -rotate-12 opacity-50 relative after:content-[''] after:absolute after:inset-1 after:border after:border-primary/20 after:rounded-full after:border-dashed mix-blend-multiply dark:mix-blend-screen">
-              <div className="text-[12px] md:text-[14px] font-serif text-primary/80 font-bold tracking-widest">印记</div>
-              <div className="text-[9px] md:text-[10px] text-primary/60 tracking-wider">MEMENTO</div>
-            </div>
+        {/* ── 欢迎 Banner ── */}
+        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-5 shadow-sm min-h-[140px]">
+          <div className="absolute right-0 top-0 bottom-0 w-[42%] opacity-90 pointer-events-none">
+            <MountainSVG />
           </div>
-        </div>
-
-        {/* ── Stats Row ── */}
-        <div className="grid grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-[#fcfbf9] dark:bg-card rounded-[2rem] p-5 md:p-6 border border-border/40 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:border-primary/20 transition-colors">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/3 group-hover:scale-110 transition-transform duration-500"></div>
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 relative z-10 text-primary group-hover:rotate-12 transition-transform duration-500">
-              <BookOpen className="w-6 h-6" />
-            </div>
-            <div className="relative z-10">
-              <p className="text-xs text-muted-foreground font-medium mb-1 tracking-wider">旅记总数</p>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-12 bg-muted/60 rounded-md" />
-              ) : (
-                <p className="text-2xl md:text-3xl font-serif font-black text-foreground leading-none">
-                  {stats?.totalEntries ?? 0} <span className="text-sm font-normal text-muted-foreground/70 ml-0.5">篇</span>
-                </p>
-              )}
-            </div>
-          </div>
-          
-          <div className="bg-[#fcfbf9] dark:bg-card rounded-[2rem] p-5 md:p-6 border border-border/40 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:border-primary/20 transition-colors">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/3 group-hover:scale-110 transition-transform duration-500"></div>
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 relative z-10 text-primary group-hover:-rotate-12 transition-transform duration-500">
-              <ImageIcon className="w-6 h-6" />
-            </div>
-            <div className="relative z-10">
-              <p className="text-xs text-muted-foreground font-medium mb-1 tracking-wider">珍藏定格</p>
-              {statsLoading ? (
-                <Skeleton className="h-8 w-12 bg-muted/60 rounded-md" />
-              ) : (
-                <p className="text-2xl md:text-3xl font-serif font-black text-foreground leading-none">
-                  {stats?.totalPhotos ?? 0} <span className="text-sm font-normal text-muted-foreground/70 ml-0.5">帧</span>
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Latest Entry Preview ── */}
-        {!recentLoading && latestEntry && (
-          <div className="relative pt-4">
-            <Link href={`/entries/${latestEntry.id}`} className="group block">
-              <div className="relative bg-card rounded-[2rem] p-5 shadow-sm border border-border/40 hover:border-primary/30 transition-all duration-500 hover:shadow-md overflow-hidden">
-                {/* Journal paper texture effect */}
-                <div className="absolute inset-0 opacity-[0.015] pointer-events-none mix-blend-overlay dark:mix-blend-screen" style={{ backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIi8+CjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMwMDAiLz4KPC9zdmc+')" }}></div>
-                
-                <div className="flex flex-col md:flex-row items-center md:items-stretch gap-5">
-                  <div className="w-full md:w-32 h-40 md:h-32 rounded-xl overflow-hidden bg-muted relative shrink-0">
-                    {latestEntry.coverImage ? (
-                      <img src={latestEntry.coverImage} alt={latestEntry.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-muted/40">
-                        <ImageIcon className="w-8 h-8 text-muted-foreground/20" />
-                      </div>
-                    )}
-                    {/* Tape piece */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-4 bg-white/40 backdrop-blur-md rotate-2 shadow-sm"></div>
-                  </div>
-                  
-                  <div className="flex-1 min-w-0 flex flex-col justify-center text-center md:text-left">
-                    <div className="flex items-center justify-center md:justify-start gap-2 mb-2 text-primary">
-                      <Send className="w-3.5 h-3.5" />
-                      <p className="text-[11px] font-bold tracking-widest uppercase">Latest Journey</p>
-                    </div>
-                    <p className="font-serif font-black text-foreground text-2xl md:text-3xl leading-tight truncate mb-2">{latestEntry.destination}</p>
-                    <p className="text-sm text-muted-foreground font-medium">{daysAgo}前，在这里留下了足迹</p>
-                  </div>
-                  
-                  <div className="hidden md:flex items-center justify-center px-4">
-                    <div className="w-10 h-10 rounded-full border border-border/50 flex items-center justify-center group-hover:bg-primary group-hover:border-primary group-hover:text-primary-foreground transition-all duration-300">
-                      <ChevronRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-0.5" />
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <div className="relative z-10 max-w-[58%]">
+            <p className="text-2xl font-bold text-amber-900 leading-snug">
+              {getGreeting()}，{displayName} <span className="text-xl">{getSunIcon()}</span>
+            </p>
+            <p className="mt-1.5 text-xs text-amber-700">{getTodayStr()}</p>
+            <p className="mt-1 text-xs text-amber-600/80">每一天都是新的风景</p>
+            <Link href="/entries/new">
+              <button className="mt-4 inline-flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 active:scale-95 transition-all text-white rounded-full px-5 py-2 text-sm font-semibold shadow-md shadow-orange-200/60">
+                <Plus className="w-4 h-4" /> 记录今天
+              </button>
             </Link>
           </div>
-        )}
+        </div>
 
-        {/* ── Recent Entries Grid ── */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-serif font-black text-foreground flex items-center gap-2">
-              <span className="w-1.5 h-6 bg-primary rounded-full inline-block"></span>
-              翻阅回忆
-            </h3>
-            <Link href="/entries" className="text-sm text-muted-foreground font-medium flex items-center gap-1 hover:text-primary transition-colors group">
-              所有日记 <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+        {/* ── 4 格统计 ── */}
+        <div className="grid grid-cols-4 gap-2">
+          {statItems.map(({ icon: Icon, value, label }) => (
+            <div key={label} className="bg-white dark:bg-card rounded-xl py-3 px-1 flex flex-col items-center gap-1 shadow-sm border border-orange-50 dark:border-border/40">
+              <Icon className="w-5 h-5 text-orange-500" strokeWidth={1.8} />
+              {statsLoading ? (
+                <Skeleton className="h-5 w-8 rounded" />
+              ) : (
+                <span className="font-bold text-lg text-gray-800 dark:text-foreground leading-none">{value}</span>
+              )}
+              <span className="text-[10px] text-gray-400 dark:text-muted-foreground text-center leading-tight">{label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* ── 最近回忆 ── */}
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="font-bold text-gray-800 dark:text-foreground text-base">最近回忆</span>
+            <Link href="/entries" className="text-sm text-orange-500 hover:text-orange-600 transition-colors">
+              查看全部 &gt;
             </Link>
           </div>
 
           {recentLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-[280px] rounded-[2rem] bg-muted/50" />)}
-            </div>
-          ) : recent?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border/60 rounded-[2rem] bg-card/30 relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZmZmIi8+CjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMwMDAiLz4KPC9zdmc+')] opacity-[0.02]"></div>
-              <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mb-4 relative z-10 text-primary">
-                <Camera className="w-8 h-8 opacity-60" />
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-2 gap-2.5 h-[240px]">
+                <Skeleton className="rounded-2xl h-full" />
+                <div className="grid grid-rows-2 gap-2.5">
+                  <Skeleton className="rounded-2xl" />
+                  <Skeleton className="rounded-2xl" />
+                </div>
               </div>
-              <h4 className="text-lg font-serif font-bold mb-2 text-foreground relative z-10">空白的扉页</h4>
-              <p className="text-sm text-muted-foreground mb-8 relative z-10 max-w-[240px]">带上背包，出发去寻找第一段故事吧。</p>
-              <Link
-                href="/entries/new"
-                className="relative z-10 inline-flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-foreground/90 transition-all hover:-translate-y-0.5 hover:shadow-xl"
-              >
-                <Plus className="w-4 h-4" />
-                落笔第一篇
-              </Link>
+            </div>
+          ) : photos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-36 rounded-2xl border-2 border-dashed border-orange-100 dark:border-border/40 bg-orange-50/40 dark:bg-muted/20 text-center">
+              <ImageIcon className="w-8 h-8 text-orange-200 mb-2" />
+              <p className="text-sm text-gray-400 dark:text-muted-foreground">还没有旅行照片</p>
+              <p className="text-xs text-gray-300 dark:text-muted-foreground/60 mt-0.5">出发记录第一段旅程吧</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-              {recent?.map((entry, index) => (
-                <Link key={entry.id} href={`/entries/${entry.id}`} className={`group block ${index % 2 !== 0 ? 'md:translate-y-8' : ''}`}>
-                  <div className="bg-card rounded-[2rem] overflow-hidden border border-border/40 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500 h-full flex flex-col relative">
-                    
-                    {/* Date Tag */}
-                    <div className="absolute top-5 left-0 bg-background/95 backdrop-blur z-20 py-1.5 px-4 rounded-r-xl border-y border-r border-border/50 shadow-sm flex items-center gap-2">
-                      <span className="font-serif font-bold text-foreground">{format(new Date(entry.startDate), 'dd')}</span>
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase">{format(new Date(entry.startDate), 'MMM')}</span>
-                    </div>
-
-                    {/* Cover */}
-                    <div className="relative h-48 overflow-hidden bg-muted/30">
-                      {entry.coverImage ? (
-                        <img
-                          src={entry.coverImage}
-                          alt={entry.title}
-                          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary/5">
-                          <MapIcon className="w-12 h-12 text-primary/20" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60"></div>
-                      
-                      {/* Location floating */}
-                      <div className="absolute bottom-4 left-5 right-5 flex justify-between items-end">
-                        <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 border border-white/10 shadow-sm">
-                          <MapPin className="w-3.5 h-3.5" />
-                          {entry.destination}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6 flex-1 flex flex-col relative bg-[#fcfbf9] dark:bg-card">
-                      <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-border/0 via-border/50 to-border/0"></div>
-                      
-                      <h4 className="font-serif font-bold text-xl leading-tight text-foreground group-hover:text-primary transition-colors mb-3 line-clamp-2">
-                        {entry.title}
-                      </h4>
-                      
-                      {(entry as any).content && (
-                        <p className="text-sm text-muted-foreground/80 line-clamp-2 mb-6 leading-relaxed flex-1">
-                          {(entry as any).content}
-                        </p>
-                      )}
-                      
-                      <div className="mt-auto flex items-center justify-between pt-4 border-t border-border/40">
-                        <div className="flex items-center gap-3 text-[11px] font-medium text-muted-foreground">
-                          <span className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-md">
-                            <CalendarDays className="w-3 h-3 text-primary/70" />
-                            {travelDays(entry)} 天
-                          </span>
-                          {(entry as any).photoCount > 0 && (
-                            <span className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-md">
-                              <ImageIcon className="w-3 h-3 text-primary/70" />
-                              {(entry as any).photoCount}
-                            </span>
-                          )}
-                        </div>
-                        
-                        <div className="text-[10px] font-bold tracking-widest text-primary/60 uppercase group-hover:text-primary transition-colors">
-                          Read More →
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            <div className="space-y-2.5">
+              {/* 主马赛克：左大右双 */}
+              <div className="grid grid-cols-2 gap-2.5 h-[240px]">
+                <Link href={`/entries/${photos[0].id}`} className="block h-full rounded-2xl overflow-hidden shadow-sm">
+                  {photos[0].src ? (
+                    <img src={photos[0].src} alt={photos[0].title}
+                      className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-500" />
+                  ) : (
+                    <div className={`w-full h-full bg-gradient-to-br ${FALLBACK_COLORS[0]}`} />
+                  )}
                 </Link>
-              ))}
+                <div className="grid grid-rows-2 gap-2.5">
+                  {[1, 2].map(i => (
+                    <div key={i} className="rounded-2xl overflow-hidden shadow-sm">
+                      {photos[i]?.src ? (
+                        <Link href={`/entries/${photos[i].id}`}>
+                          <img src={photos[i].src} alt={photos[i].title}
+                            className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-500" />
+                        </Link>
+                      ) : (
+                        <div className={`w-full h-full bg-gradient-to-br ${FALLBACK_COLORS[i]}`} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 底部三小图（如有更多封面） */}
+              {photos.length > 2 && (
+                <div className="grid grid-cols-3 gap-2.5">
+                  {[2, 3, 4].map(i => (
+                    <div key={i} className="rounded-2xl overflow-hidden shadow-sm h-24">
+                      {photos[i]?.src ? (
+                        <Link href={`/entries/${photos[i].id}`}>
+                          <img src={photos[i].src} alt={photos[i].title}
+                            className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-500" />
+                        </Link>
+                      ) : (
+                        <div className={`w-full h-full bg-gradient-to-br ${FALLBACK_COLORS[i % 5]} opacity-50`} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
-      </div>
 
-      {/* ── Floating Action Button (mobile) ── */}
-      <Link
-        href="/entries/new"
-        className="md:hidden fixed bottom-24 right-6 w-14 h-14 flex items-center justify-center bg-foreground text-background rounded-full shadow-xl shadow-black/20 hover:scale-105 active:scale-95 transition-all z-30"
-      >
-        <Plus className="w-6 h-6" />
-      </Link>
+        {/* ── AI 叙事助手 ── */}
+        <div className="bg-white dark:bg-card rounded-2xl p-4 shadow-sm border border-orange-50 dark:border-border/40 flex items-center gap-3">
+          <div className="shrink-0">
+            <RobotSVG />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="font-bold text-gray-800 dark:text-foreground text-sm">AI 叙事助手</span>
+              <span className="bg-orange-100 text-orange-600 text-[10px] font-semibold rounded px-1.5 py-0.5 leading-none">新功能</span>
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-muted-foreground leading-relaxed">帮您整理故事、生成回忆录、制作纪念相册</p>
+            <p className="text-[10px] text-gray-400 dark:text-muted-foreground/60 mt-0.5">让美好记忆永不褪色</p>
+          </div>
+          <Link href="/entries/compose">
+            <button className="shrink-0 bg-orange-500 hover:bg-orange-600 active:scale-95 transition-all text-white rounded-full px-3 py-2 text-xs font-semibold shadow-sm shadow-orange-200/60 whitespace-nowrap">
+              开始叙事
+            </button>
+          </Link>
+        </div>
+
+      </div>
     </Layout>
   );
 }
