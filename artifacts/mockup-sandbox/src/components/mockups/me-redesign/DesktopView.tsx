@@ -33,7 +33,7 @@ const MOOD_COLOR: Record<string, string> = {
 };
 
 export default function DesktopView() {
-  const [tab, setTab] = useState<Tab>("notes");
+  const [tab, setTab] = useState<Tab>("plans");
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: "notes",     label: "旅记", icon: <BookText className="w-3.5 h-3.5" />, count: 23 },
