@@ -150,14 +150,7 @@ export default function Entries() {
                   合成 ({selected.size})
                 </button>
               </>
-            ) : (
-              <Link href="/entries/new">
-                <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-foreground text-background text-xs font-bold hover:bg-foreground/90 transition-colors shadow-sm">
-                  <Plus className="w-3.5 h-3.5" />
-                  新建旅记
-                </button>
-              </Link>
-            )}
+            ) : null}
           </div>
         </div>
 
