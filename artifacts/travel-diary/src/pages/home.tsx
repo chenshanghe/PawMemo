@@ -39,7 +39,7 @@ export default function Home() {
 
         {/* ── Hero ── */}
         <div className="pt-6 pb-4">
-          <h2 className="text-3xl md:text-4xl leading-snug font-serif font-bold text-foreground tracking-wide">
+          <h2 className="text-2xl md:text-4xl leading-snug font-serif font-bold text-foreground tracking-wide whitespace-nowrap">
             {hero}
           </h2>
           <p className="mt-3 text-muted-foreground font-serif tracking-widest text-sm opacity-70">
