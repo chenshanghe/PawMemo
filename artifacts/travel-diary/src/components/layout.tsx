@@ -224,10 +224,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <BookText className="w-5 h-5" /><span className="text-[10px] font-medium">旅记</span>
         </Link>
         <Link href="/map" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isMap ? "text-primary" : "text-muted-foreground"}`}>
-          <Map className="w-5 h-5" /><span className="text-[10px] font-medium">地图</span>
+          <Globe className="w-5 h-5" /><span className="text-[10px] font-medium">地图</span>
         </Link>
         <Link href="/square" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isSquare ? "text-primary" : "text-muted-foreground"}`}>
-          <Globe className="w-5 h-5" /><span className="text-[10px] font-medium">广场</span>
+          <Map className="w-5 h-5" /><span className="text-[10px] font-medium">广场</span>
         </Link>
         <Link href="/me" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isMe ? "text-primary" : "text-muted-foreground"}`}>
           {user && avatar
