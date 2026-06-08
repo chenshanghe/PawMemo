@@ -1,5 +1,5 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM = "顽童记 <notifications@hongshu.app>";
+const FROM = "顽童记 <notifications@urchins.life>";
 
 export async function sendEmail({
   to,
@@ -30,7 +30,7 @@ export async function sendEmail({
 }
 
 function entryUrl(entryId: number) {
-  const base = process.env.APP_URL ?? "https://hongshu.app";
+  const base = process.env.APP_URL ?? "https://urchins.life";
   return `${base}/entries/${entryId}`;
 }
 
@@ -88,7 +88,7 @@ export function buildWeeklyDigestEmail({
     coverImage?: string | null; mood?: string | null;
   }>;
 }) {
-  const appUrl = process.env.APP_URL ?? "https://hongshu.app";
+  const appUrl = process.env.APP_URL ?? "https://urchins.life";
   const now = new Date();
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
   const weekLabel = `${weekStart.getMonth() + 1}月${weekStart.getDate()}日 — ${now.getMonth() + 1}月${now.getDate()}日`;

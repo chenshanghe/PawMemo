@@ -139,7 +139,7 @@ router.get("/me/export/summary", requireAuth, async (req, res) => {
     entryCount,
     photoCount,
     favoriteCount,
-    accountCreatedAt: profile?.createdAt ?? null,
+    accountCreatedAt: profile?.updatedAt ?? null,
   });
 });
 
@@ -164,7 +164,7 @@ router.get("/me/export", requireAuth, async (req, res) => {
     ? await db.select().from(diaryEntriesTable).where(eq(diaryEntriesTable.userId, userId))
     : [];
 
-  let photos: { id: string; entryId: string; url: string; caption: string | null; position: number }[] = [];
+  let photos: { id: number; entryId: number; url: string; caption: string | null; createdAt: Date }[] = [];
   if (include.has("photos")) {
     // Fetch entry IDs directly so photos work even when "entries" section is not selected
     const entryIds = include.has("entries")

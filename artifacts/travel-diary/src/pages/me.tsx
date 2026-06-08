@@ -609,30 +609,78 @@ export default function Me() {
               </div>
             )}
             {sub && sub.tier !== "free" && (
-              <Link href="/pricing" className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/50 bg-card hover:border-primary/30 hover:shadow-sm transition-all group">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Zap className="w-4 h-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold text-foreground">当前套餐</p>
-                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", TIER_BADGE[sub.tier]?.cls ?? TIER_BADGE.free.cls)}>
-                      {TIER_BADGE[sub.tier]?.label ?? sub.tier}
-                    </span>
-                    {sub.cancelAtPeriodEnd && (
-                      <span className="text-[10px] text-amber-500 font-medium">将到期</span>
+              <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+                <div className="flex items-center gap-3 p-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Zap className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-foreground">当前套餐</p>
+                      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", TIER_BADGE[sub.tier]?.cls ?? TIER_BADGE.free.cls)}>
+                        {TIER_BADGE[sub.tier]?.label ?? sub.tier}
+                      </span>
+                      {sub.cancelAtPeriodEnd && (
+                        <span className="text-[10px] text-amber-500 font-medium">将到期</span>
+                      )}
+                    </div>
+                    {sub.expiresAt && (
+                      <p className={cn("text-[10px] mt-0.5", sub.cancelAtPeriodEnd ? "text-amber-500" : "text-muted-foreground")}>
+                        {sub.cancelAtPeriodEnd
+                          ? `${format(new Date(sub.expiresAt), "M 月 d 日")} 到期不续费`
+                          : `有效至 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`}
+                      </p>
                     )}
                   </div>
-                  {sub.expiresAt && (
-                    <p className={cn("text-[10px] mt-0.5", sub.cancelAtPeriodEnd ? "text-amber-500" : "text-muted-foreground")}>
-                      {sub.cancelAtPeriodEnd
-                        ? `${format(new Date(sub.expiresAt), "M 月 d 日")} 到期不续费`
-                        : `有效至 ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")}`}
-                    </p>
+                  <Link href="/pricing" className="text-[11px] text-primary hover:underline font-medium shrink-0">管理</Link>
+                </div>
+                <div className="border-t border-border/40 px-3.5 py-2.5 flex items-center justify-between">
+                  {sub.cancelAtPeriodEnd ? (
+                    <p className="text-[11px] text-muted-foreground">到期后自动降回免费版</p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">自动续费中</p>
+                  )}
+                  {sub.cancelAtPeriodEnd ? (
+                    <button
+                      className="text-[11px] text-primary hover:underline font-medium"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`${BASE}/api/me/subscription/restore`, { method: "POST", credentials: "include" });
+                          if (res.ok) { toast({ title: "订阅已恢复，将继续自动续费" }); fetchProfile(); }
+                        } catch { toast({ title: "恢复失败，请稍后重试", variant: "destructive" }); }
+                      }}
+                    >恢复订阅</button>
+                  ) : (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">取消订阅</button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>确认取消订阅？</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            取消后，您的{sub.tierName}权益将在
+                            {sub.expiresAt ? ` ${format(new Date(sub.expiresAt), "yyyy 年 M 月 d 日")} ` : "到期前"}
+                            继续有效，到期后自动降回免费版。订阅费用不予退款。
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>暂不取消</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`${BASE}/api/me/subscription/cancel`, { method: "POST", credentials: "include" });
+                                if (res.ok) { toast({ title: "订阅已取消" }); fetchProfile(); }
+                              } catch { toast({ title: "操作失败，请稍后重试", variant: "destructive" }); }
+                            }}
+                          >确认取消</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0" />
-              </Link>
+              </div>
             )}
 
             {/* AI Usage card */}
