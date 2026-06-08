@@ -155,7 +155,7 @@ export function DesktopView() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               {entries.map((e, i) => (
-                <div key={e.id} style={{ background: CARD, border: `1px solid ${BOR}`, borderRadius: 24, overflow: "hidden", marginTop: i % 2 === 1 ? 32 : 0, transition: "all 0.3s" }}>
+                <div key={e.id} style={{ background: CARD, border: `1px solid ${BOR}`, borderRadius: 24, overflow: "hidden", transition: "all 0.3s" }}>
                   <div style={{ height: 180, background: `linear-gradient(135deg, ${e.color} 0%, #c8b8a8 100%)`, position: "relative" }}>
                     <div style={{ position: "absolute", top: 14, left: 0, background: "rgba(253,250,245,0.96)", borderRadius: "0 10px 10px 0", padding: "5px 14px", display: "flex", gap: 6, alignItems: "baseline" }}>
                       <span style={{ fontWeight: 900, fontSize: 16, color: FG }}>{e.day}</span>

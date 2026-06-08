@@ -93,7 +93,7 @@ export function MobileView() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {entries.slice(1).map((e, i) => (
-              <div key={e.id} style={{ background: CARD, border: `1px solid ${BOR}`, borderRadius: 20, overflow: "hidden", marginTop: i % 2 === 1 ? 20 : 0 }}>
+              <div key={e.id} style={{ background: CARD, border: `1px solid ${BOR}`, borderRadius: 20, overflow: "hidden" }}>
                 <div style={{ height: 100, background: `linear-gradient(135deg, ${e.color} 0%, #c8b8a8 100%)`, position: "relative" }}>
                   <div style={{ position: "absolute", top: 8, left: 0, background: "rgba(253,250,245,0.96)", borderRadius: "0 8px 8px 0", padding: "3px 10px", display: "flex", gap: 4, alignItems: "baseline" }}>
                     <span style={{ fontWeight: 900, fontSize: 13, color: FG }}>{e.day}</span>
