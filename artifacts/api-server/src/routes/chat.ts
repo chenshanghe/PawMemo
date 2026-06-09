@@ -6,6 +6,8 @@ import {
   messages,
   diaryEntriesTable,
   photosTable,
+  entryTagsTable,
+  tagsTable,
 } from "@workspace/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
@@ -170,7 +172,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
   // Fetch history BEFORE inserting user message so:
   // 1) history.length === 0 correctly detects first turn (for auto-title)
   // 2) the current user message is appended once explicitly — no duplicate
-  const [priorHistory, entries] = await Promise.all([
+  const [priorHistory, entries, allPhotos, allTags] = await Promise.all([
     db.select().from(messages).where(eq(messages.conversationId, convId)).orderBy(messages.createdAt),
     db
       .select({
@@ -181,21 +183,60 @@ router.post("/conversations/:id/messages", async (req, res) => {
         endDate: diaryEntriesTable.endDate,
         mood: diaryEntriesTable.mood,
         content: diaryEntriesTable.content,
+        companions: diaryEntriesTable.companions,
+        rating: diaryEntriesTable.rating,
       })
       .from(diaryEntriesTable)
       .where(eq(diaryEntriesTable.userId, userId))
       .orderBy(desc(diaryEntriesTable.startDate)),
+    // All photos with captions for this user's entries
+    db
+      .select({ entryId: photosTable.entryId, caption: photosTable.caption })
+      .from(photosTable)
+      .innerJoin(diaryEntriesTable, eq(photosTable.entryId, diaryEntriesTable.id))
+      .where(eq(diaryEntriesTable.userId, userId)),
+    // All tags for this user's entries
+    db
+      .select({ entryId: entryTagsTable.entryId, name: tagsTable.name })
+      .from(entryTagsTable)
+      .innerJoin(tagsTable, eq(entryTagsTable.tagId, tagsTable.id))
+      .innerJoin(diaryEntriesTable, eq(entryTagsTable.entryId, diaryEntriesTable.id))
+      .where(eq(diaryEntriesTable.userId, userId)),
   ]);
   const isFirstTurn = priorHistory.length === 0;
 
   await db.insert(messages).values({ conversationId: convId, role: "user", content: content.trim() });
 
+  // Build lookup maps for photos and tags
+  const captionsByEntry = new Map<number, string[]>();
+  for (const p of allPhotos) {
+    if (!p.caption?.trim()) continue;
+    if (!captionsByEntry.has(p.entryId)) captionsByEntry.set(p.entryId, []);
+    captionsByEntry.get(p.entryId)!.push(p.caption.trim());
+  }
+  const tagsByEntry = new Map<number, string[]>();
+  for (const t of allTags) {
+    if (!tagsByEntry.has(t.entryId)) tagsByEntry.set(t.entryId, []);
+    tagsByEntry.get(t.entryId)!.push(t.name);
+  }
+
   const entriesContext = entries.length === 0
     ? "（用户暂无日记）"
     : entries.map((e) => {
         const dateRange = e.endDate ? `${e.startDate} 至 ${e.endDate}` : (e.startDate ?? "");
-        const preview = (e.content ?? "").slice(0, 500);
-        return `[ID:${e.id}] 《${e.title}》 目的地:${e.destination} 日期:${dateRange}${e.mood ? ` 心情:${e.mood}` : ""}\n${preview}`;
+        const lines: string[] = [
+          `[ID:${e.id}] 《${e.title}》 目的地:${e.destination} 日期:${dateRange}` +
+          (e.mood ? ` 心情:${e.mood}` : "") +
+          (e.rating != null ? ` 评分:${e.rating}分` : "") +
+          (e.companions?.trim() ? ` 同行人:${e.companions.trim()}` : ""),
+        ];
+        const tags = tagsByEntry.get(e.id);
+        if (tags?.length) lines.push(`标签:${tags.join("、")}`);
+        const caps = captionsByEntry.get(e.id);
+        if (caps?.length) lines.push(`照片图注:${caps.join(" / ")}`);
+        const body = (e.content ?? "").trim();
+        if (body) lines.push(body);
+        return lines.join("\n");
       }).join("\n\n---\n\n");
 
   // Use prior history only (excludes current user message already captured via content param)
