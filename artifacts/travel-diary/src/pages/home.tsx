@@ -250,13 +250,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── 悬浮写记按钮（手机端）── */}
-      <Link
-        href="/entries/new"
-        className="md:hidden fixed bottom-24 right-6 w-14 h-14 flex items-center justify-center bg-foreground text-background rounded-full shadow-xl shadow-black/20 hover:scale-105 active:scale-95 transition-all z-30"
-      >
-        <Plus className="w-6 h-6" />
-      </Link>
     </Layout>
   );
 }
