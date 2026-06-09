@@ -12,6 +12,7 @@ import {
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { getUserTier } from "../lib/tiers";
+import { USER_MANUAL } from "../lib/user-manual";
 
 const router = Router();
 router.use(requireAuth);
@@ -245,14 +246,23 @@ router.post("/conversations/:id/messages", async (req, res) => {
     content: m.content,
   }));
 
-  const systemPrompt = `你是用户的私人旅行日记助手，熟悉他/她的所有旅行记录，帮助用户以对话方式检索和回忆旅程。
-用户共有 ${entries.length} 篇旅行日记，内容如下（每篇格式：[ID:数字] 《标题》 目的地 日期 [心情]\\n正文前500字）：
+  const systemPrompt = `你是顽童记 App 的专属 AI 日记助手。你有两项核心能力：
+
+【能力一：旅行记忆】
+你熟悉用户所有的旅行日记，可以帮助用户检索和回忆旅程细节。
+用户共有 ${entries.length} 篇旅行日记，内容如下：
 
 ${entriesContext}
 
+【能力二：操作引导】
+你熟悉顽童记 App 的所有功能和操作步骤，当用户问「怎么操作」「在哪里」「如何使用」时，请根据以下手册给出准确的步骤指引：
+
+${USER_MANUAL}
+
 回答要求：
 - 用中文亲切自然地回答，像朋友聊天一样
-- 直接回答问题，不要说"根据您的日记"之类的开场白
+- 直接回答，不要说"根据您的日记"之类的开场白
+- 回答操作问题时，给出清晰的步骤，简洁易懂
 - 如果能找到相关日记，可以引用具体内容增加真实感
 - 回答完正文之后，在最后单独起一行写：DIARY_IDS:[相关日记ID列表，用逗号分隔，无则为空]
   例如：DIARY_IDS:[3,7,12] 或 DIARY_IDS:[]
