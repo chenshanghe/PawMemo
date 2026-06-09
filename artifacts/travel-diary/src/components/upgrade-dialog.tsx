@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { X, Zap, Camera, BookText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type QuotaCode = "ENTRY_LIMIT" | "PHOTO_LIMIT" | "AI_LIMIT" | "STYLE_LIMIT";
+export type QuotaCode = "ENTRY_LIMIT" | "PHOTO_LIMIT" | "AI_LIMIT" | "STYLE_LIMIT" | "CHAT_PRO_ONLY";
 
 interface UpgradeDialogProps {
   code: QuotaCode;
@@ -33,6 +33,11 @@ const CODE_INFO: Record<QuotaCode, { icon: React.ReactNode; title: string; desc:
     icon: <Zap className="w-5 h-5 text-primary" />,
     title: "风格预设已达上限",
     desc: (l) => `免费账户最多保存 ${l} 个风格预设，升级后可无限保存。`,
+  },
+  CHAT_PRO_ONLY: {
+    icon: <Sparkles className="w-5 h-5 text-primary" />,
+    title: "AI 日记助手仅限付费用户",
+    desc: () => "升级到探索家 Pro 或旅记大师 Plus，即可用自然语言查询所有旅行日记。",
   },
 };
 

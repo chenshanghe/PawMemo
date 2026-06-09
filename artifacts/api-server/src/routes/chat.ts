@@ -103,6 +103,52 @@ router.get("/conversations/:id/messages", async (req, res) => {
   res.json(msgs);
 });
 
+// DELETE /chat/conversations/:id/messages  (clear conversation)
+router.delete("/conversations/:id/messages", async (req, res) => {
+  const userId = (req as unknown as AuthedRequest).userId;
+  if (!await requirePro(userId, res)) return;
+  const id = Number(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [conv] = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
+  if (!conv) { res.status(404).json({ error: "Not found" }); return; }
+  await db.delete(messages).where(eq(messages.conversationId, id));
+  res.status(204).send();
+});
+
+// POST /chat/tts  — text-to-speech (audio/wav)
+router.post("/tts", async (req, res) => {
+  const userId = (req as unknown as AuthedRequest).userId;
+  if (!await requirePro(userId, res)) return;
+  const { text } = req.body ?? {};
+  if (!text || typeof text !== "string" || !text.trim()) {
+    res.status(400).json({ error: "text required" });
+    return;
+  }
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  if (!apiKey || !baseURL) {
+    res.status(503).json({ error: "TTS_NOT_CONFIGURED" });
+    return;
+  }
+  try {
+    const client = new OpenAI({ apiKey, baseURL });
+    const response = await client.audio.speech.create({
+      model: "tts-1",
+      voice: "nova",
+      input: text.slice(0, 2000),
+      response_format: "wav",
+    });
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.setHeader("Content-Type", "audio/wav");
+    res.send(buffer);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message ?? "TTS failed" });
+  }
+});
+
 // POST /chat/conversations/:id/messages  (SSE streaming)
 router.post("/conversations/:id/messages", async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
@@ -210,22 +256,47 @@ ${entriesContext}
       .replace(/DIARY_IDS:\[[^\]]*\]\s*$/, "")
       .trim();
 
-    let photoRows: { id: number; url: string; entryId: number; entryTitle: string }[] = [];
-    if (entryIds.length > 0) {
-      const validIds = entryIds.filter((id) => entries.some((e) => e.id === id)).slice(0, 5);
-      if (validIds.length > 0) {
-        const rawPhotos = await db
-          .select({ id: photosTable.id, url: photosTable.url, entryId: photosTable.entryId })
-          .from(photosTable)
-          .where(inArray(photosTable.entryId, validIds))
-          .orderBy(photosTable.createdAt)
-          .limit(5);
-        const entryMap = Object.fromEntries(entries.map((e) => [e.id, e.title]));
-        photoRows = rawPhotos.map((p) => ({ ...p, entryTitle: entryMap[p.entryId] ?? "" }));
+    const validIds = entryIds.filter((id) => entries.some((e) => e.id === id)).slice(0, 5);
+
+    type PhotoRow = { id: number; url: string; entryId: number; entryTitle: string };
+    type EntryCard = { id: number; title: string; destination: string; startDate: string | null; endDate: string | null; coverUrl: string | null };
+
+    let photoRows: PhotoRow[] = [];
+    let entryCards: EntryCard[] = [];
+
+    if (validIds.length > 0) {
+      const rawPhotos = await db
+        .select({ id: photosTable.id, url: photosTable.url, entryId: photosTable.entryId })
+        .from(photosTable)
+        .where(inArray(photosTable.entryId, validIds))
+        .orderBy(photosTable.createdAt);
+
+      const entryMap = Object.fromEntries(entries.map((e) => [e.id, e]));
+
+      const coverByEntry: Record<number, string> = {};
+      for (const p of rawPhotos) {
+        if (!coverByEntry[p.entryId]) coverByEntry[p.entryId] = p.url;
       }
+
+      photoRows = rawPhotos
+        .slice(0, 5)
+        .map((p) => ({ ...p, entryTitle: entryMap[p.entryId]?.title ?? "" }));
+
+      entryCards = validIds.map((id) => {
+        const e = entryMap[id];
+        if (!e) return null;
+        return {
+          id: e.id,
+          title: e.title,
+          destination: e.destination,
+          startDate: e.startDate ?? null,
+          endDate: e.endDate ?? null,
+          coverUrl: coverByEntry[id] ?? null,
+        };
+      }).filter(Boolean) as EntryCard[];
     }
 
-    const meta = JSON.stringify({ entryIds, photos: photoRows });
+    const meta = JSON.stringify({ entryIds: validIds, photos: photoRows, entryCards });
 
     if (!aborted) {
       await db.insert(messages).values({
@@ -254,7 +325,7 @@ ${entriesContext}
       }
     }
 
-    res.write(`data: ${JSON.stringify({ done: true, entryIds, photos: photoRows })}\n\n`);
+    res.write(`data: ${JSON.stringify({ done: true, entryIds: validIds, photos: photoRows, entryCards })}\n\n`);
     res.end();
   } catch (err: any) {
     res.write(`data: ${JSON.stringify({ error: err.message ?? "AI 服务异常" })}\n\n`);
