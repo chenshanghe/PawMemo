@@ -17,6 +17,7 @@ import {
   userBlocksTable,
   subscriptionOrdersTable,
 } from "@workspace/db";
+import { logSubEvent } from "../lib/sub-events";
 import { eq, sql, and, desc, inArray, notInArray, count } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { getAuth } from "@clerk/express";
@@ -574,6 +575,11 @@ router.post("/me/profile", requireAuth, async (req, res) => {
       set: updateSet,
     })
     .returning();
+
+  if (row && !row.updatedAt) {
+    logSubEvent({ userId, eventType: "registered", toTier: "free" }).catch(() => {});
+  }
+
   res.json(row);
 });
 
@@ -1146,16 +1152,21 @@ router.post("/me/subscription/cancel", requireAuth, async (req, res) => {
     .set({ cancelAtPeriodEnd: true, updatedAt: new Date() })
     .where(eq(userProfilesTable.userId, userId));
 
+  logSubEvent({ userId, eventType: "cancelled", fromTier: profile.subscriptionTier }).catch(() => {});
+
   res.json({ ok: true, expiresAt: profile.subscriptionExpiresAt });
 });
 
 // POST /api/me/subscription/restore
 router.post("/me/subscription/restore", requireAuth, async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
+  const [profile] = await db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId));
   await db
     .update(userProfilesTable)
     .set({ cancelAtPeriodEnd: false, updatedAt: new Date() })
     .where(eq(userProfilesTable.userId, userId));
+
+  logSubEvent({ userId, eventType: "resumed", fromTier: profile?.subscriptionTier }).catch(() => {});
 
   res.json({ ok: true });
 });

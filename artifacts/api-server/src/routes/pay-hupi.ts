@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import crypto from "crypto";
 import { sendEmail, buildPaymentSuccessEmail } from "../lib/email";
+import { logSubEvent } from "../lib/sub-events";
 
 const router = Router();
 
@@ -257,9 +258,21 @@ async function fulfillOrder(outTradeNo: string, tradeNo: string) {
     .set({ status: "paid", tradeNo, paidAt: now, expiresAt, updatedAt: now })
     .where(eq(subscriptionOrdersTable.outTradeNo, outTradeNo));
 
+  const [prevProfile] = await db.select({ subscriptionTier: userProfilesTable.subscriptionTier })
+    .from(userProfilesTable).where(eq(userProfilesTable.userId, order.userId));
+
   await db.update(userProfilesTable)
     .set({ subscriptionTier: order.tier, subscriptionExpiresAt: expiresAt })
     .where(eq(userProfilesTable.userId, order.userId));
+
+  logSubEvent({
+    userId: order.userId,
+    eventType: "upgraded",
+    fromTier: prevProfile?.subscriptionTier ?? "free",
+    toTier: order.tier,
+    amountFen: order.amountCents,
+    orderNo: order.outTradeNo,
+  }).catch(() => {});
 
   // Fire-and-forget: send payment confirmation email
   db.select().from(userProfilesTable)

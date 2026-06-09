@@ -58,6 +58,9 @@ export async function getUserTier(userId: string): Promise<{ tier: Tier; limits:
       .update(userProfilesTable)
       .set({ subscriptionTier: "free", subscriptionExpiresAt: null })
       .where(eq(userProfilesTable.userId, userId));
+    import("../lib/sub-events").then(m =>
+      m.logSubEvent({ userId, eventType: "expired", fromTier: profile.subscriptionTier, toTier: "free" })
+    ).catch(() => {});
   }
 
   return { tier, limits: TIER_LIMITS[tier], profile };

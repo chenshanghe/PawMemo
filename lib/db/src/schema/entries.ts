@@ -103,6 +103,7 @@ export const userProfilesTable = pgTable("user_profiles", {
   aiChatResetAt: timestamp("ai_chat_reset_at"),
   weeklyDigest: boolean("weekly_digest").notNull().default(false),
   cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -294,3 +295,18 @@ export const contentReportsTable = pgTable("content_reports", {
 
 export type UserBlock = typeof userBlocksTable.$inferSelect;
 export type ContentReport = typeof contentReportsTable.$inferSelect;
+
+// ── Subscription events log ───────────────────────────────────────────────────
+export const subscriptionEventsTable = pgTable("subscription_events", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  eventType: text("event_type").notNull(), // registered|upgraded|downgraded|cancelled|resumed|expired
+  fromTier: text("from_tier"),
+  toTier: text("to_tier"),
+  amountFen: integer("amount_fen").notNull().default(0),
+  orderNo: text("order_no"),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type SubscriptionEvent = typeof subscriptionEventsTable.$inferSelect;

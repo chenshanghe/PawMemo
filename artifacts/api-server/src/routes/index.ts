@@ -21,6 +21,7 @@ import safetyRouter from "./safety";
 import downloadsRouter from "./downloads";
 import proxyRouter from "./proxy";
 import chatRouter from "./chat";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(safetyRouter);
 router.use(downloadsRouter);
 router.use(proxyRouter);
 router.use("/chat", chatRouter);
+router.use("/admin", adminRouter);
 
 export default router;
