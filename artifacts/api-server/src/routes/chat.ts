@@ -167,21 +167,28 @@ router.post("/conversations/:id/messages", async (req, res) => {
     .where(and(eq(conversations.id, convId), eq(conversations.userId, userId)));
   if (!conv) { res.status(404).json({ error: "Not found" }); return; }
 
-  await db.insert(messages).values({ conversationId: convId, role: "user", content: content.trim() });
+  // Fetch history BEFORE inserting user message so:
+  // 1) history.length === 0 correctly detects first turn (for auto-title)
+  // 2) the current user message is appended once explicitly — no duplicate
+  const [priorHistory, entries] = await Promise.all([
+    db.select().from(messages).where(eq(messages.conversationId, convId)).orderBy(messages.createdAt),
+    db
+      .select({
+        id: diaryEntriesTable.id,
+        title: diaryEntriesTable.title,
+        destination: diaryEntriesTable.destination,
+        startDate: diaryEntriesTable.startDate,
+        endDate: diaryEntriesTable.endDate,
+        mood: diaryEntriesTable.mood,
+        content: diaryEntriesTable.content,
+      })
+      .from(diaryEntriesTable)
+      .where(eq(diaryEntriesTable.userId, userId))
+      .orderBy(desc(diaryEntriesTable.startDate)),
+  ]);
+  const isFirstTurn = priorHistory.length === 0;
 
-  const entries = await db
-    .select({
-      id: diaryEntriesTable.id,
-      title: diaryEntriesTable.title,
-      destination: diaryEntriesTable.destination,
-      startDate: diaryEntriesTable.startDate,
-      endDate: diaryEntriesTable.endDate,
-      mood: diaryEntriesTable.mood,
-      content: diaryEntriesTable.content,
-    })
-    .from(diaryEntriesTable)
-    .where(eq(diaryEntriesTable.userId, userId))
-    .orderBy(desc(diaryEntriesTable.startDate));
+  await db.insert(messages).values({ conversationId: convId, role: "user", content: content.trim() });
 
   const entriesContext = entries.length === 0
     ? "（用户暂无日记）"
@@ -191,13 +198,8 @@ router.post("/conversations/:id/messages", async (req, res) => {
         return `[ID:${e.id}] 《${e.title}》 目的地:${e.destination} 日期:${dateRange}${e.mood ? ` 心情:${e.mood}` : ""}\n${preview}`;
       }).join("\n\n---\n\n");
 
-  const history = await db
-    .select()
-    .from(messages)
-    .where(eq(messages.conversationId, convId))
-    .orderBy(messages.createdAt);
-
-  const historyMsgs = history.slice(-18).map((m) => ({
+  // Use prior history only (excludes current user message already captured via content param)
+  const historyMsgs = priorHistory.slice(-18).map((m) => ({
     role: m.role as "user" | "assistant",
     content: m.content,
   }));
@@ -312,7 +314,7 @@ ${entriesContext}
         metadata: meta,
       });
 
-      if (conv.title === "新对话" && history.length === 0) {
+      if (isFirstTurn) {
         try {
           const titleResp = await deepseek.chat.completions.create({
             model: "deepseek-chat",
