@@ -14,12 +14,11 @@ import { logSubEvent } from "../lib/sub-events";
 const router = Router();
 router.use(requireAuth);
 
-const ADMIN_IDS = (process.env.ADMIN_USER_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
-
 function requireAdmin(req: any, res: any): boolean {
   const userId = (req as AuthedRequest).userId;
-  if (!ADMIN_IDS.includes(userId)) {
-    res.status(403).json({ error: "FORBIDDEN" });
+  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  if (!adminIds.includes(userId)) {
+    res.status(403).json({ error: "FORBIDDEN", userId, adminIds });
     return false;
   }
   return true;
