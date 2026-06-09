@@ -47,6 +47,8 @@ function useIsMobile() {
   return mobile;
 }
 
+interface ChatUsage { used: number; limit: number; tier: string }
+
 export function ChatPanel() {
   const { isSignedIn } = useAuth();
   const isMobile = useIsMobile();
@@ -54,6 +56,7 @@ export function ChatPanel() {
   const [open, setOpen] = useState(false);
   const [proChecked, setProChecked] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [usage, setUsage] = useState<ChatUsage | null>(null);
   const [convList, setConvList] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -103,9 +106,16 @@ export function ChatPanel() {
     };
   }, [isMobile, open]);
 
+  const fetchUsage = useCallback(async () => {
+    const r = await fetch(`${BASE}/api/chat/usage`, { credentials: "include" });
+    if (r.ok) {
+      const data: ChatUsage = await r.json();
+      setUsage(data);
+    }
+  }, []);
+
   const fetchConversations = useCallback(async (): Promise<boolean> => {
     const r = await fetch(`${BASE}/api/chat/conversations`, { credentials: "include" });
-    if (r.status === 403) { setShowUpgrade(true); return false; }
     if (r.ok) {
       const data: Conversation[] = await r.json();
       setConvList(data);
@@ -170,11 +180,10 @@ export function ChatPanel() {
 
   const handleOpen = useCallback(async () => {
     if (!proChecked) {
-      const ok = await fetchConversations();
-      if (!ok) return;
+      await Promise.all([fetchConversations(), fetchUsage()]);
     }
     setOpen(true);
-  }, [proChecked, fetchConversations]);
+  }, [proChecked, fetchConversations, fetchUsage]);
 
   useEffect(() => {
     if (open && proChecked && !activeConvId && convList.length > 0) {
@@ -214,6 +223,18 @@ export function ChatPanel() {
         signal: abortRef.current.signal,
       });
 
+      if (resp.status === 429) {
+        const data = await resp.json().catch(() => ({}));
+        setUsage({ used: data.used ?? 0, limit: data.limit ?? 0, tier: data.tier ?? "free" });
+        setMessages(prev => [...prev, {
+          id: Date.now() + 2, role: "assistant",
+          content: `本月 AI 对话次数已用完（${data.used ?? 0}/${data.limit ?? 0} 次）。升级套餐可获得更多次数。`,
+        }]);
+        setStreaming(false);
+        setStreamingText("");
+        return;
+      }
+
       if (!resp.ok || !resp.body) throw new Error("请求失败");
 
       const reader = resp.body.getReader();
@@ -242,6 +263,7 @@ export function ChatPanel() {
             setMessages(prev => [...prev, aiMsg]);
             setStreamingText("");
             fetchConversations();
+            fetchUsage();
             scrollToBottom();
           }
         } catch { /* skip malformed */ }
@@ -270,7 +292,7 @@ export function ChatPanel() {
       setStreamingText("");
       abortRef.current = null;
     }
-  }, [input, streaming, activeConvId, createConversation, fetchConversations, scrollToBottom]);
+  }, [input, streaming, activeConvId, createConversation, fetchConversations, fetchUsage, scrollToBottom]);
 
   const handleStop = () => { abortRef.current?.abort(); };
 
@@ -376,6 +398,11 @@ export function ChatPanel() {
                 <span className="truncate">{activeConv?.title ?? "AI 日记助手"}</span>
                 <ChevronDown className="w-3.5 h-3.5 shrink-0" />
               </button>
+              {usage && usage.limit < 999999 && (
+                <p className={`text-[10px] mt-0.5 ${usage.used >= usage.limit ? "text-destructive" : "text-muted-foreground"}`}>
+                  本月剩余 {Math.max(0, usage.limit - usage.used)}/{usage.limit} 次
+                </p>
+              )}
               {showConvMenu && (
                 <div className="absolute top-full left-0 mt-1 w-64 bg-popover border border-border rounded-xl shadow-lg z-10 py-1 max-h-72 overflow-y-auto">
                   <button
@@ -478,41 +505,53 @@ export function ChatPanel() {
 
           {/* Input */}
           <div className="shrink-0 px-4 py-3 border-t border-border/40 bg-background">
-            <div className="flex gap-2 items-end">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="问问你的旅行日记…"
-                rows={1}
-                disabled={streaming}
-                className="flex-1 resize-none rounded-xl border border-border/60 bg-muted/30 px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 disabled:opacity-50 max-h-28 leading-relaxed"
-                style={{ minHeight: "42px" }}
-                onInput={e => {
-                  const t = e.currentTarget;
-                  t.style.height = "auto";
-                  t.style.height = Math.min(t.scrollHeight, 112) + "px";
-                }}
-              />
-              {streaming ? (
+            {usage && usage.limit < 999999 && usage.used >= usage.limit ? (
+              <div className="rounded-xl bg-muted/60 px-4 py-3 text-center space-y-2">
+                <p className="text-xs text-muted-foreground">本月对话次数已用完</p>
                 <button
-                  onClick={handleStop}
-                  title="停止生成"
-                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors shrink-0"
+                  onClick={() => setShowUpgrade(true)}
+                  className="text-xs font-medium text-primary hover:underline"
                 >
-                  <Square className="w-4 h-4" />
+                  升级套餐获得更多次数 →
                 </button>
-              ) : (
-                <button
-                  onClick={handleSend}
-                  disabled={!input.trim()}
-                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-all active:scale-95 shrink-0"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="flex gap-2 items-end">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="问问你的旅行日记…"
+                  rows={1}
+                  disabled={streaming}
+                  className="flex-1 resize-none rounded-xl border border-border/60 bg-muted/30 px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 disabled:opacity-50 max-h-28 leading-relaxed"
+                  style={{ minHeight: "42px" }}
+                  onInput={e => {
+                    const t = e.currentTarget;
+                    t.style.height = "auto";
+                    t.style.height = Math.min(t.scrollHeight, 112) + "px";
+                  }}
+                />
+                {streaming ? (
+                  <button
+                    onClick={handleStop}
+                    title="停止生成"
+                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors shrink-0"
+                  >
+                    <Square className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim()}
+                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-all active:scale-95 shrink-0"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

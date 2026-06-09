@@ -11,7 +11,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
-import { getUserTier } from "../lib/tiers";
+import { getUserTier, checkAndIncrAiChat, getAiChatUsage } from "../lib/tiers";
 import { USER_MANUAL } from "../lib/user-manual";
 
 const router = Router();
@@ -22,19 +22,16 @@ const deepseek = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
 });
 
-async function requirePro(userId: string, res: any): Promise<boolean> {
-  const { tier } = await getUserTier(userId);
-  if (tier === "free") {
-    res.status(403).json({ error: "CHAT_PRO_ONLY" });
-    return false;
-  }
-  return true;
-}
+// GET /chat/usage
+router.get("/usage", async (req, res) => {
+  const userId = (req as unknown as AuthedRequest).userId;
+  const usage = await getAiChatUsage(userId);
+  res.json(usage);
+});
 
 // GET /chat/conversations
 router.get("/conversations", async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
-  if (!await requirePro(userId, res)) return;
   const convs = await db
     .select()
     .from(conversations)
@@ -47,7 +44,6 @@ router.get("/conversations", async (req, res) => {
 // POST /chat/conversations
 router.post("/conversations", async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
-  if (!await requirePro(userId, res)) return;
   const [conv] = await db
     .insert(conversations)
     .values({ userId, title: "新对话" })
@@ -58,7 +54,6 @@ router.post("/conversations", async (req, res) => {
 // DELETE /chat/conversations/:id
 router.delete("/conversations/:id", async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
-  if (!await requirePro(userId, res)) return;
   const id = Number(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db
@@ -70,7 +65,6 @@ router.delete("/conversations/:id", async (req, res) => {
 // PATCH /chat/conversations/:id
 router.patch("/conversations/:id", async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
-  if (!await requirePro(userId, res)) return;
   const id = Number(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const { title } = req.body ?? {};
@@ -90,7 +84,6 @@ router.patch("/conversations/:id", async (req, res) => {
 // GET /chat/conversations/:id/messages
 router.get("/conversations/:id/messages", async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
-  if (!await requirePro(userId, res)) return;
   const id = Number(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const [conv] = await db
@@ -109,7 +102,6 @@ router.get("/conversations/:id/messages", async (req, res) => {
 // DELETE /chat/conversations/:id/messages  (clear conversation)
 router.delete("/conversations/:id/messages", async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
-  if (!await requirePro(userId, res)) return;
   const id = Number(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const [conv] = await db
@@ -124,7 +116,6 @@ router.delete("/conversations/:id/messages", async (req, res) => {
 // POST /chat/tts  — text-to-speech (audio/wav)
 router.post("/tts", async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
-  if (!await requirePro(userId, res)) return;
   const { text } = req.body ?? {};
   if (!text || typeof text !== "string" || !text.trim()) {
     res.status(400).json({ error: "text required" });
@@ -155,7 +146,13 @@ router.post("/tts", async (req, res) => {
 // POST /chat/conversations/:id/messages  (SSE streaming)
 router.post("/conversations/:id/messages", async (req, res) => {
   const userId = (req as unknown as AuthedRequest).userId;
-  if (!await requirePro(userId, res)) return;
+
+  const quota = await checkAndIncrAiChat(userId);
+  if (!quota.ok) {
+    res.status(429).json({ error: "CHAT_QUOTA_EXCEEDED", used: quota.used, limit: quota.limit, tier: quota.tier });
+    return;
+  }
+
   const convId = Number(req.params.id as string);
   if (isNaN(convId)) { res.status(400).json({ error: "Invalid id" }); return; }
   const { content } = req.body ?? {};

@@ -9,15 +9,16 @@ export interface TierLimits {
   photosPerEntry: number;
   aiCompose: number;
   aiEnhance: number;
+  aiChat: number;
   styles: number;
 }
 
 const INF = 999999;
 
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
-  free: { entries: 20, photosPerEntry: 3, aiCompose: 3,   aiEnhance: 5,   styles: 3 },
-  pro:  { entries: INF, photosPerEntry: 9, aiCompose: 30,  aiEnhance: 100, styles: INF },
-  plus: { entries: INF, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, styles: INF },
+  free: { entries: 20, photosPerEntry: 3, aiCompose: 3,   aiEnhance: 5,   aiChat: 30,  styles: 3 },
+  plus: { entries: INF, photosPerEntry: 9, aiCompose: 30,  aiEnhance: 100, aiChat: 200, styles: INF },
+  pro:  { entries: INF, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: INF, styles: INF },
 };
 
 export const TIER_NAMES: Record<Tier, string> = {
@@ -140,4 +141,49 @@ export async function getAiEnhanceUsage(userId: string): Promise<{ used: number;
   const needsReset = !lastReset || lastReset < resetPoint;
   const used = needsReset ? 0 : (profile?.aiEnhanceUsed ?? 0);
   return { used, limit: limits.aiEnhance, tier };
+}
+
+export async function checkAndIncrAiChat(userId: string): Promise<
+  { ok: true; used: number; limit: number; tier: Tier } |
+  { ok: false; used: number; limit: number; tier: Tier }
+> {
+  const { tier, limits, profile } = await getUserTier(userId);
+
+  if (limits.aiChat >= 999999) {
+    return { ok: true, used: 0, limit: limits.aiChat, tier };
+  }
+
+  const resetPoint = startOfMonth();
+  const lastReset = profile?.aiChatResetAt ?? null;
+  const needsReset = !lastReset || lastReset < resetPoint;
+
+  let used = needsReset ? 0 : (profile?.aiChatUsed ?? 0);
+
+  if (used >= limits.aiChat) {
+    return { ok: false, used, limit: limits.aiChat, tier };
+  }
+
+  if (needsReset) {
+    await db
+      .update(userProfilesTable)
+      .set({ aiChatUsed: 1, aiChatResetAt: new Date() })
+      .where(eq(userProfilesTable.userId, userId));
+  } else {
+    await db
+      .update(userProfilesTable)
+      .set({ aiChatUsed: used + 1 })
+      .where(eq(userProfilesTable.userId, userId));
+  }
+
+  return { ok: true, used: used + 1, limit: limits.aiChat, tier };
+}
+
+export async function getAiChatUsage(userId: string): Promise<{ used: number; limit: number; tier: Tier }> {
+  const { tier, limits, profile } = await getUserTier(userId);
+  if (limits.aiChat >= 999999) return { used: 0, limit: limits.aiChat, tier };
+  const resetPoint = startOfMonth();
+  const lastReset = profile?.aiChatResetAt ?? null;
+  const needsReset = !lastReset || lastReset < resetPoint;
+  const used = needsReset ? 0 : (profile?.aiChatUsed ?? 0);
+  return { used, limit: limits.aiChat, tier };
 }
