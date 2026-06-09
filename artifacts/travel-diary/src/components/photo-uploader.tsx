@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import { getGetEntryQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Images, Loader2, CheckCircle2, X } from "lucide-react";
+import { Camera, Images, Loader2, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
 import { convertHeicToJpeg, isHeic } from "@/lib/heic-convert";
@@ -121,6 +121,7 @@ interface PhotoUploaderProps {
 
 export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const queryClient = useQueryClient();
 
@@ -374,6 +375,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   return (
     <div className={cn("space-y-3", className)}>
       <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleInputChange} />
+      <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif" capture="environment" className="hidden" onChange={handleInputChange} />
 
       {/* Aggregate progress summary */}
       {totalCount > 0 && (
@@ -455,6 +457,15 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
         >
           <Images className="w-4 h-4" />
           选择多张照片
+        </button>
+        <button
+          type="button"
+          disabled={anyBusy}
+          onClick={() => cameraInputRef.current?.click()}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted/40 border border-border/60 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Camera className="w-4 h-4" />
+          拍照上传
         </button>
         {anyBusy && (
           <span className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground">
