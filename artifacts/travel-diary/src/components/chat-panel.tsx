@@ -335,7 +335,7 @@ export function ChatPanel() {
       <button
         onClick={handleOpen}
         aria-label="AI 日记助手"
-        className={`fixed z-50 flex items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all ${isMobile ? "bottom-20 right-4" : "bottom-6 right-6"} ${open ? "opacity-0 pointer-events-none" : ""}`}
+        className={`fixed z-50 flex items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all ${isMobile ? "bottom-[5.5rem] right-4" : "bottom-6 right-6"} ${open ? "opacity-0 pointer-events-none" : ""}`}
       >
         <MessageCircle className="w-5 h-5" />
       </button>

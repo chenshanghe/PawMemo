@@ -211,7 +211,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <SwUpdateBanner />
         <NotifPermissionBanner unreadCount={unreadCount} />
         <InstallBanner />
-        <div key={location} className="flex-1 p-4 pb-24 md:px-8 md:pb-8 md:pt-4 max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-bottom-3 duration-300 ease-out">
+        <div key={location} className="flex-1 p-4 pb-32 md:px-8 md:pb-8 md:pt-4 max-w-5xl mx-auto w-full animate-in fade-in slide-in-from-bottom-3 duration-300 ease-out">
           {children}
         </div>
       </main>
