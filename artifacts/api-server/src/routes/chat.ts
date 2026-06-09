@@ -12,7 +12,34 @@ import {
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { getUserTier, checkAndIncrAiChat, getAiChatUsage } from "../lib/tiers";
-import { USER_MANUAL } from "../lib/user-manual";
+import { appKnowledgeTable, appChangelogsTable } from "@workspace/db";
+
+// ── 60-second in-memory cache for AI context ──────────────────────────────────
+let aiContextCache: { manual: string; changelogs: string; expiresAt: number } | null = null;
+
+async function getAiContext(): Promise<{ manual: string; changelogs: string }> {
+  const now = Date.now();
+  if (aiContextCache && now < aiContextCache.expiresAt) {
+    return { manual: aiContextCache.manual, changelogs: aiContextCache.changelogs };
+  }
+  const [knowledgeRows, changelogRows] = await Promise.all([
+    db.select().from(appKnowledgeTable)
+      .where(eq(appKnowledgeTable.isActive, true))
+      .orderBy(appKnowledgeTable.sortOrder, appKnowledgeTable.id),
+    db.select().from(appChangelogsTable)
+      .where(eq(appChangelogsTable.isPublished, true))
+      .orderBy(desc(appChangelogsTable.publishedAt))
+      .limit(5),
+  ]);
+  const manual = knowledgeRows.length > 0
+    ? knowledgeRows.map(r => `### ${r.title}\n${r.content}`).join("\n\n")
+    : "（暂无功能手册，请管理员在后台添加）";
+  const changelogs = changelogRows.length > 0
+    ? changelogRows.map(r => `- **${r.version}** ${r.title}：${r.content}`).join("\n")
+    : "";
+  aiContextCache = { manual, changelogs, expiresAt: now + 60_000 };
+  return { manual, changelogs };
+}
 
 const router = Router();
 router.use(requireAuth);
@@ -243,7 +270,13 @@ router.post("/conversations/:id/messages", async (req, res) => {
     content: m.content,
   }));
 
-  const systemPrompt = `你是顽童记 App 的专属 AI 日记助手。你有两项核心能力：
+  const { manual: dynamicManual, changelogs: dynamicChangelogs } = await getAiContext();
+
+  const changelogsSection = dynamicChangelogs
+    ? `\n\n【能力三：版本动态】\n你了解顽童记最近的功能更新，当用户问「有什么新功能」「最近更新了什么」时，请根据以下记录作答：\n\n${dynamicChangelogs}`
+    : "";
+
+  const systemPrompt = `你是顽童记 App 的专属 AI 日记助手。你有以下核心能力：
 
 【能力一：旅行记忆】
 你熟悉用户所有的旅行日记，可以帮助用户检索和回忆旅程细节。
@@ -254,7 +287,7 @@ ${entriesContext}
 【能力二：操作引导】
 你熟悉顽童记 App 的所有功能和操作步骤，当用户问「怎么操作」「在哪里」「如何使用」时，请根据以下手册给出准确的步骤指引：
 
-${USER_MANUAL}
+${dynamicManual}${changelogsSection}
 
 回答要求：
 - 用中文亲切自然地回答，像朋友聊天一样

@@ -11,6 +11,7 @@ import {
   Edit2, Check, X, ExternalLink, ArrowUpRight,
   ArrowDownRight, Minus, ChevronDown, ChevronUp,
   CreditCard, BookOpen, Image, Clock, LogOut,
+  Brain, Plus, Eye, EyeOff, Trash2, FileText,
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -36,7 +37,7 @@ interface EventRow {
   userEmail: string | null; userAvatar: string | null;
 }
 
-type Page = "overview" | "users" | "events" | "revenue";
+type Page = "overview" | "users" | "events" | "revenue" | "knowledge";
 type SortDir = "asc" | "desc";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -85,6 +86,7 @@ const NAV = [
   { id: "users", label: "用户", icon: Users },
   { id: "events", label: "事件日志", icon: Activity },
   { id: "revenue", label: "收入分析", icon: TrendingUp },
+  { id: "knowledge", label: "AI 知识库", icon: Brain },
 ] as const;
 
 function Sidebar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
@@ -747,6 +749,243 @@ function RevenuePage({ stats, trends }: { stats: Stats; trends: Trends }) {
   );
 }
 
+// ── Knowledge Base Page ───────────────────────────────────────────────────────
+interface KnowledgeItem {
+  id: number; title: string; content: string;
+  sortOrder: number; isActive: boolean; createdAt: string; updatedAt: string;
+}
+interface ChangelogItem {
+  id: number; version: string; title: string; content: string;
+  isPublished: boolean; publishedAt: string | null; createdAt: string;
+}
+
+function ItemModal({ item, onClose, onSave, isChangelog }: {
+  item: Partial<KnowledgeItem & ChangelogItem> | null;
+  onClose: () => void;
+  onSave: (data: Record<string, unknown>) => Promise<void>;
+  isChangelog: boolean;
+}) {
+  const [title, setTitle] = useState(item?.title ?? "");
+  const [content, setContent] = useState(item?.content ?? "");
+  const [version, setVersion] = useState((item as ChangelogItem)?.version ?? "");
+  const [isActive, setIsActive] = useState((item as KnowledgeItem)?.isActive !== false);
+  const [isPublished, setIsPublished] = useState((item as ChangelogItem)?.isPublished ?? false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!title.trim() || !content.trim()) return;
+    if (isChangelog && !version.trim()) return;
+    setSaving(true);
+    await onSave(isChangelog
+      ? { version, title, content, isPublished }
+      : { title, content, isActive }
+    );
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <p className="font-semibold text-slate-900">{item?.id ? "编辑" : "新增"}{isChangelog ? "版本更新" : "知识条目"}</p>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+            <X className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {isChangelog && (
+            <div>
+              <label className="text-xs font-medium text-slate-600 mb-1.5 block">版本号</label>
+              <input value={version} onChange={e => setVersion(e.target.value)} placeholder="如 v1.2.0"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+            </div>
+          )}
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1.5 block">标题</label>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="条目标题"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 mb-1.5 block">内容</label>
+            <textarea value={content} onChange={e => setContent(e.target.value)} rows={10}
+              placeholder={isChangelog ? "描述本次更新的功能点，支持 Markdown" : "功能说明内容，支持 Markdown 格式"}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-y font-mono leading-relaxed" />
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => isChangelog ? setIsPublished(p => !p) : setIsActive(a => !a)}
+              className={`relative w-10 h-5.5 rounded-full transition-colors ${(isChangelog ? isPublished : isActive) ? "bg-blue-500" : "bg-slate-200"}`}
+              style={{ height: "22px" }}>
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${(isChangelog ? isPublished : isActive) ? "translate-x-4.5" : ""}`}
+                style={{ transform: (isChangelog ? isPublished : isActive) ? "translateX(18px)" : "translateX(0)" }} />
+            </button>
+            <span className="text-sm text-slate-600">{isChangelog ? (isPublished ? "已发布（AI 可见）" : "草稿（AI 不可见）") : (isActive ? "启用（AI 可见）" : "停用（AI 不可见）")}</span>
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">取消</button>
+          <button onClick={handleSave} disabled={saving || !title.trim() || !content.trim() || (isChangelog && !version.trim())}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            {saving ? "保存中…" : "保存"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KnowledgePage() {
+  const [tab, setTab] = useState<"manual" | "changelog">("manual");
+  const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
+  const [changelogs, setChangelogs] = useState<ChangelogItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState<{ open: boolean; item: Partial<KnowledgeItem & ChangelogItem> | null }>({ open: false, item: null });
+
+  const loadKnowledge = async () => {
+    setLoading(true);
+    const d = await apiFetch("/api/admin/knowledge");
+    setKnowledge(Array.isArray(d) ? d : []);
+    setLoading(false);
+  };
+
+  const loadChangelogs = async () => {
+    setLoading(true);
+    const d = await apiFetch("/api/admin/changelogs");
+    setChangelogs(Array.isArray(d) ? d : []);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadKnowledge(); loadChangelogs(); }, []);
+
+  const handleSave = async (data: Record<string, unknown>) => {
+    const isChangelog = tab === "changelog";
+    const url = isChangelog
+      ? (modal.item?.id ? `${BASE}/api/admin/changelogs/${modal.item.id}` : `${BASE}/api/admin/changelogs`)
+      : (modal.item?.id ? `${BASE}/api/admin/knowledge/${modal.item.id}` : `${BASE}/api/admin/knowledge`);
+    await fetch(url, {
+      method: modal.item?.id ? "PATCH" : "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    setModal({ open: false, item: null });
+    if (isChangelog) loadChangelogs(); else loadKnowledge();
+  };
+
+  const handleDelete = async (id: number, isChangelog: boolean) => {
+    if (!confirm("确认删除？")) return;
+    await fetch(`${BASE}/api/admin/${isChangelog ? "changelogs" : "knowledge"}/${id}`, {
+      method: "DELETE", credentials: "include",
+    });
+    if (isChangelog) loadChangelogs(); else loadKnowledge();
+  };
+
+  const handleToggle = async (item: KnowledgeItem | ChangelogItem, isChangelog: boolean) => {
+    const url = `${BASE}/api/admin/${isChangelog ? "changelogs" : "knowledge"}/${item.id}`;
+    const body = isChangelog
+      ? { isPublished: !(item as ChangelogItem).isPublished }
+      : { isActive: !(item as KnowledgeItem).isActive };
+    await fetch(url, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (isChangelog) loadChangelogs(); else loadKnowledge();
+  };
+
+  const isChangelog = tab === "changelog";
+  const items = isChangelog ? changelogs : knowledge;
+
+  return (
+    <div className="space-y-4">
+      {modal.open && (
+        <ItemModal item={modal.item} onClose={() => setModal({ open: false, item: null })}
+          onSave={handleSave} isChangelog={isChangelog} />
+      )}
+
+      {/* Tabs + Add */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center bg-slate-100 rounded-lg p-1">
+          {([["manual", "功能手册", FileText], ["changelog", "版本更新", Brain]] as const).map(([id, label, Icon]) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setModal({ open: true, item: null })}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+          <Plus className="w-4 h-4" />
+          新增{isChangelog ? "版本" : "条目"}
+        </button>
+      </div>
+
+      {/* Info banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+        <Brain className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+        <p className="text-xs text-blue-700">
+          {isChangelog
+            ? "已发布的版本更新会注入 AI 助手的上下文，用户问「最近有什么新功能」时 AI 能准确回答。修改后 60 秒内生效。"
+            : "启用的知识条目是 AI 助手的「操作手册」，用户问「怎么用 X 功能」时 AI 会引用这些内容。修改后 60 秒内生效。"}
+        </p>
+      </div>
+
+      {/* List */}
+      <div className="space-y-2">
+        {loading && Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border border-slate-200 px-4 py-4">
+            <div className="h-4 bg-slate-100 rounded animate-pulse w-1/3 mb-2" />
+            <div className="h-3 bg-slate-100 rounded animate-pulse w-2/3" />
+          </div>
+        ))}
+        {!loading && items.length === 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 px-4 py-10 text-center">
+            <Brain className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">暂无{isChangelog ? "版本更新" : "知识条目"}，点击「新增」添加</p>
+          </div>
+        )}
+        {!loading && items.map(item => {
+          const isKnowledge = !isChangelog;
+          const active = isChangelog ? (item as ChangelogItem).isPublished : (item as KnowledgeItem).isActive;
+          return (
+            <div key={item.id} className={`bg-white rounded-xl border transition-colors ${active ? "border-slate-200" : "border-slate-100 opacity-60"}`}>
+              <div className="px-4 py-3.5 flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {isChangelog && (
+                      <span className="text-xs font-mono font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                        {(item as ChangelogItem).version}
+                      </span>
+                    )}
+                    {isKnowledge && (
+                      <span className="text-xs text-slate-400">#{(item as KnowledgeItem).sortOrder}</span>
+                    )}
+                    <p className="text-sm font-semibold text-slate-900 truncate">{item.title}</p>
+                    <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${active ? "text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200" : "text-slate-500 bg-slate-100"}`}>
+                      {active ? (isChangelog ? "已发布" : "启用") : (isChangelog ? "草稿" : "停用")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 line-clamp-2 whitespace-pre-wrap">{item.content}</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <button onClick={() => handleToggle(item, isChangelog)}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title={active ? "停用" : "启用"}>
+                    {active ? <EyeOff className="w-3.5 h-3.5 text-slate-400" /> : <Eye className="w-3.5 h-3.5 text-slate-400" />}
+                  </button>
+                  <button onClick={() => setModal({ open: true, item: item as any })}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                    <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                  </button>
+                  <button onClick={() => handleDelete(item.id, isChangelog)}
+                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -797,7 +1036,7 @@ export default function AdminPage() {
   }
 
   const pageTitle: Record<Page, string> = {
-    overview: "概览", users: "用户管理", events: "事件日志", revenue: "收入分析",
+    overview: "概览", users: "用户管理", events: "事件日志", revenue: "收入分析", knowledge: "AI 知识库",
   };
 
   return (
@@ -828,6 +1067,7 @@ export default function AdminPage() {
           {page === "users" && <UsersPage />}
           {page === "events" && <EventsPage />}
           {page === "revenue" && stats && <RevenuePage stats={stats} trends={trends} />}
+          {page === "knowledge" && <KnowledgePage />}
         </div>
       </main>
     </div>

@@ -6,8 +6,10 @@ import {
   diaryEntriesTable,
   photosTable,
   subscriptionOrdersTable,
+  appKnowledgeTable,
+  appChangelogsTable,
 } from "@workspace/db";
-import { eq, desc, ilike, or, count, sql, and, gte, lte } from "drizzle-orm";
+import { eq, desc, asc, ilike, or, count, sql, and, gte, lte } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { logSubEvent } from "../lib/sub-events";
 
@@ -267,6 +269,91 @@ router.get("/trends", async (req, res) => {
     users: fill(userRows.rows as any, "count"),
     revenue: fill(revenueRows.rows as any, "revenue"),
   });
+});
+
+// ── Knowledge Base CRUD ───────────────────────────────────────────────────────
+router.get("/knowledge", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const items = await db.select().from(appKnowledgeTable).orderBy(asc(appKnowledgeTable.sortOrder), asc(appKnowledgeTable.id));
+  res.json(items);
+});
+
+router.post("/knowledge", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { title, content, sortOrder, isActive } = req.body ?? {};
+  if (!title?.trim() || !content?.trim()) { res.status(400).json({ error: "title and content required" }); return; }
+  const [item] = await db.insert(appKnowledgeTable).values({
+    title: title.trim(), content: content.trim(),
+    sortOrder: Number(sortOrder ?? 0), isActive: isActive !== false,
+  }).returning();
+  res.json(item);
+});
+
+router.patch("/knowledge/:id", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const id = Number(req.params.id as string);
+  const { title, content, sortOrder, isActive } = req.body ?? {};
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (title !== undefined) updates.title = title.trim();
+  if (content !== undefined) updates.content = content.trim();
+  if (sortOrder !== undefined) updates.sortOrder = Number(sortOrder);
+  if (isActive !== undefined) updates.isActive = isActive;
+  const [item] = await db.update(appKnowledgeTable).set(updates).where(eq(appKnowledgeTable.id, id)).returning();
+  if (!item) { res.status(404).json({ error: "not found" }); return; }
+  res.json(item);
+});
+
+router.delete("/knowledge/:id", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const id = Number(req.params.id as string);
+  await db.delete(appKnowledgeTable).where(eq(appKnowledgeTable.id, id));
+  res.json({ ok: true });
+});
+
+// ── Changelogs CRUD ───────────────────────────────────────────────────────────
+router.get("/changelogs", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const items = await db.select().from(appChangelogsTable).orderBy(desc(appChangelogsTable.createdAt));
+  res.json(items);
+});
+
+router.post("/changelogs", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { version, title, content, isPublished } = req.body ?? {};
+  if (!version?.trim() || !title?.trim() || !content?.trim()) {
+    res.status(400).json({ error: "version, title and content required" }); return;
+  }
+  const published = isPublished === true;
+  const [item] = await db.insert(appChangelogsTable).values({
+    version: version.trim(), title: title.trim(), content: content.trim(),
+    isPublished: published, publishedAt: published ? new Date() : null,
+  }).returning();
+  res.json(item);
+});
+
+router.patch("/changelogs/:id", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const id = Number(req.params.id as string);
+  const { version, title, content, isPublished } = req.body ?? {};
+  const updates: Record<string, unknown> = {};
+  if (version !== undefined) updates.version = version.trim();
+  if (title !== undefined) updates.title = title.trim();
+  if (content !== undefined) updates.content = content.trim();
+  if (isPublished !== undefined) {
+    updates.isPublished = isPublished;
+    if (isPublished && !updates.publishedAt) updates.publishedAt = new Date();
+    if (!isPublished) updates.publishedAt = null;
+  }
+  const [item] = await db.update(appChangelogsTable).set(updates).where(eq(appChangelogsTable.id, id)).returning();
+  if (!item) { res.status(404).json({ error: "not found" }); return; }
+  res.json(item);
+});
+
+router.delete("/changelogs/:id", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const id = Number(req.params.id as string);
+  await db.delete(appChangelogsTable).where(eq(appChangelogsTable.id, id));
+  res.json({ ok: true });
 });
 
 export default router;

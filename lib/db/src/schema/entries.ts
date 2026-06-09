@@ -310,3 +310,29 @@ export const subscriptionEventsTable = pgTable("subscription_events", {
 });
 
 export type SubscriptionEvent = typeof subscriptionEventsTable.$inferSelect;
+
+// ── App Knowledge Base ────────────────────────────────────────────────────────
+export const appKnowledgeTable = pgTable("app_knowledge", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type AppKnowledge = typeof appKnowledgeTable.$inferSelect;
+
+// ── App Changelogs ────────────────────────────────────────────────────────────
+export const appChangelogsTable = pgTable("app_changelogs", {
+  id: serial("id").primaryKey(),
+  version: text("version").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  isPublished: boolean("is_published").notNull().default(false),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AppChangelog = typeof appChangelogsTable.$inferSelect;
