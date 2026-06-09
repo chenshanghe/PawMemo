@@ -7,7 +7,7 @@ import {
   photosTable,
   subscriptionOrdersTable,
 } from "@workspace/db";
-import { eq, desc, ilike, or, count, sql, and, gte } from "drizzle-orm";
+import { eq, desc, ilike, or, count, sql, and, gte, lte } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { logSubEvent } from "../lib/sub-events";
 
@@ -227,6 +227,46 @@ router.patch("/users/:id/tier", async (req, res) => {
   });
 
   res.json({ ok: true, tier, expiresAt: newExpiresAt });
+});
+
+// ── GET /api/admin/trends ─────────────────────────────────────────────────────
+router.get("/trends", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const days = Math.min(90, Math.max(7, Number(req.query.days ?? 30)));
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const [userRows, revenueRows] = await Promise.all([
+    db.execute(sql`
+      SELECT DATE(created_at AT TIME ZONE 'UTC') AS day, COUNT(*)::int AS count
+      FROM user_profiles
+      WHERE created_at >= ${since}
+      GROUP BY 1 ORDER BY 1
+    `),
+    db.execute(sql`
+      SELECT DATE(created_at AT TIME ZONE 'UTC') AS day, COALESCE(SUM(amount_fen),0)::int AS revenue
+      FROM subscription_events
+      WHERE event_type = 'upgraded' AND created_at >= ${since}
+      GROUP BY 1 ORDER BY 1
+    `),
+  ]);
+
+  // Fill gaps with zeros so charts render continuous lines
+  const fill = (rows: { day: string; [k: string]: unknown }[], key: string) => {
+    const map = new Map(rows.map(r => [r.day as string, Number(r[key])]));
+    const result: { day: string; value: number }[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const k = d.toISOString().slice(0, 10);
+      result.push({ day: k, value: map.get(k) ?? 0 });
+    }
+    return result;
+  };
+
+  res.json({
+    users: fill(userRows.rows as any, "count"),
+    revenue: fill(revenueRows.rows as any, "revenue"),
+  });
 });
 
 export default router;
