@@ -38,15 +38,21 @@ function requireAdmin(req: any, res: any): boolean {
     .map(s => toAsciiId(s.trim().replace(/^["']|["']$/g, "")))
     .filter(Boolean);
   const normalizedUserId = toAsciiId(userId);
+  const adminId0 = adminIds[0] ?? "";
+  const uidCodes = Array.from(normalizedUserId).map(c => c.charCodeAt(0));
+  const aidCodes = Array.from(adminId0).map(c => c.charCodeAt(0));
   const match = adminIds.includes(normalizedUserId);
   if (!match) {
     res.status(403).json({
       error: "FORBIDDEN",
       userId,
       normalizedUserId,
-      adminIds,
-      match,
-      diffAt: raw.split("").map((c, i) => c.charCodeAt(0) > 127 ? { i, c, code: c.charCodeAt(0) } : null).filter(Boolean),
+      adminId0,
+      uidCodes,
+      aidCodes,
+      uidLen: uidCodes.length,
+      aidLen: aidCodes.length,
+      firstDiff: uidCodes.findIndex((c, i) => c !== aidCodes[i]),
     });
     return false;
   }
