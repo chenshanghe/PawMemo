@@ -768,6 +768,7 @@ function ItemModal({ item, onClose, onSave, isChangelog }: {
   const [title, setTitle] = useState(item?.title ?? "");
   const [content, setContent] = useState(item?.content ?? "");
   const [version, setVersion] = useState((item as ChangelogItem)?.version ?? "");
+  const [sortOrder, setSortOrder] = useState(String((item as KnowledgeItem)?.sortOrder ?? 0));
   const [isActive, setIsActive] = useState((item as KnowledgeItem)?.isActive !== false);
   const [isPublished, setIsPublished] = useState((item as ChangelogItem)?.isPublished ?? false);
   const [saving, setSaving] = useState(false);
@@ -778,7 +779,7 @@ function ItemModal({ item, onClose, onSave, isChangelog }: {
     setSaving(true);
     await onSave(isChangelog
       ? { version, title, content, isPublished }
-      : { title, content, isActive }
+      : { title, content, isActive, sortOrder: Number(sortOrder) || 0 }
     );
     setSaving(false);
   };
@@ -800,10 +801,19 @@ function ItemModal({ item, onClose, onSave, isChangelog }: {
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
             </div>
           )}
-          <div>
-            <label className="text-xs font-medium text-slate-600 mb-1.5 block">标题</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="条目标题"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+          <div className={isChangelog ? "flex gap-3" : "flex gap-3"}>
+            <div className="flex-1">
+              <label className="text-xs font-medium text-slate-600 mb-1.5 block">标题</label>
+              <input value={title} onChange={e => setTitle(e.target.value)} placeholder="条目标题"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+            </div>
+            {!isChangelog && (
+              <div className="w-24">
+                <label className="text-xs font-medium text-slate-600 mb-1.5 block">排序</label>
+                <input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} min={0} placeholder="0"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+              </div>
+            )}
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600 mb-1.5 block">内容</label>

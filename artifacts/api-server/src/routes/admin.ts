@@ -292,12 +292,21 @@ router.post("/knowledge", async (req, res) => {
 router.patch("/knowledge/:id", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   const id = Number(req.params.id as string);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "invalid id" }); return; }
   const { title, content, sortOrder, isActive } = req.body ?? {};
   const updates: Record<string, unknown> = { updatedAt: new Date() };
-  if (title !== undefined) updates.title = title.trim();
-  if (content !== undefined) updates.content = content.trim();
-  if (sortOrder !== undefined) updates.sortOrder = Number(sortOrder);
-  if (isActive !== undefined) updates.isActive = isActive;
+  if (title !== undefined) {
+    const t = String(title).trim();
+    if (!t) { res.status(400).json({ error: "title cannot be empty" }); return; }
+    updates.title = t;
+  }
+  if (content !== undefined) {
+    const c = String(content).trim();
+    if (!c) { res.status(400).json({ error: "content cannot be empty" }); return; }
+    updates.content = c;
+  }
+  if (sortOrder !== undefined) updates.sortOrder = Number(sortOrder) || 0;
+  if (isActive !== undefined) updates.isActive = Boolean(isActive);
   const [item] = await db.update(appKnowledgeTable).set(updates).where(eq(appKnowledgeTable.id, id)).returning();
   if (!item) { res.status(404).json({ error: "not found" }); return; }
   res.json(item);
@@ -306,6 +315,7 @@ router.patch("/knowledge/:id", async (req, res) => {
 router.delete("/knowledge/:id", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   const id = Number(req.params.id as string);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "invalid id" }); return; }
   await db.delete(appKnowledgeTable).where(eq(appKnowledgeTable.id, id));
   res.json({ ok: true });
 });
@@ -334,6 +344,7 @@ router.post("/changelogs", async (req, res) => {
 router.patch("/changelogs/:id", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   const id = Number(req.params.id as string);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "invalid id" }); return; }
   const { version, title, content, isPublished } = req.body ?? {};
   const updates: Record<string, unknown> = {};
   if (version !== undefined) updates.version = version.trim();
@@ -352,6 +363,7 @@ router.patch("/changelogs/:id", async (req, res) => {
 router.delete("/changelogs/:id", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   const id = Number(req.params.id as string);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "invalid id" }); return; }
   await db.delete(appChangelogsTable).where(eq(appChangelogsTable.id, id));
   res.json({ ok: true });
 });
