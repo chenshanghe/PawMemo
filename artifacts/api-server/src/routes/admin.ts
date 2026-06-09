@@ -16,9 +16,24 @@ router.use(requireAuth);
 
 function requireAdmin(req: any, res: any): boolean {
   const userId = (req as AuthedRequest).userId;
-  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map(s => s.trim()).filter(Boolean);
-  if (!adminIds.includes(userId)) {
-    res.status(403).json({ error: "FORBIDDEN", userId, adminIds });
+  const raw = process.env.ADMIN_USER_IDS ?? "";
+  // Strip surrounding quotes that TOML/shell may inject, then split by comma
+  const adminIds = raw
+    .replace(/^["']|["']$/g, "")
+    .split(",")
+    .map(s => s.trim().replace(/^["']|["']$/g, ""))
+    .filter(Boolean);
+  const match = adminIds.includes(userId);
+  if (!match) {
+    res.status(403).json({
+      error: "FORBIDDEN",
+      userId,
+      userIdLen: userId.length,
+      raw,
+      rawLen: raw.length,
+      adminIds,
+      match,
+    });
     return false;
   }
   return true;
