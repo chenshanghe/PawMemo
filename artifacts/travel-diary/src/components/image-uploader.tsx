@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useUpload } from "@workspace/object-storage-web";
-import { Camera, Upload, X, ImageIcon, Loader2, ClipboardPaste } from "lucide-react";
+import { Upload, X, ImageIcon, Loader2, ClipboardPaste } from "lucide-react";
 import { cn } from "@/lib/utils";
 import imageCompression from "browser-image-compression";
 import { convertHeicToJpeg } from "@/lib/heic-convert";
@@ -27,7 +27,6 @@ interface ImageUploaderProps {
 
 export function ImageUploader({ value, onChange, className, label = "上传图片" }: ImageUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   // Local blob URL used as preview while the entry hasn't been saved yet.
   // We keep it alive until the user picks a new file, removes the image,
   // or the component unmounts — avoids a 404 from the server ACL check
@@ -144,7 +143,6 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
   return (
     <div className={cn("space-y-2", className)}>
       <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleInputChange} />
-      <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleInputChange} />
 
       {displaySrc ? (
         <div className="relative group rounded-xl overflow-hidden aspect-[3/1] bg-muted/30 shadow-sm">
@@ -197,10 +195,7 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
             </div>
             <div className="flex gap-2 mt-1 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
               <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">
-                <Upload className="w-3.5 h-3.5" />从相册选择
-              </button>
-              <button type="button" onClick={() => cameraInputRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">
-                <Camera className="w-3.5 h-3.5" />拍照上传
+                <Upload className="w-3.5 h-3.5" />选择照片
               </button>
             </div>
             <p className="text-[11px] text-muted-foreground/60 flex items-center gap-1">
