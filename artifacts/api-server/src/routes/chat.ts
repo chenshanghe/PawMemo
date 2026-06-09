@@ -181,14 +181,13 @@ router.post("/conversations/:id/messages", async (req, res) => {
     })
     .from(diaryEntriesTable)
     .where(eq(diaryEntriesTable.userId, userId))
-    .orderBy(desc(diaryEntriesTable.startDate))
-    .limit(80);
+    .orderBy(desc(diaryEntriesTable.startDate));
 
   const entriesContext = entries.length === 0
     ? "（用户暂无日记）"
     : entries.map((e) => {
         const dateRange = e.endDate ? `${e.startDate} 至 ${e.endDate}` : (e.startDate ?? "");
-        const preview = (e.content ?? "").slice(0, 400);
+        const preview = (e.content ?? "").slice(0, 500);
         return `[ID:${e.id}] 《${e.title}》 目的地:${e.destination} 日期:${dateRange}${e.mood ? ` 心情:${e.mood}` : ""}\n${preview}`;
       }).join("\n\n---\n\n");
 
@@ -204,7 +203,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
   }));
 
   const systemPrompt = `你是用户的私人旅行日记助手，熟悉他/她的所有旅行记录，帮助用户以对话方式检索和回忆旅程。
-用户共有 ${entries.length} 篇旅行日记，内容如下（每篇格式：[ID:数字] 《标题》 目的地 日期 [心情]\\n正文前400字）：
+用户共有 ${entries.length} 篇旅行日记，内容如下（每篇格式：[ID:数字] 《标题》 目的地 日期 [心情]\\n正文前500字）：
 
 ${entriesContext}
 
@@ -222,19 +221,26 @@ ${entriesContext}
 
   let fullText = "";
   let aborted = false;
+  const abortController = new AbortController();
 
-  req.on("close", () => { aborted = true; });
+  req.on("close", () => {
+    aborted = true;
+    abortController.abort();
+  });
 
   try {
-    const stream = await deepseek.chat.completions.create({
-      model: "deepseek-chat",
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...historyMsgs,
-        { role: "user", content: content.trim() },
-      ],
-      stream: true,
-    });
+    const stream = await deepseek.chat.completions.create(
+      {
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...historyMsgs,
+          { role: "user", content: content.trim() },
+        ],
+        stream: true,
+      },
+      { signal: abortController.signal },
+    );
 
     for await (const chunk of stream) {
       if (aborted) break;

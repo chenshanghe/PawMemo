@@ -71,10 +71,37 @@ export function ChatPanel() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }, []);
+
+  // Mobile keyboard follow via visualViewport
+  useEffect(() => {
+    if (!isMobile || !open) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const keyboardHeight = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop ?? 0));
+      panel.style.height = `${vv.height}px`;
+      panel.style.bottom = `${keyboardHeight}px`;
+      panel.style.transform = "none";
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      if (panelRef.current) {
+        panelRef.current.style.height = "";
+        panelRef.current.style.bottom = "";
+      }
+    };
+  }, [isMobile, open]);
 
   const fetchConversations = useCallback(async (): Promise<boolean> => {
     const r = await fetch(`${BASE}/api/chat/conversations`, { credentials: "include" });
@@ -331,6 +358,7 @@ export function ChatPanel() {
       {/* Panel */}
       {open && (
         <div
+          ref={panelRef}
           className={`fixed z-50 bg-background flex flex-col shadow-2xl
             ${isMobile
               ? "inset-x-0 bottom-0 h-[90dvh] rounded-t-2xl border-t border-border/40"
