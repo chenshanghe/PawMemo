@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@clerk/react";
 import { Link } from "wouter";
 import {
-  X, Plus, Trash2, Volume2, Square, Copy, Send,
+  MessageCircle, X, Plus, Trash2, Volume2, Square, Copy, Send,
   ChevronDown, Check, Loader2, Sparkles, Eraser,
 } from "lucide-react";
 import { UpgradeDialog, type QuotaCode } from "@/components/upgrade-dialog";
@@ -331,6 +331,14 @@ export function ChatPanel() {
 
   return (
     <>
+      {/* Floating button */}
+      <button
+        onClick={handleOpen}
+        aria-label="AI 日记助手"
+        className={`fixed z-50 flex items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all ${isMobile ? "bottom-[5.5rem] right-4" : "bottom-6 right-6"} ${open ? "opacity-0 pointer-events-none" : ""}`}
+      >
+        <MessageCircle className="w-5 h-5" />
+      </button>
 
       {/* Upgrade dialog */}
       {showUpgrade && (
