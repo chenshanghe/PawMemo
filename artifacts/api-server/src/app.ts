@@ -10,6 +10,8 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import path from "path";
+import fs from "fs";
 
 const app: Express = express();
 
@@ -51,6 +53,28 @@ app.use(
 );
 
 app.use("/api", router);
+
+// ── Static file serving (production only) ────────────────────────────────────
+// In production the Vite app is pre-built to artifacts/travel-diary/dist/public/.
+// Express must serve those files and fall back to index.html for SPA routing.
+if (process.env.NODE_ENV === "production") {
+  const staticDir = path.resolve(import.meta.dirname, "../../travel-diary/dist/public");
+  const indexHtml = path.join(staticDir, "index.html");
+
+  if (fs.existsSync(staticDir)) {
+    app.use(express.static(staticDir, { maxAge: "1y", immutable: true, index: false }));
+
+    // SPA fallback — serve index.html for any non-file route
+    app.use((_req: Request, res: Response) => {
+      if (fs.existsSync(indexHtml)) {
+        res.setHeader("Cache-Control", "no-cache");
+        res.sendFile(indexHtml);
+      } else {
+        res.status(404).send("Not found");
+      }
+    });
+  }
+}
 
 // Global async error handler — catches unhandled promise rejections from route handlers
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
