@@ -5,6 +5,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
+import { zhCN } from "@clerk/localizations";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect, Link } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -343,14 +344,19 @@ function ClerkProviderWithRoutes() {
       signUpUrl={`${basePath}/sign-up`}
       afterSignOutUrl={window.location.origin + (basePath || "/")}
       localization={{
+        ...zhCN,
         signIn: {
+          ...zhCN.signIn,
           start: {
+            ...(zhCN.signIn as any)?.start,
             title: "欢迎回来",
             subtitle: "登录你的旅行日记",
           },
         },
         signUp: {
+          ...zhCN.signUp,
           start: {
+            ...(zhCN.signUp as any)?.start,
             title: "创建账号",
             subtitle: "开始记录你的旅行故事",
           },
