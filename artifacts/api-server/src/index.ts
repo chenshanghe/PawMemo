@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { scheduleWeeklyDigest } from "./lib/scheduler";
+import { seedKnowledge } from "./lib/seed-knowledge";
 
 const rawPort = process.env["PORT"];
 
@@ -26,5 +27,6 @@ app.listen(port, (err) => {
 
   if (process.env.NODE_ENV !== "test") {
     scheduleWeeklyDigest();
+    seedKnowledge().catch(err => logger.error({ err }, "Failed to seed knowledge base"));
   }
 });

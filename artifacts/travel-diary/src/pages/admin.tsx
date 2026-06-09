@@ -11,7 +11,7 @@ import {
   Edit2, Check, X, ExternalLink, ArrowUpRight,
   ArrowDownRight, Minus, ChevronDown, ChevronUp,
   CreditCard, BookOpen, Image, Clock, LogOut,
-  Brain, Plus, Eye, EyeOff, Trash2, FileText,
+  Brain, Plus, Eye, EyeOff, Trash2, FileText, GripVertical,
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -849,6 +849,8 @@ function KnowledgePage() {
   const [changelogs, setChangelogs] = useState<ChangelogItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<{ open: boolean; item: Partial<KnowledgeItem & ChangelogItem> | null }>({ open: false, item: null });
+  const dragIdx = useRef<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   const loadKnowledge = async () => {
     setLoading(true);
@@ -896,6 +898,27 @@ function KnowledgePage() {
       : { isActive: !(item as KnowledgeItem).isActive };
     await fetch(url, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (isChangelog) loadChangelogs(); else loadKnowledge();
+  };
+
+  const handleDrop = async (dropIdx: number) => {
+    const fromIdx = dragIdx.current;
+    if (fromIdx == null || fromIdx === dropIdx) { setDragOverIdx(null); return; }
+    const reordered = [...knowledge];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(dropIdx, 0, moved);
+    const updated = reordered.map((item, i) => ({ ...item, sortOrder: i + 1 }));
+    setKnowledge(updated);
+    setDragOverIdx(null);
+    dragIdx.current = null;
+    await Promise.all(
+      updated.map(item =>
+        fetch(`${BASE}/api/admin/knowledge/${item.id}`, {
+          method: "PATCH", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sortOrder: item.sortOrder }),
+        })
+      )
+    );
   };
 
   const isChangelog = tab === "changelog";
@@ -950,12 +973,25 @@ function KnowledgePage() {
             <p className="text-sm text-slate-400">暂无{isChangelog ? "版本更新" : "知识条目"}，点击「新增」添加</p>
           </div>
         )}
-        {!loading && items.map(item => {
-          const isKnowledge = !isChangelog;
+        {!loading && (isChangelog ? changelogs : knowledge).map((item, idx) => {
           const active = isChangelog ? (item as ChangelogItem).isPublished : (item as KnowledgeItem).isActive;
+          const isDragTarget = !isChangelog && dragOverIdx === idx;
           return (
-            <div key={item.id} className={`bg-white rounded-xl border transition-colors ${active ? "border-slate-200" : "border-slate-100 opacity-60"}`}>
+            <div key={item.id}
+              draggable={!isChangelog}
+              onDragStart={() => { dragIdx.current = idx; }}
+              onDragOver={e => { if (!isChangelog) { e.preventDefault(); setDragOverIdx(idx); } }}
+              onDragLeave={() => setDragOverIdx(null)}
+              onDrop={() => handleDrop(idx)}
+              onDragEnd={() => { dragIdx.current = null; setDragOverIdx(null); }}
+              className={`bg-white rounded-xl border transition-colors select-none
+                ${active ? "border-slate-200" : "border-slate-100 opacity-60"}
+                ${isDragTarget ? "border-blue-400 ring-2 ring-blue-200" : ""}
+                ${!isChangelog ? "cursor-grab active:cursor-grabbing" : ""}`}>
               <div className="px-4 py-3.5 flex items-start gap-3">
+                {!isChangelog && (
+                  <GripVertical className="w-4 h-4 text-slate-300 mt-0.5 shrink-0 hover:text-slate-400" />
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     {isChangelog && (
@@ -963,7 +999,7 @@ function KnowledgePage() {
                         {(item as ChangelogItem).version}
                       </span>
                     )}
-                    {isKnowledge && (
+                    {!isChangelog && (
                       <span className="text-xs text-slate-400">#{(item as KnowledgeItem).sortOrder}</span>
                     )}
                     <p className="text-sm font-semibold text-slate-900 truncate">{item.title}</p>
