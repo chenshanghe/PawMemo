@@ -14,25 +14,39 @@ import { logSubEvent } from "../lib/sub-events";
 const router = Router();
 router.use(requireAuth);
 
+// Clerk user IDs are always pure ASCII [a-zA-Z0-9_].
+// Map common Unicode confusables (Cyrillic lookalikes) → Latin equivalents so
+// that env vars typed on a CJK/Cyrillic keyboard still compare correctly.
+const CONFUSABLES: Record<string, string> = {
+  "\u0410": "A", "\u0412": "B", "\u0421": "C", "\u0415": "E",
+  "\u0425": "X", "\u041D": "H", "\u0406": "I", "\u041A": "K",
+  "\u041C": "M", "\u041E": "O", "\u0420": "P", "\u0422": "T",
+  "\u0430": "a", "\u0441": "c", "\u0435": "e", "\u0456": "i",
+  "\u043E": "o", "\u0440": "p", "\u0455": "s", "\u0443": "y",
+  "\u0445": "x", "\u0458": "j", "\u0432": "b", "\u0491": "r",
+};
+function toAsciiId(s: string): string {
+  return Array.from(s).map(c => CONFUSABLES[c] ?? c).join("");
+}
+
 function requireAdmin(req: any, res: any): boolean {
   const userId = (req as AuthedRequest).userId;
   const raw = process.env.ADMIN_USER_IDS ?? "";
-  // Strip surrounding quotes that TOML/shell may inject, then split by comma
   const adminIds = raw
     .replace(/^["']|["']$/g, "")
     .split(",")
-    .map(s => s.trim().replace(/^["']|["']$/g, ""))
+    .map(s => toAsciiId(s.trim().replace(/^["']|["']$/g, "")))
     .filter(Boolean);
-  const match = adminIds.includes(userId);
+  const normalizedUserId = toAsciiId(userId);
+  const match = adminIds.includes(normalizedUserId);
   if (!match) {
     res.status(403).json({
       error: "FORBIDDEN",
       userId,
-      userIdLen: userId.length,
-      raw,
-      rawLen: raw.length,
+      normalizedUserId,
       adminIds,
       match,
+      diffAt: raw.split("").map((c, i) => c.charCodeAt(0) > 127 ? { i, c, code: c.charCodeAt(0) } : null).filter(Boolean),
     });
     return false;
   }
