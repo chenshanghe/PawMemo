@@ -9,8 +9,8 @@ export const modules: ModuleMap = {
   "./components/mockups/map-redesign/DesktopView.tsx": () => import("../components/mockups/map-redesign/DesktopView.tsx"),
   "./components/mockups/map-redesign/MobileView.tsx": () => import("../components/mockups/map-redesign/MobileView.tsx"),
   "./components/mockups/me-page/MePage.tsx": () => import("../components/mockups/me-page/MePage.tsx"),
-  "./components/mockups/square-redesign/DesktopView.tsx": () => import("../components/mockups/square-redesign/DesktopView.tsx"),
-  "./components/mockups/square-redesign/MobileView.tsx": () => import("../components/mockups/square-redesign/MobileView.tsx"),
   "./components/mockups/me-redesign/DesktopView.tsx": () => import("../components/mockups/me-redesign/DesktopView.tsx"),
-  "./components/mockups/me-redesign/MobileView.tsx": () => import("../components/mockups/me-redesign/MobileView.tsx")
+  "./components/mockups/me-redesign/MobileView.tsx": () => import("../components/mockups/me-redesign/MobileView.tsx"),
+  "./components/mockups/square-redesign/DesktopView.tsx": () => import("../components/mockups/square-redesign/DesktopView.tsx"),
+  "./components/mockups/square-redesign/MobileView.tsx": () => import("../components/mockups/square-redesign/MobileView.tsx")
 };

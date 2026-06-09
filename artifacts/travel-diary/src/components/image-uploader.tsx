@@ -144,7 +144,7 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
   return (
     <div className={cn("space-y-2", className)}>
       <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleInputChange} />
-      <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif" capture="environment" className="hidden" onChange={handleInputChange} />
+      <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleInputChange} />
 
       {displaySrc ? (
         <div className="relative group rounded-xl overflow-hidden aspect-[3/1] bg-muted/30 shadow-sm">

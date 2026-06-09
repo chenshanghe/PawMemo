@@ -375,7 +375,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
   return (
     <div className={cn("space-y-3", className)}>
       <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleInputChange} />
-      <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif" capture="environment" className="hidden" onChange={handleInputChange} />
+      <input ref={cameraInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleInputChange} />
 
       {/* Aggregate progress summary */}
       {totalCount > 0 && (
