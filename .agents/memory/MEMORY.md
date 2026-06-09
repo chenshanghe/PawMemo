@@ -7,3 +7,4 @@
 - [xunhupay signing algorithm](xunhupay-signing.md) — sign = md5(sortedParams + APPKEY) with NO "&key=" separator; url_qrcode is already a QR image (display directly, don't re-encode).
 - [Vite proxy required for dev API routing](vite-proxy-dev.md) — browser requests all hit Vite (port 18469); without proxy `/api` never reaches Express (port 8080); must add `server.proxy: { "/api": "http://localhost:8080" }` in vite.config.ts.
 - [Canvas image assets must go via .canvas/assets/](canvas-image-upload.md) — canvas rejects arbitrary https URLs for images; copy files to .canvas/assets/ first, then serve via https://<DOMAIN>:5904/filename (no query params, no __mockup base path).
+- [DB package requires tsc --build after schema changes](db-package-build.md) — lib/db uses composite:true + emitDeclarationOnly; api-server uses TS project references → must run `cd lib/db && npx tsc --build` after editing schema files to regenerate dist/*.d.ts used by consumers.

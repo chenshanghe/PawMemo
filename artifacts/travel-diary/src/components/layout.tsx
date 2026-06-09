@@ -7,6 +7,7 @@ import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { NotifPermissionBanner } from "@/components/notif-permission-banner";
 import { InstallBanner } from "@/components/install-banner";
 import { SwUpdateBanner } from "@/components/sw-update-banner";
+import { ChatPanel } from "@/components/chat-panel";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -237,6 +238,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <span className="text-[10px] font-medium">我的</span>
         </Link>
       </nav>
+      <ChatPanel />
     </div>
   );
 }

@@ -20,6 +20,7 @@ import feedbackRouter from "./feedback";
 import safetyRouter from "./safety";
 import downloadsRouter from "./downloads";
 import proxyRouter from "./proxy";
+import chatRouter from "./chat";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(feedbackRouter);
 router.use(safetyRouter);
 router.use(downloadsRouter);
 router.use(proxyRouter);
+router.use("/chat", chatRouter);
 
 export default router;
