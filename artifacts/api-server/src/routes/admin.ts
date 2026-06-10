@@ -606,18 +606,22 @@ router.patch("/reports/:id/resolve", async (req, res) => {
 });
 
 // ── Tier Config ───────────────────────────────────────────────────────────────
-const DEFAULT_TIER_SEED = [
-  { tier: "free",  entries: 20,     photosPerEntry: 3,  aiCompose: 3,   aiEnhance: 5,   aiChat: 30,   styles: 3,      updatedAt: new Date() },
-  { tier: "pro",   entries: 999999, photosPerEntry: 9,  aiCompose: 30,  aiEnhance: 100, aiChat: 500,  styles: 999999, updatedAt: new Date() },
-  { tier: "plus",  entries: 999999, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 1500, styles: 999999, updatedAt: new Date() },
-] as const;
+const TIER_CONFIG_DEFAULTS: Record<string, { entries: number; photosPerEntry: number; aiCompose: number; aiEnhance: number; aiChat: number; styles: number }> = {
+  free: { entries: 20,     photosPerEntry: 3,  aiCompose: 3,   aiEnhance: 5,   aiChat: 30,   styles: 3 },
+  pro:  { entries: 999999, photosPerEntry: 9,  aiCompose: 30,  aiEnhance: 100, aiChat: 500,  styles: 999999 },
+  plus: { entries: 999999, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 1500, styles: 999999 },
+};
 
 router.get("/tier-config", async (req, res) => {
   if (!requireAdmin(req, res)) return;
-  let rows = await db.select().from(tierConfigTable).orderBy(tierConfigTable.tier);
+  res.set("Cache-Control", "no-store");
+  const rows = await db.select().from(tierConfigTable).orderBy(tierConfigTable.tier);
   if (rows.length === 0) {
-    await db.insert(tierConfigTable).values(DEFAULT_TIER_SEED as any).onConflictDoNothing();
-    rows = await db.select().from(tierConfigTable).orderBy(tierConfigTable.tier);
+    const fallback = ["free", "pro", "plus"].map(t => ({
+      tier: t, ...TIER_CONFIG_DEFAULTS[t], updatedAt: new Date(),
+    }));
+    res.json(fallback);
+    return;
   }
   res.json(rows);
 });
@@ -630,11 +634,6 @@ router.patch("/tier-config/:tier", async (req, res) => {
   }
   const allowed = ["entries", "photosPerEntry", "aiCompose", "aiEnhance", "aiChat", "styles"] as const;
   type Field = typeof allowed[number];
-  const colMap: Record<Field, keyof typeof tierConfigTable.$inferInsert> = {
-    entries: "entries", photosPerEntry: "photosPerEntry",
-    aiCompose: "aiCompose", aiEnhance: "aiEnhance",
-    aiChat: "aiChat", styles: "styles",
-  };
   const updates: Partial<Record<Field, number>> = {};
   for (const f of allowed) {
     if (f in req.body && typeof req.body[f] === "number") {
@@ -644,11 +643,14 @@ router.patch("/tier-config/:tier", async (req, res) => {
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "no valid fields" }); return;
   }
-  const [row] = await db.update(tierConfigTable)
-    .set({ ...updates, updatedAt: new Date() })
-    .where(eq(tierConfigTable.tier, tier))
+  const defaults = TIER_CONFIG_DEFAULTS[tier];
+  const [row] = await db.insert(tierConfigTable)
+    .values({ tier, ...defaults, ...updates, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: tierConfigTable.tier,
+      set: { ...updates, updatedAt: new Date() },
+    })
     .returning();
-  if (!row) { res.status(404).json({ error: "not found" }); return; }
   invalidateTierLimitsCache();
   res.json(row);
 });
