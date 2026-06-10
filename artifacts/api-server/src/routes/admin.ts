@@ -218,7 +218,7 @@ router.patch("/users/:id/tier", async (req, res) => {
     .set({ subscriptionTier: tier, subscriptionExpiresAt: newExpiresAt, updatedAt: new Date() })
     .where(eq(userProfilesTable.userId, targetUserId));
 
-  const adminUserId = (req as AuthedRequest).userId;
+  const adminUserId = (req as unknown as AuthedRequest).userId;
   const eventType = tier === "free" ? "downgraded" : (fromTier === "free" ? "upgraded" : "upgraded");
   await logSubEvent({
     userId: targetUserId,
