@@ -805,7 +805,10 @@ function TiersPage() {
   const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch("/api/admin/tier-config").then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); });
+    fetch(`${BASE}/api/admin/tier-config`, { credentials: "include", cache: "no-store" })
+      .then(r => r.json())
+      .then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
   const handleSave = async (tier: string, field: string, value: number) => {
