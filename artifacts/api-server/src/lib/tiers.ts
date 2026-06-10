@@ -18,7 +18,7 @@ const INF = 999999;
 export const TIER_LIMITS: Record<Tier, TierLimits> = {
   free: { entries: 20, photosPerEntry: 3, aiCompose: 3,   aiEnhance: 5,   aiChat: 30,  styles: 3 },
   plus: { entries: INF, photosPerEntry: 9, aiCompose: 30,  aiEnhance: 100, aiChat: 1500, styles: INF },
-  pro:  { entries: INF, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: INF, styles: INF },
+  pro:  { entries: INF, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 500, styles: INF },
 };
 
 export const TIER_NAMES: Record<Tier, string> = {
