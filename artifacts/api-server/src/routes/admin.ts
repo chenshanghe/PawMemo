@@ -606,9 +606,19 @@ router.patch("/reports/:id/resolve", async (req, res) => {
 });
 
 // ── Tier Config ───────────────────────────────────────────────────────────────
+const DEFAULT_TIER_SEED = [
+  { tier: "free",  entries: 20,     photosPerEntry: 3,  aiCompose: 3,   aiEnhance: 5,   aiChat: 30,   styles: 3,      updatedAt: new Date() },
+  { tier: "pro",   entries: 999999, photosPerEntry: 9,  aiCompose: 30,  aiEnhance: 100, aiChat: 500,  styles: 999999, updatedAt: new Date() },
+  { tier: "plus",  entries: 999999, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 1500, styles: 999999, updatedAt: new Date() },
+] as const;
+
 router.get("/tier-config", async (req, res) => {
   if (!requireAdmin(req, res)) return;
-  const rows = await db.select().from(tierConfigTable).orderBy(tierConfigTable.tier);
+  let rows = await db.select().from(tierConfigTable).orderBy(tierConfigTable.tier);
+  if (rows.length === 0) {
+    await db.insert(tierConfigTable).values(DEFAULT_TIER_SEED as any).onConflictDoNothing();
+    rows = await db.select().from(tierConfigTable).orderBy(tierConfigTable.tier);
+  }
   res.json(rows);
 });
 
