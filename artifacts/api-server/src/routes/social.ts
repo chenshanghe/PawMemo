@@ -561,6 +561,8 @@ router.post("/me/profile", requireAuth, async (req, res) => {
   if (hasBio) updateSet.bio = bio.trim() || null;
   if (hasEmail) updateSet.email = email.trim().toLowerCase();
 
+  const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
   const [row] = await db
     .insert(userProfilesTable)
     .values({
@@ -569,6 +571,7 @@ router.post("/me/profile", requireAuth, async (req, res) => {
       avatar: hasAvatar ? avatar : null,
       bio: hasBio ? (bio.trim() || null) : null,
       email: hasEmail ? email.trim().toLowerCase() : null,
+      trialEndsAt,
     })
     .onConflictDoUpdate({
       target: userProfilesTable.userId,
@@ -626,6 +629,15 @@ router.get("/me/profile", requireAuth, async (req, res) => {
       .where(eq(diaryEntriesTable.userId, userId)),
   ]);
 
+  const now = new Date();
+  const trialEndsAt = profile?.trialEndsAt ?? null;
+  const isTrial = profile?.subscriptionTier === "free"
+    && trialEndsAt != null
+    && now < new Date(trialEndsAt);
+  const trialDaysLeft = isTrial
+    ? Math.max(0, Math.ceil((new Date(trialEndsAt!).getTime() - now.getTime()) / 86400000))
+    : 0;
+
   setPrivateCache(res, 60);
   res.json({
     ...profile,
@@ -635,6 +647,9 @@ router.get("/me/profile", requireAuth, async (req, res) => {
     followerCount: followerCount ?? 0,
     likesReceived: likesReceived ?? 0,
     favoritesReceived: favoritesReceived ?? 0,
+    trialEndsAt,
+    isTrial,
+    trialDaysLeft,
   });
 });
 

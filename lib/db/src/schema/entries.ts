@@ -103,6 +103,7 @@ export const userProfilesTable = pgTable("user_profiles", {
   aiChatResetAt: timestamp("ai_chat_reset_at"),
   weeklyDigest: boolean("weekly_digest").notNull().default(false),
   cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+  trialEndsAt: timestamp("trial_ends_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

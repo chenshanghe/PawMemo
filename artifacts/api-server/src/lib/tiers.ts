@@ -78,28 +78,49 @@ function startOfMonth(): Date {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
-export async function getUserTier(userId: string): Promise<{ tier: Tier; limits: TierLimits; profile: typeof userProfilesTable.$inferSelect | null }> {
+export function isInTrial(profile: { subscriptionTier: string; trialEndsAt: Date | null }): boolean {
+  if (profile.subscriptionTier !== "free") return false;
+  if (!profile.trialEndsAt) return false;
+  return new Date() < profile.trialEndsAt;
+}
+
+export function trialDaysLeft(profile: { subscriptionTier: string; trialEndsAt: Date | null }): number {
+  if (!isInTrial(profile)) return 0;
+  return Math.max(0, Math.ceil((profile.trialEndsAt!.getTime() - Date.now()) / 86400000));
+}
+
+export async function getUserTier(userId: string): Promise<{
+  tier: Tier; limits: TierLimits;
+  profile: typeof userProfilesTable.$inferSelect | null;
+  isTrial: boolean; trialDaysLeft: number;
+}> {
   const [[profile], tierLimits] = await Promise.all([
     db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId)),
     getTierLimits(),
   ]);
 
-  if (!profile) return { tier: "free", limits: tierLimits.free, profile: null };
+  if (!profile) return { tier: "free", limits: tierLimits.free, profile: null, isTrial: false, trialDaysLeft: 0 };
 
-  let tier: Tier = "free";
-  if (isValidTier(profile.subscriptionTier) && !isExpired(profile)) {
-    tier = profile.subscriptionTier as Tier;
-  } else if (isExpired(profile)) {
-    await db
-      .update(userProfilesTable)
-      .set({ subscriptionTier: "free", subscriptionExpiresAt: null })
-      .where(eq(userProfilesTable.userId, userId));
-    import("../lib/sub-events").then(m =>
-      m.logSubEvent({ userId, eventType: "expired", fromTier: profile.subscriptionTier, toTier: "free" })
-    ).catch(() => {});
+  const inTrial = isInTrial(profile);
+  const daysLeft = trialDaysLeft(profile);
+
+  let tier: Tier = inTrial ? "pro" : "free";
+
+  if (!inTrial) {
+    if (isValidTier(profile.subscriptionTier) && !isExpired(profile)) {
+      tier = profile.subscriptionTier as Tier;
+    } else if (isExpired(profile)) {
+      await db
+        .update(userProfilesTable)
+        .set({ subscriptionTier: "free", subscriptionExpiresAt: null })
+        .where(eq(userProfilesTable.userId, userId));
+      import("../lib/sub-events").then(m =>
+        m.logSubEvent({ userId, eventType: "expired", fromTier: profile.subscriptionTier, toTier: "free" })
+      ).catch(() => {});
+    }
   }
 
-  return { tier, limits: tierLimits[tier], profile };
+  return { tier, limits: tierLimits[tier], profile, isTrial: inTrial, trialDaysLeft: daysLeft };
 }
 
 export async function checkAndIncrAiCompose(userId: string): Promise<

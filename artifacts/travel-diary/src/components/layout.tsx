@@ -15,6 +15,37 @@ interface SlimProfile {
   name: string;
   bio: string | null;
   avatar: string | null;
+  isTrial: boolean;
+  trialDaysLeft: number;
+}
+
+function TrialBanner({ daysLeft, onDismiss }: { daysLeft: number; onDismiss: () => void }) {
+  const urgent = daysLeft <= 3;
+  const warning = daysLeft <= 7;
+  const bg    = urgent ? "bg-red-50 border-red-200"   : warning ? "bg-amber-50 border-amber-200"   : "bg-blue-50 border-blue-200";
+  const text  = urgent ? "text-red-800"               : warning ? "text-amber-800"                 : "text-blue-800";
+  const badge = urgent ? "bg-red-100 text-red-700"    : warning ? "bg-amber-100 text-amber-700"    : "bg-blue-100 text-blue-700";
+  const btn   = urgent ? "bg-red-600 hover:bg-red-700" : warning ? "bg-amber-500 hover:bg-amber-600" : "bg-blue-600 hover:bg-blue-700";
+
+  return (
+    <div className={`flex items-center gap-2 px-4 py-2.5 border-b text-sm ${bg}`}>
+      <span className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${badge}`}>
+        Pro 试用
+      </span>
+      <p className={`flex-1 min-w-0 truncate ${text}`}>
+        {daysLeft === 0
+          ? "试用期今日到期，升级后继续享受 Pro 权益"
+          : `试用期还剩 ${daysLeft} 天，到期后降回免费版`}
+      </p>
+      <a href={`${BASE}/pricing`}
+        className={`shrink-0 px-3 py-1 rounded-lg text-white text-xs font-semibold transition-colors ${btn}`}>
+        立即升级
+      </a>
+      <button onClick={onDismiss} title="关闭提示" className={`shrink-0 p-1 rounded hover:bg-black/8 transition-colors ${text}`}>
+        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  );
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -24,12 +55,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const [profile, setProfile] = useState<SlimProfile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [trialDismissed, setTrialDismissed] = useState(() =>
+    sessionStorage.getItem("trial_banner_dismissed") === "1"
+  );
+
+  const dismissTrial = () => {
+    sessionStorage.setItem("trial_banner_dismissed", "1");
+    setTrialDismissed(true);
+  };
 
   useEffect(() => {
     if (!isSignedIn) return;
     fetch(`${BASE}/api/me/profile`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) setProfile({ name: d.name, bio: d.bio, avatar: d.avatar }); })
+      .then((d) => {
+        if (d) setProfile({
+          name: d.name, bio: d.bio, avatar: d.avatar,
+          isTrial: d.isTrial ?? false,
+          trialDaysLeft: d.trialDaysLeft ?? 0,
+        });
+      })
       .catch(() => {});
   }, [isSignedIn]);
 
@@ -208,6 +253,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         </div>
+        {profile?.isTrial && !trialDismissed && (
+          <TrialBanner daysLeft={profile.trialDaysLeft} onDismiss={dismissTrial} />
+        )}
         <SwUpdateBanner />
         <NotifPermissionBanner unreadCount={unreadCount} />
         <InstallBanner />
