@@ -12,6 +12,7 @@ import {
   ArrowDownRight, Minus, ChevronDown, ChevronUp,
   CreditCard, BookOpen, Image, Clock, LogOut,
   Brain, Plus, Eye, EyeOff, Trash2, FileText, GripVertical,
+  MessageSquare, Flag, CheckCircle, DollarSign, Zap,
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -37,7 +38,7 @@ interface EventRow {
   userEmail: string | null; userAvatar: string | null;
 }
 
-type Page = "overview" | "users" | "events" | "revenue" | "knowledge" | "tiers";
+type Page = "overview" | "users" | "events" | "revenue" | "knowledge" | "tiers" | "engagement" | "mrr" | "moderation";
 type SortDir = "asc" | "desc";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -82,12 +83,15 @@ function trendPct(data: TrendPoint[]): number | null {
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 const NAV = [
-  { id: "overview", label: "概览", icon: LayoutDashboard },
-  { id: "users", label: "用户", icon: Users },
-  { id: "events", label: "事件日志", icon: Activity },
-  { id: "revenue", label: "收入分析", icon: TrendingUp },
-  { id: "knowledge", label: "AI 知识库", icon: Brain },
-  { id: "tiers", label: "套餐配置", icon: CreditCard },
+  { id: "overview",    label: "概览",    icon: LayoutDashboard },
+  { id: "users",       label: "用户",    icon: Users },
+  { id: "events",      label: "事件日志", icon: Activity },
+  { id: "engagement",  label: "活跃用户", icon: Zap },
+  { id: "mrr",         label: "MRR",     icon: DollarSign },
+  { id: "revenue",     label: "收入分析", icon: TrendingUp },
+  { id: "moderation",  label: "反馈举报", icon: Flag },
+  { id: "knowledge",   label: "AI 知识库", icon: Brain },
+  { id: "tiers",       label: "套餐配置", icon: CreditCard },
 ] as const;
 
 function Sidebar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
@@ -1160,6 +1164,455 @@ function KnowledgePage() {
   );
 }
 
+// ── Engagement Page ───────────────────────────────────────────────────────────
+interface EngagementData {
+  dau: number; wau: number; mau: number; stickiness: number;
+  trend: { day: string; value: number }[];
+}
+
+function EngagementPage() {
+  const [data, setData] = useState<EngagementData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    setLoading(true);
+    apiFetch("/api/admin/engagement").then(d => { setData(d); setLoading(false); });
+  };
+  useEffect(() => { load(); }, []);
+
+  if (loading || !data) {
+    return <div className="flex justify-center py-20"><RefreshCw className="w-5 h-5 animate-spin text-slate-400" /></div>;
+  }
+
+  const stickinessColor = data.stickiness >= 20 ? "text-emerald-600" : data.stickiness >= 10 ? "text-amber-500" : "text-red-500";
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <KpiCard label="DAU（今日活跃）" value={data.dau} icon={Zap} color="bg-blue-500" />
+        <KpiCard label="WAU（7日活跃）"  value={data.wau} icon={Activity} color="bg-violet-500" />
+        <KpiCard label="MAU（30日活跃）" value={data.mau} icon={Users} color="bg-emerald-500" />
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">粘性 DAU/MAU</span>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500">
+              <TrendingUp className="w-4 h-4 text-white" />
+            </div>
+          </div>
+          <p className={`text-2xl font-bold mb-1 ${stickinessColor}`}>{data.stickiness}%</p>
+          <p className="text-xs text-slate-400">
+            {data.stickiness >= 20 ? "健康 ✓（行业均值 ~20%）"
+              : data.stickiness >= 10 ? "一般（目标 >20%）"
+              : "偏低（目标 >10%）"}
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm font-semibold text-slate-700">DAU 趋势（近30天）</p>
+          <button onClick={load} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+          </button>
+        </div>
+        <ResponsiveContainer width="100%" height={200}>
+          <AreaChart data={data.trend} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id="g-dau" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis dataKey="day" tickFormatter={d => d.slice(5)} tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+            <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={24} allowDecimals={false} />
+            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
+              formatter={(v: number) => [v, "DAU"]} labelFormatter={l => l} />
+            <Area type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} fill="url(#g-dau)" dot={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+        <p className="text-xs text-blue-700">
+          活跃用户以「创建旅记」作为活跃信号统计。DAU/MAU 粘性行业基准：社交类 ~25%、工具类 ~10–15%、内容创作类 ~15–20%。
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── MRR Page ──────────────────────────────────────────────────────────────────
+interface MrrData {
+  currentMrr: number; newMrr: number; churnedCount: number;
+  arr: number; arpa: number;
+  mrrTrend: { month: string; value: number }[];
+}
+
+function MrrPage() {
+  const [data, setData] = useState<MrrData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    setLoading(true);
+    apiFetch("/api/admin/mrr").then(d => { setData(d); setLoading(false); });
+  };
+  useEffect(() => { load(); }, []);
+
+  if (loading || !data) {
+    return <div className="flex justify-center py-20"><RefreshCw className="w-5 h-5 animate-spin text-slate-400" /></div>;
+  }
+
+  const yuan = (fen: number) => `¥${(fen / 100).toFixed(0)}`;
+  const yuanDec = (fen: number) => `¥${(fen / 100).toFixed(2)}`;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
+        <div className="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">当前 MRR</span>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-500">
+              <DollarSign className="w-4 h-4 text-white" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-900 mb-1">{yuan(data.currentMrr)}</p>
+          <p className="text-xs text-slate-400">月经常性收入（活跃付费订阅合计）</p>
+        </div>
+        <KpiCard label="ARR 年化收入" value={yuan(data.arr)} icon={TrendingUp} color="bg-violet-500" />
+        <KpiCard label="本月新增 MRR" value={yuan(data.newMrr)} icon={ArrowUpRight} color="bg-blue-500" />
+        <KpiCard label="ARPA 客单价" value={yuanDec(data.arpa)} icon={Users} color="bg-amber-500" />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        {/* MRR trend chart */}
+        <div className="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-semibold text-slate-700">月收入趋势（近12个月，新订单归一化到月均）</p>
+            <button onClick={load} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+              <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+          </div>
+          {data.mrrTrend.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-12">暂无历史数据</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={data.mrrTrend} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="g-mrr" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#10b981" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false}
+                  tickFormatter={v => `¥${(v / 100).toFixed(0)}`} width={48} />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
+                  formatter={(v: number) => [yuan(v), "MRR"]} labelFormatter={l => l} />
+                <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} fill="url(#g-mrr)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Churn + health metrics */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-5">
+          <p className="text-sm font-semibold text-slate-700">本月健康指标</p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm text-slate-600">流失事件</p>
+                <p className="text-xs text-slate-400">取消 + 到期降级</p>
+              </div>
+              <span className={`text-xl font-bold ${data.churnedCount > 0 ? "text-red-500" : "text-emerald-600"}`}>
+                {data.churnedCount}
+              </span>
+            </div>
+            <div className="flex items-center justify-between py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm text-slate-600">新增 MRR</p>
+                <p className="text-xs text-slate-400">首次付费用户贡献</p>
+              </div>
+              <span className="text-xl font-bold text-blue-600">{yuan(data.newMrr)}</span>
+            </div>
+            <div className="flex items-center justify-between py-3">
+              <div>
+                <p className="text-sm text-slate-600">ARPA</p>
+                <p className="text-xs text-slate-400">每付费用户平均月收入</p>
+              </div>
+              <span className="text-xl font-bold text-amber-600">{yuanDec(data.arpa)}</span>
+            </div>
+          </div>
+          <div className="bg-slate-50 rounded-xl px-3 py-2.5">
+            <p className="text-xs text-slate-500 leading-relaxed">
+              MRR = 当前活跃付费订阅月均金额合计。年付订单已按月均摊（÷12）。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Moderation Page ───────────────────────────────────────────────────────────
+type ModTab = "feedback" | "reports";
+
+interface FeedbackRow {
+  id: number; type: string; content: string; resolvedAt: string | null;
+  createdAt: string; userId: string | null; userName: string | null;
+  userEmail: string | null; userAvatar: string | null;
+}
+interface ReportRow {
+  id: number; targetType: string; targetId: string; reason: string;
+  details: string | null; resolvedAt: string | null; createdAt: string;
+  reporterId: string; reporterName: string | null; reporterEmail: string | null;
+}
+
+const FEEDBACK_TYPE_LABEL: Record<string, string> = {
+  bug: "🐛 Bug", feature: "✨ 建议", complaint: "😞 投诉", other: "💬 其他",
+};
+const FEEDBACK_TYPE_BADGE: Record<string, string> = {
+  bug:       "text-red-700 bg-red-50 ring-1 ring-red-200",
+  feature:   "text-blue-700 bg-blue-50 ring-1 ring-blue-200",
+  complaint: "text-orange-700 bg-orange-50 ring-1 ring-orange-200",
+  other:     "text-slate-600 bg-slate-100",
+};
+
+function ModerationPage() {
+  const [tab, setTab] = useState<ModTab>("feedback");
+  const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
+  const [reports, setReports]   = useState<ReportRow[]>([]);
+  const [fbTotal, setFbTotal]   = useState(0);
+  const [rpTotal, setRpTotal]   = useState(0);
+  const [fbPage, setFbPage]     = useState(1);
+  const [rpPage, setRpPage]     = useState(1);
+  const [fbPages, setFbPages]   = useState(1);
+  const [rpPages, setRpPages]   = useState(1);
+  const [fbType, setFbType]     = useState("");
+  const [showResolved, setShowResolved] = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [resolving, setResolving] = useState<number | null>(null);
+
+  const loadFeedback = useCallback(async (p = fbPage, type = fbType, resolved = showResolved) => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(p), resolved: String(resolved) });
+    if (type) params.set("type", type);
+    const d = await apiFetch(`/api/admin/feedback?${params}`);
+    setFeedback(d.feedback ?? []); setFbTotal(d.total ?? 0);
+    setFbPage(d.page ?? 1); setFbPages(d.pages ?? 1);
+    setLoading(false);
+  }, [fbPage, fbType, showResolved]);
+
+  const loadReports = useCallback(async (p = rpPage, resolved = showResolved) => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(p), resolved: String(resolved) });
+    const d = await apiFetch(`/api/admin/reports?${params}`);
+    setReports(d.reports ?? []); setRpTotal(d.total ?? 0);
+    setRpPage(d.page ?? 1); setRpPages(d.pages ?? 1);
+    setLoading(false);
+  }, [rpPage, showResolved]);
+
+  useEffect(() => { loadFeedback(1, fbType, showResolved); }, []);
+  useEffect(() => { loadReports(1, showResolved); }, []);
+
+  const resolveFeedback = async (id: number, undo: boolean) => {
+    setResolving(id);
+    await fetch(`${BASE}/api/admin/feedback/${id}/resolve?undo=${undo}`, { method: "PATCH", credentials: "include" });
+    setResolving(null);
+    loadFeedback(fbPage, fbType, showResolved);
+  };
+
+  const resolveReport = async (id: number, undo: boolean) => {
+    setResolving(id);
+    await fetch(`${BASE}/api/admin/reports/${id}/resolve?undo=${undo}`, { method: "PATCH", credentials: "include" });
+    setResolving(null);
+    loadReports(rpPage, showResolved);
+  };
+
+  const isFb = tab === "feedback";
+
+  return (
+    <div className="space-y-4">
+      {/* Tabs */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center bg-slate-100 rounded-lg p-1">
+          {([["feedback", "用户反馈", MessageSquare], ["reports", "内容举报", Flag]] as const).map(([id, label, Icon]) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === id ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
+              <Icon className="w-3.5 h-3.5" />{label}
+              <span className={`text-[10px] px-1.5 rounded-full font-semibold ml-0.5 ${tab === id ? "bg-slate-100 text-slate-600" : "bg-slate-200 text-slate-400"}`}>
+                {id === "feedback" ? fbTotal : rpTotal}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isFb && (
+            <select value={fbType} onChange={e => { setFbType(e.target.value); loadFeedback(1, e.target.value, showResolved); }}
+              className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none">
+              <option value="">全部类型</option>
+              <option value="bug">Bug</option>
+              <option value="feature">功能建议</option>
+              <option value="complaint">投诉</option>
+              <option value="other">其他</option>
+            </select>
+          )}
+          <label className="flex items-center gap-1.5 text-sm text-slate-600 cursor-pointer select-none">
+            <input type="checkbox" checked={showResolved} onChange={e => {
+              setShowResolved(e.target.checked);
+              if (isFb) loadFeedback(1, fbType, e.target.checked);
+              else loadReports(1, e.target.checked);
+            }} className="rounded" />
+            显示已处理
+          </label>
+          <button onClick={() => isFb ? loadFeedback(fbPage, fbType, showResolved) : loadReports(rpPage, showResolved)}
+            className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
+            <RefreshCw className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+      </div>
+
+      {/* Feedback list */}
+      {isFb && (
+        <div className="space-y-2">
+          {loading && Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-slate-200 px-4 py-4">
+              <div className="h-3 bg-slate-100 rounded animate-pulse w-1/4 mb-2" />
+              <div className="h-4 bg-slate-100 rounded animate-pulse w-3/4" />
+            </div>
+          ))}
+          {!loading && feedback.length === 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 px-4 py-12 text-center">
+              <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm text-slate-400">{showResolved ? "暂无已处理的反馈" : "暂无待处理反馈"}</p>
+            </div>
+          )}
+          {!loading && feedback.map(fb => (
+            <div key={fb.id} className={`bg-white rounded-xl border transition-colors ${fb.resolvedAt ? "border-slate-100 opacity-70" : "border-slate-200"}`}>
+              <div className="px-4 py-3.5 flex gap-3">
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${FEEDBACK_TYPE_BADGE[fb.type] ?? "bg-slate-100 text-slate-600"}`}>
+                      {FEEDBACK_TYPE_LABEL[fb.type] ?? fb.type}
+                    </span>
+                    <span className="text-xs text-slate-400">{fmt(fb.createdAt, { year: "numeric", month: "2-digit", day: "2-digit" })}</span>
+                    {fb.resolvedAt && (
+                      <span className="text-xs text-emerald-600 flex items-center gap-0.5">
+                        <CheckCircle className="w-3 h-3" />已处理 {fmt(fb.resolvedAt, { month: "2-digit", day: "2-digit" })}
+                      </span>
+                    )}
+                    {fb.userName && (
+                      <span className="text-xs text-slate-500 ml-auto">{fb.userName}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{fb.content}</p>
+                </div>
+                <button
+                  disabled={resolving === fb.id}
+                  onClick={() => resolveFeedback(fb.id, !!fb.resolvedAt)}
+                  title={fb.resolvedAt ? "标为未处理" : "标为已处理"}
+                  className={`shrink-0 p-2 rounded-lg transition-colors self-start ${fb.resolvedAt ? "hover:bg-slate-100 text-slate-400" : "hover:bg-emerald-50 text-emerald-500"}`}>
+                  {resolving === fb.id
+                    ? <RefreshCw className="w-4 h-4 animate-spin" />
+                    : <CheckCircle className="w-4 h-4" />
+                  }
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {fbPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500">第 {fbPage} / {fbPages} 页 · 共 {fbTotal} 条</p>
+              <div className="flex items-center gap-1">
+                <button disabled={fbPage <= 1} onClick={() => { setFbPage(p => p - 1); loadFeedback(fbPage - 1, fbType, showResolved); }}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-40 transition-colors">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button disabled={fbPage >= fbPages} onClick={() => { setFbPage(p => p + 1); loadFeedback(fbPage + 1, fbType, showResolved); }}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-40 transition-colors">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reports list */}
+      {!isFb && (
+        <div className="space-y-2">
+          {loading && Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-slate-200 px-4 py-4">
+              <div className="h-3 bg-slate-100 rounded animate-pulse w-1/4 mb-2" />
+              <div className="h-4 bg-slate-100 rounded animate-pulse w-2/3" />
+            </div>
+          ))}
+          {!loading && reports.length === 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 px-4 py-12 text-center">
+              <Flag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm text-slate-400">{showResolved ? "暂无已处理的举报" : "暂无待处理举报"}</p>
+            </div>
+          )}
+          {!loading && reports.map(rp => (
+            <div key={rp.id} className={`bg-white rounded-xl border transition-colors ${rp.resolvedAt ? "border-slate-100 opacity-70" : "border-orange-200"}`}>
+              <div className="px-4 py-3.5 flex gap-3">
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium text-orange-700 bg-orange-50 ring-1 ring-orange-200">
+                      举报 {rp.targetType === "entry" ? "日记" : rp.targetType === "comment" ? "评论" : "用户"}
+                    </span>
+                    <span className="text-xs font-mono text-slate-400">#{rp.targetId.slice(0, 12)}</span>
+                    <span className="text-xs text-slate-400">{fmt(rp.createdAt, { year: "numeric", month: "2-digit", day: "2-digit" })}</span>
+                    {rp.resolvedAt && (
+                      <span className="text-xs text-emerald-600 flex items-center gap-0.5">
+                        <CheckCircle className="w-3 h-3" />已处理 {fmt(rp.resolvedAt, { month: "2-digit", day: "2-digit" })}
+                      </span>
+                    )}
+                    {rp.reporterName && (
+                      <span className="text-xs text-slate-500 ml-auto">举报人：{rp.reporterName}</span>
+                    )}
+                  </div>
+                  <p className="text-sm font-medium text-slate-800">原因：{rp.reason}</p>
+                  {rp.details && <p className="text-xs text-slate-500 leading-relaxed">{rp.details}</p>}
+                </div>
+                <button
+                  disabled={resolving === rp.id}
+                  onClick={() => resolveReport(rp.id, !!rp.resolvedAt)}
+                  title={rp.resolvedAt ? "撤销处理" : "标为已处理"}
+                  className={`shrink-0 p-2 rounded-lg transition-colors self-start ${rp.resolvedAt ? "hover:bg-slate-100 text-slate-400" : "hover:bg-emerald-50 text-emerald-500"}`}>
+                  {resolving === rp.id
+                    ? <RefreshCw className="w-4 h-4 animate-spin" />
+                    : <CheckCircle className="w-4 h-4" />
+                  }
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {rpPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500">第 {rpPage} / {rpPages} 页 · 共 {rpTotal} 条</p>
+              <div className="flex items-center gap-1">
+                <button disabled={rpPage <= 1} onClick={() => { setRpPage(p => p - 1); loadReports(rpPage - 1, showResolved); }}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-40 transition-colors">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button disabled={rpPage >= rpPages} onClick={() => { setRpPage(p => p + 1); loadReports(rpPage + 1, showResolved); }}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-40 transition-colors">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -1210,7 +1663,9 @@ export default function AdminPage() {
   }
 
   const pageTitle: Record<Page, string> = {
-    overview: "概览", users: "用户管理", events: "事件日志", revenue: "收入分析", knowledge: "AI 知识库", tiers: "套餐配置",
+    overview: "概览", users: "用户管理", events: "事件日志", revenue: "收入分析",
+    knowledge: "AI 知识库", tiers: "套餐配置",
+    engagement: "活跃用户", mrr: "MRR 分析", moderation: "反馈与举报",
   };
 
   return (
@@ -1238,11 +1693,14 @@ export default function AdminPage() {
           {page === "overview" && stats && (
             <OverviewPage stats={stats} trends={trends} events={recentEvents} />
           )}
-          {page === "users" && <UsersPage />}
-          {page === "events" && <EventsPage />}
-          {page === "revenue" && stats && <RevenuePage stats={stats} trends={trends} />}
-          {page === "knowledge" && <KnowledgePage />}
-          {page === "tiers" && <TiersPage />}
+          {page === "users"      && <UsersPage />}
+          {page === "events"     && <EventsPage />}
+          {page === "revenue"    && stats && <RevenuePage stats={stats} trends={trends} />}
+          {page === "knowledge"  && <KnowledgePage />}
+          {page === "tiers"      && <TiersPage />}
+          {page === "engagement" && <EngagementPage />}
+          {page === "mrr"        && <MrrPage />}
+          {page === "moderation" && <ModerationPage />}
         </div>
       </main>
     </div>

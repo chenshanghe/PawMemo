@@ -9,8 +9,10 @@ import {
   appKnowledgeTable,
   appChangelogsTable,
   tierConfigTable,
+  feedbackTable,
+  contentReportsTable,
 } from "@workspace/db";
-import { eq, desc, asc, ilike, or, count, sql, and, gte, lte } from "drizzle-orm";
+import { eq, desc, asc, ilike, or, count, sql, and, gte, lte, isNull, isNotNull } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { logSubEvent } from "../lib/sub-events";
 
@@ -399,6 +401,207 @@ router.patch("/tier-config/:tier", async (req, res) => {
   const { invalidateTierLimitsCache } = await import("../lib/tiers");
   invalidateTierLimitsCache();
   res.json(row);
+});
+
+// ── GET /api/admin/engagement ─────────────────────────────────────────────────
+router.get("/engagement", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekAgo  = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000);
+  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const [dauRow, wauRow, mauRow, trendRows] = await Promise.all([
+    db.execute(sql`SELECT COUNT(DISTINCT user_id)::int AS cnt FROM diary_entries WHERE created_at >= ${todayStart} AND user_id IS NOT NULL`),
+    db.execute(sql`SELECT COUNT(DISTINCT user_id)::int AS cnt FROM diary_entries WHERE created_at >= ${weekAgo}  AND user_id IS NOT NULL`),
+    db.execute(sql`SELECT COUNT(DISTINCT user_id)::int AS cnt FROM diary_entries WHERE created_at >= ${monthAgo} AND user_id IS NOT NULL`),
+    db.execute(sql`
+      SELECT DATE(created_at AT TIME ZONE 'UTC') AS day, COUNT(DISTINCT user_id)::int AS dau
+      FROM diary_entries WHERE created_at >= ${monthAgo} AND user_id IS NOT NULL
+      GROUP BY 1 ORDER BY 1
+    `),
+  ]);
+
+  const dau = (dauRow.rows[0] as any)?.cnt ?? 0;
+  const wau = (wauRow.rows[0] as any)?.cnt ?? 0;
+  const mau = (mauRow.rows[0] as any)?.cnt ?? 0;
+  const stickiness = mau > 0 ? Math.round((dau / mau) * 100) : 0;
+
+  const dauMap = new Map((trendRows.rows as any[]).map(r => [r.day as string, r.dau as number]));
+  const trend: { day: string; value: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const key = d.toISOString().slice(0, 10);
+    trend.push({ day: key, value: dauMap.get(key) ?? 0 });
+  }
+
+  res.json({ dau, wau, mau, stickiness, trend });
+});
+
+// ── GET /api/admin/mrr ────────────────────────────────────────────────────────
+router.get("/mrr", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [currentMrrRow, newMrrRow, churnRow, mrrTrendRows, arpaRow] = await Promise.all([
+    // Current MRR: active paid subscriptions, annual normalised to monthly
+    db.execute(sql`
+      SELECT COALESCE(SUM(
+        CASE WHEN period = 'yearly' THEN amount_cents::float / 12
+             ELSE amount_cents::float END
+      ), 0)::int AS mrr_cents
+      FROM subscription_orders
+      WHERE status = 'paid' AND expires_at > NOW()
+    `),
+    // New MRR this month: upgrades from free
+    db.execute(sql`
+      SELECT COALESCE(SUM(
+        CASE WHEN o.period = 'yearly' THEN o.amount_cents::float / 12
+             ELSE o.amount_cents::float END
+      ), 0)::int AS mrr_cents
+      FROM subscription_orders o
+      JOIN subscription_events e ON e.order_no = o.out_trade_no
+      WHERE e.event_type = 'upgraded' AND e.from_tier = 'free' AND e.created_at >= ${startOfMonth}
+    `),
+    // Churn events this month
+    db.execute(sql`
+      SELECT COUNT(*)::int AS cnt
+      FROM subscription_events
+      WHERE event_type IN ('cancelled','expired') AND created_at >= ${startOfMonth}
+    `),
+    // 12-month revenue trend (new orders by month, normalised)
+    db.execute(sql`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', created_at AT TIME ZONE 'UTC'), 'YYYY-MM') AS month,
+        COALESCE(SUM(
+          CASE WHEN period = 'yearly' THEN amount_cents::float / 12
+               ELSE amount_cents::float END
+        ), 0)::int AS mrr_cents
+      FROM subscription_orders
+      WHERE status = 'paid' AND created_at >= NOW() - INTERVAL '12 months'
+      GROUP BY 1 ORDER BY 1
+    `),
+    // ARPA: current MRR / paid user count
+    db.execute(sql`SELECT COUNT(*)::int AS paid_count FROM user_profiles WHERE subscription_tier != 'free'`),
+  ]);
+
+  const currentMrr   = (currentMrrRow.rows[0] as any)?.mrr_cents ?? 0;
+  const newMrr       = (newMrrRow.rows[0] as any)?.mrr_cents ?? 0;
+  const churnedCount = (churnRow.rows[0] as any)?.cnt ?? 0;
+  const paidCount    = (arpaRow.rows[0] as any)?.paid_count ?? 0;
+  const arpa         = paidCount > 0 ? Math.round(currentMrr / paidCount) : 0;
+  const arr          = currentMrr * 12;
+
+  res.json({
+    currentMrr, newMrr, churnedCount, arr, arpa,
+    mrrTrend: (mrrTrendRows.rows as any[]).map(r => ({ month: r.month as string, value: r.mrr_cents as number })),
+  });
+});
+
+// ── GET /api/admin/feedback ───────────────────────────────────────────────────
+router.get("/feedback", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const page  = Math.max(1, Number(req.query.page ?? 1));
+  const limit = 30;
+  const offset = (page - 1) * limit;
+  const typeFilter   = typeof req.query.type === "string" ? req.query.type : "";
+  const resolvedFlag = req.query.resolved;
+
+  const conds: any[] = [];
+  if (typeFilter) conds.push(eq(feedbackTable.type, typeFilter));
+  if (resolvedFlag === "true")  conds.push(isNotNull(feedbackTable.resolvedAt));
+  if (resolvedFlag === "false") conds.push(isNull(feedbackTable.resolvedAt));
+  const where = conds.length ? and(...conds) : undefined;
+
+  const [rows, [{ total }]] = await Promise.all([
+    db.select({
+      id: feedbackTable.id,
+      type: feedbackTable.type,
+      content: feedbackTable.content,
+      resolvedAt: feedbackTable.resolvedAt,
+      createdAt: feedbackTable.createdAt,
+      userId: feedbackTable.userId,
+      userName: userProfilesTable.name,
+      userEmail: userProfilesTable.email,
+      userAvatar: userProfilesTable.avatar,
+    })
+    .from(feedbackTable)
+    .leftJoin(userProfilesTable, eq(feedbackTable.userId, userProfilesTable.userId))
+    .where(where)
+    .orderBy(desc(feedbackTable.createdAt))
+    .limit(limit).offset(offset),
+    db.select({ total: count() }).from(feedbackTable).where(where),
+  ]);
+
+  res.json({ feedback: rows, total: Number(total), page, pages: Math.ceil(Number(total) / limit) });
+});
+
+router.patch("/feedback/:id/resolve", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const id = Number(req.params.id as string);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "invalid id" }); return; }
+  const undo = req.query.undo === "true";
+  const [row] = await db.update(feedbackTable)
+    .set({ resolvedAt: undo ? null : new Date() })
+    .where(eq(feedbackTable.id, id))
+    .returning();
+  if (!row) { res.status(404).json({ error: "not found" }); return; }
+  res.json({ ok: true });
+});
+
+// ── GET /api/admin/reports ────────────────────────────────────────────────────
+router.get("/reports", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const page  = Math.max(1, Number(req.query.page ?? 1));
+  const limit = 30;
+  const offset = (page - 1) * limit;
+  const resolvedFlag = req.query.resolved;
+
+  const conds: any[] = [];
+  if (resolvedFlag === "true")  conds.push(isNotNull(contentReportsTable.resolvedAt));
+  if (resolvedFlag === "false") conds.push(isNull(contentReportsTable.resolvedAt));
+  const where = conds.length ? and(...conds) : undefined;
+
+  const [rows, [{ total }]] = await Promise.all([
+    db.select({
+      id: contentReportsTable.id,
+      targetType: contentReportsTable.targetType,
+      targetId: contentReportsTable.targetId,
+      reason: contentReportsTable.reason,
+      details: contentReportsTable.details,
+      resolvedAt: contentReportsTable.resolvedAt,
+      createdAt: contentReportsTable.createdAt,
+      reporterId: contentReportsTable.reporterId,
+      reporterName: userProfilesTable.name,
+      reporterEmail: userProfilesTable.email,
+    })
+    .from(contentReportsTable)
+    .leftJoin(userProfilesTable, eq(contentReportsTable.reporterId, userProfilesTable.userId))
+    .where(where)
+    .orderBy(desc(contentReportsTable.createdAt))
+    .limit(limit).offset(offset),
+    db.select({ total: count() }).from(contentReportsTable).where(where),
+  ]);
+
+  res.json({ reports: rows, total: Number(total), page, pages: Math.ceil(Number(total) / limit) });
+});
+
+router.patch("/reports/:id/resolve", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const id = Number(req.params.id as string);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: "invalid id" }); return; }
+  const undo = req.query.undo === "true";
+  const [row] = await db.update(contentReportsTable)
+    .set({ resolvedAt: undo ? null : new Date() })
+    .where(eq(contentReportsTable.id, id))
+    .returning();
+  if (!row) { res.status(404).json({ error: "not found" }); return; }
+  res.json({ ok: true });
 });
 
 export default router;

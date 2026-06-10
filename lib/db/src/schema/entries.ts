@@ -265,6 +265,7 @@ export const feedbackTable = pgTable("feedback", {
   userId: text("user_id"),
   type: text("type").notNull().default("other"),
   content: text("content").notNull(),
+  resolvedAt: timestamp("resolved_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -290,6 +291,7 @@ export const contentReportsTable = pgTable("content_reports", {
   targetId: text("target_id").notNull(),
   reason: text("reason").notNull(),
   details: text("details"),
+  resolvedAt: timestamp("resolved_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
