@@ -128,7 +128,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Compass className="w-4.5 h-4.5" />随记
           </Link>
           <Link href="/entries" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isEntries ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
-            <BookText className="w-4.5 h-4.5" />旅记
+            <BookText className="w-4.5 h-4.5" />选集
           </Link>
           <Link href="/map" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isMap ? "bg-primary/12 text-primary font-semibold" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}>
             <Map className="w-4.5 h-4.5" />足迹地图
@@ -270,7 +270,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <Compass className="w-5 h-5" /><span className="text-[10px] font-medium">随记</span>
         </Link>
         <Link href="/entries" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isEntries ? "text-primary" : "text-muted-foreground"}`}>
-          <BookText className="w-5 h-5" /><span className="text-[10px] font-medium">旅记</span>
+          <BookText className="w-5 h-5" /><span className="text-[10px] font-medium">选集</span>
         </Link>
         <Link href="/map" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isMap ? "text-primary" : "text-muted-foreground"}`}>
           <Globe className="w-5 h-5" /><span className="text-[10px] font-medium">地图</span>
