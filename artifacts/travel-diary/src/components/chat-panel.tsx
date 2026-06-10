@@ -3,7 +3,8 @@ import { useAuth } from "@clerk/react";
 import { Link } from "wouter";
 import {
   MessageCircle, X, Plus, Trash2, Volume2, Square, Copy, Send,
-  ChevronDown, Check, Loader2, Sparkles, Eraser,
+  ChevronDown, Check, Loader2, Sparkles, Eraser, Pencil, Share2,
+  Paperclip, FileText, ImageIcon,
 } from "lucide-react";
 import { UpgradeDialog, type QuotaCode } from "@/components/upgrade-dialog";
 
@@ -27,6 +28,7 @@ interface ChatMessage {
   entryCards?: EntryCard[];
   photos?: Photo[];
 }
+interface Attachment { name: string; type: string; size: number }
 
 const QUICK_QUESTIONS = [
   "我去过哪些城市？",
@@ -61,6 +63,7 @@ export function ChatPanel() {
   const [activeConvId, setActiveConvId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [showConvMenu, setShowConvMenu] = useState(false);
@@ -69,12 +72,17 @@ export function ChatPanel() {
   const [lightbox, setLightbox] = useState<{ photos: Photo[]; idx: number } | null>(null);
   const [loadingConv, setLoadingConv] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [sharedConvId, setSharedConvId] = useState<number | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -168,6 +176,22 @@ export function ChatPanel() {
     if (activeConvId === id) { setActiveConvId(null); setMessages([]); }
   }, [activeConvId]);
 
+  const renameConversation = useCallback(async (id: number, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) { setRenamingId(null); return; }
+    const r = await fetch(`${BASE}/api/chat/conversations/${id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: trimmed }),
+    });
+    if (r.ok) {
+      const updated: Conversation = await r.json();
+      setConvList(prev => prev.map(c => c.id === id ? updated : c));
+    }
+    setRenamingId(null);
+  }, []);
+
   const clearMessages = useCallback(async () => {
     if (!activeConvId || clearing) return;
     setClearing(true);
@@ -177,6 +201,23 @@ export function ChatPanel() {
       setMessages([]);
     } finally { setClearing(false); }
   }, [activeConvId, clearing]);
+
+  const shareConversation = useCallback(async (id: number) => {
+    const r = await fetch(`${BASE}/api/chat/conversations/${id}/messages`, { credentials: "include" });
+    if (!r.ok) return;
+    const raw = await r.json();
+    const lines: string[] = [];
+    const conv = convList.find(c => c.id === id);
+    if (conv) lines.push(`# ${conv.title}`, "");
+    for (const m of raw) {
+      const prefix = m.role === "user" ? "我：" : "AI 助手：";
+      lines.push(prefix + m.content, "");
+    }
+    await navigator.clipboard.writeText(lines.join("\n")).catch(() => {});
+    setSharedConvId(id);
+    setTimeout(() => setSharedConvId(null), 2000);
+    setShowConvMenu(false);
+  }, [convList]);
 
   const handleOpen = useCallback(async () => {
     if (!proChecked) {
@@ -193,9 +234,27 @@ export function ChatPanel() {
     }
   }, [open, proChecked, activeConvId, convList, loadMessages]);
 
+  // Focus rename input when it appears
+  useEffect(() => {
+    if (renamingId !== null) setTimeout(() => renameInputRef.current?.focus(), 30);
+  }, [renamingId]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const newAttachments: Attachment[] = files.map(f => ({ name: f.name, type: f.type, size: f.size }));
+    setAttachments(prev => [...prev, ...newAttachments].slice(0, 5));
+    e.target.value = "";
+  };
+
+  const removeAttachment = (idx: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text || streaming) return;
+    if (!text && attachments.length === 0) return;
+    if (streaming) return;
 
     let convId = activeConvId;
     if (!convId) {
@@ -203,9 +262,19 @@ export function ChatPanel() {
       if (!convId) return;
     }
 
-    const userMsg: ChatMessage = { id: Date.now(), role: "user", content: text };
+    // Build the message content with optional attachment context
+    let content = text;
+    if (attachments.length > 0) {
+      const names = attachments.map(a => a.name).join("、");
+      content = text
+        ? `[附件：${names}]\n${text}`
+        : `[附件：${names}]`;
+    }
+
+    const userMsg: ChatMessage = { id: Date.now(), role: "user", content };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
+    setAttachments([]);
     if (inputRef.current) { inputRef.current.style.height = "auto"; }
     setStreaming(true);
     setStreamingText("");
@@ -219,7 +288,7 @@ export function ChatPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({ content }),
         signal: abortRef.current.signal,
       });
 
@@ -292,7 +361,7 @@ export function ChatPanel() {
       setStreamingText("");
       abortRef.current = null;
     }
-  }, [input, streaming, activeConvId, createConversation, fetchConversations, fetchUsage, scrollToBottom]);
+  }, [input, attachments, streaming, activeConvId, createConversation, fetchConversations, fetchUsage, scrollToBottom]);
 
   const handleStop = () => { abortRef.current?.abort(); };
 
@@ -327,7 +396,6 @@ export function ChatPanel() {
       audio.onerror = () => { setSpeakingId(null); URL.revokeObjectURL(url); };
       audio.play().catch(() => setSpeakingId(null));
     } catch {
-      // fallback to browser TTS
       window.speechSynthesis.cancel();
       const utt = new SpeechSynthesisUtterance(content.slice(0, 500));
       utt.lang = "zh-CN";
@@ -356,7 +424,7 @@ export function ChatPanel() {
       {/* Floating button */}
       <button
         onClick={handleOpen}
-        aria-label="AI 日记助手"
+        aria-label="AI 助手"
         className={`fixed z-50 flex items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 active:scale-95 transition-all ${isMobile ? "bottom-[5.5rem] right-4" : "bottom-6 right-6"} ${open ? "opacity-0 pointer-events-none" : ""}`}
       >
         <MessageCircle className="w-5 h-5" />
@@ -395,7 +463,7 @@ export function ChatPanel() {
                 onClick={() => setShowConvMenu(v => !v)}
                 className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors max-w-full"
               >
-                <span className="truncate">{activeConv?.title ?? "AI 日记助手"}</span>
+                <span className="truncate">{activeConv?.title ?? "AI 助手"}</span>
                 <ChevronDown className="w-3.5 h-3.5 shrink-0" />
               </button>
               {usage && usage.limit < 999999 && (
@@ -403,8 +471,11 @@ export function ChatPanel() {
                   本月剩余 {Math.max(0, usage.limit - usage.used)}/{usage.limit} 次
                 </p>
               )}
+
+              {/* Conversation dropdown */}
               {showConvMenu && (
-                <div className="absolute top-full left-0 mt-1 w-64 bg-popover border border-border rounded-xl shadow-lg z-10 py-1 max-h-72 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-1 w-72 bg-popover border border-border rounded-xl shadow-lg z-10 py-1 max-h-80 overflow-y-auto">
+                  {/* Actions */}
                   <button
                     onClick={async () => { setShowConvMenu(false); await createConversation(); }}
                     className="flex items-center gap-2 w-full px-3 py-2 text-sm text-primary hover:bg-primary/5 transition-colors"
@@ -412,29 +483,79 @@ export function ChatPanel() {
                     <Plus className="w-4 h-4" />新建对话
                   </button>
                   {activeConvId && (
-                    <button
-                      onClick={clearMessages}
-                      disabled={clearing}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
-                    >
-                      <Eraser className="w-4 h-4" />清空当前对话
-                    </button>
+                    <>
+                      <button
+                        onClick={clearMessages}
+                        disabled={clearing}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+                      >
+                        <Eraser className="w-4 h-4" />清空当前对话消息
+                      </button>
+                      <button
+                        onClick={() => shareConversation(activeConvId)}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+                      >
+                        {sharedConvId === activeConvId
+                          ? <><Check className="w-4 h-4 text-green-500" />已复制到剪贴板</>
+                          : <><Share2 className="w-4 h-4" />分享当前对话</>
+                        }
+                      </button>
+                    </>
                   )}
                   <div className="h-px bg-border/40 my-1" />
+
+                  {/* Conversation list */}
                   {convList.map(c => (
-                    <div key={c.id} className="flex items-center group">
-                      <button
-                        onClick={() => switchConv(c)}
-                        className={`flex-1 text-left px-3 py-2 text-sm truncate hover:bg-muted/60 transition-colors ${c.id === activeConvId ? "text-primary font-medium" : "text-foreground"}`}
-                      >
-                        {c.title}
-                      </button>
-                      <button
-                        onClick={() => deleteConversation(c.id)}
-                        className="opacity-0 group-hover:opacity-100 px-2 py-2 text-muted-foreground hover:text-destructive transition-all"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <div key={c.id} className={`flex items-center group rounded-lg mx-1 ${c.id === activeConvId ? "bg-primary/5" : ""}`}>
+                      {renamingId === c.id ? (
+                        <input
+                          ref={renameInputRef}
+                          value={renameDraft}
+                          onChange={e => setRenameDraft(e.target.value)}
+                          onBlur={() => renameConversation(c.id, renameDraft)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") renameConversation(c.id, renameDraft);
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                          className="flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none"
+                          maxLength={50}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => switchConv(c)}
+                          onDoubleClick={() => { setRenamingId(c.id); setRenameDraft(c.title); }}
+                          className={`flex-1 text-left px-3 py-2 text-sm truncate transition-colors ${c.id === activeConvId ? "text-primary font-medium" : "text-foreground hover:text-primary"}`}
+                        >
+                          {c.title}
+                        </button>
+                      )}
+                      {/* Row action buttons */}
+                      <div className="opacity-0 group-hover:opacity-100 flex items-center pr-1.5 gap-0.5 transition-opacity shrink-0">
+                        <button
+                          onClick={() => { setRenamingId(c.id); setRenameDraft(c.title); }}
+                          title="重命名"
+                          className="p-1.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => shareConversation(c.id)}
+                          title="分享"
+                          className="p-1.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          {sharedConvId === c.id
+                            ? <Check className="w-3 h-3 text-green-500" />
+                            : <Share2 className="w-3 h-3" />
+                          }
+                        </button>
+                        <button
+                          onClick={() => deleteConversation(c.id)}
+                          title="删除"
+                          className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {convList.length === 0 && (
@@ -443,6 +564,7 @@ export function ChatPanel() {
                 </div>
               )}
             </div>
+
             <button
               onClick={async () => { const id = await createConversation(); if (id) setMessages([]); }}
               title="新建对话"
@@ -459,7 +581,7 @@ export function ChatPanel() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" onClick={() => setShowConvMenu(false)}>
             {loadingConv && (
               <div className="flex justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -503,7 +625,7 @@ export function ChatPanel() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
+          {/* Input area */}
           <div className="shrink-0 px-4 py-3 border-t border-border/40 bg-background">
             {usage && usage.limit < 999999 && usage.used >= usage.limit ? (
               <div className="rounded-xl bg-muted/60 px-4 py-3 text-center space-y-2">
@@ -516,40 +638,77 @@ export function ChatPanel() {
                 </button>
               </div>
             ) : (
-              <div className="flex gap-2 items-end">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="问问你的旅行日记…"
-                  rows={1}
-                  disabled={streaming}
-                  className="flex-1 resize-none rounded-xl border border-border/60 bg-muted/30 px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 disabled:opacity-50 max-h-28 leading-relaxed"
-                  style={{ minHeight: "42px" }}
-                  onInput={e => {
-                    const t = e.currentTarget;
-                    t.style.height = "auto";
-                    t.style.height = Math.min(t.scrollHeight, 112) + "px";
-                  }}
-                />
-                {streaming ? (
-                  <button
-                    onClick={handleStop}
-                    title="停止生成"
-                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors shrink-0"
-                  >
-                    <Square className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSend}
-                    disabled={!input.trim()}
-                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-all active:scale-95 shrink-0"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
+              <div className="space-y-2">
+                {/* Attachment chips */}
+                {attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {attachments.map((att, i) => (
+                      <div key={i} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/60 border border-border/50 text-xs text-foreground max-w-[160px]">
+                        {att.type.startsWith("image/")
+                          ? <ImageIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+                          : <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
+                        }
+                        <span className="truncate">{att.name}</span>
+                        <button onClick={() => removeAttachment(i)} className="shrink-0 text-muted-foreground hover:text-destructive">
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
+                {/* Input row */}
+                <div className="flex gap-2 items-end">
+                  {/* Upload button */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={streaming || attachments.length >= 5}
+                    title="上传附件"
+                    className="flex items-center justify-center w-10 h-10 rounded-xl border border-border/60 bg-muted/30 text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 disabled:opacity-40 transition-colors shrink-0"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.txt,.md"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="问问你的旅行日记…"
+                    rows={1}
+                    disabled={streaming}
+                    className="flex-1 resize-none rounded-xl border border-border/60 bg-muted/30 px-3.5 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 disabled:opacity-50 max-h-28 leading-relaxed"
+                    style={{ minHeight: "42px" }}
+                    onInput={e => {
+                      const t = e.currentTarget;
+                      t.style.height = "auto";
+                      t.style.height = Math.min(t.scrollHeight, 112) + "px";
+                    }}
+                  />
+                  {streaming ? (
+                    <button
+                      onClick={handleStop}
+                      title="停止生成"
+                      className="flex items-center justify-center w-10 h-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors shrink-0"
+                    >
+                      <Square className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSend}
+                      disabled={!input.trim() && attachments.length === 0}
+                      className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-all active:scale-95 shrink-0"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -576,7 +735,7 @@ function EmptyState({ onQuestion }: { onQuestion: (q: string) => void }) {
         <Sparkles className="w-6 h-6 text-primary" />
       </div>
       <div className="text-center">
-        <p className="text-sm font-medium text-foreground">AI 日记助手</p>
+        <p className="text-sm font-medium text-foreground">AI 助手</p>
         <p className="text-xs text-muted-foreground mt-1">用自然语言查找和回忆你的旅行记录</p>
       </div>
       <div className="flex flex-wrap gap-2 justify-center mt-1">
