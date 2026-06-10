@@ -15,6 +15,7 @@ import {
 import { eq, desc, asc, ilike, or, count, sql, and, gte, lte, isNull, isNotNull } from "drizzle-orm";
 import { requireAuth, AuthedRequest } from "../middlewares/auth";
 import { logSubEvent } from "../lib/sub-events";
+import { invalidateTierLimitsCache } from "../lib/tiers";
 
 const router = Router();
 router.use(requireAuth);
@@ -602,6 +603,44 @@ router.patch("/reports/:id/resolve", async (req, res) => {
     .returning();
   if (!row) { res.status(404).json({ error: "not found" }); return; }
   res.json({ ok: true });
+});
+
+// ── Tier Config ───────────────────────────────────────────────────────────────
+router.get("/tier-config", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const rows = await db.select().from(tierConfigTable).orderBy(tierConfigTable.tier);
+  res.json(rows);
+});
+
+router.patch("/tier-config/:tier", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const tier = req.params.tier as string;
+  if (!["free", "pro", "plus"].includes(tier)) {
+    res.status(400).json({ error: "invalid tier" }); return;
+  }
+  const allowed = ["entries", "photosPerEntry", "aiCompose", "aiEnhance", "aiChat", "styles"] as const;
+  type Field = typeof allowed[number];
+  const colMap: Record<Field, keyof typeof tierConfigTable.$inferInsert> = {
+    entries: "entries", photosPerEntry: "photosPerEntry",
+    aiCompose: "aiCompose", aiEnhance: "aiEnhance",
+    aiChat: "aiChat", styles: "styles",
+  };
+  const updates: Partial<Record<Field, number>> = {};
+  for (const f of allowed) {
+    if (f in req.body && typeof req.body[f] === "number") {
+      updates[f] = Math.max(0, Math.round(req.body[f]));
+    }
+  }
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "no valid fields" }); return;
+  }
+  const [row] = await db.update(tierConfigTable)
+    .set({ ...updates, updatedAt: new Date() })
+    .where(eq(tierConfigTable.tier, tier))
+    .returning();
+  if (!row) { res.status(404).json({ error: "not found" }); return; }
+  invalidateTierLimitsCache();
+  res.json(row);
 });
 
 export default router;
