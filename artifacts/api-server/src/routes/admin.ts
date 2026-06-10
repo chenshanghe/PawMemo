@@ -372,37 +372,7 @@ router.delete("/changelogs/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
-// ── Tier Config CRUD ──────────────────────────────────────────────────────────
-router.get("/tier-config", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
-  const rows = await db.select().from(tierConfigTable);
-  res.json(rows);
-});
-
-router.patch("/tier-config/:tier", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
-  const tier = req.params.tier as string;
-  if (!["free", "plus", "pro"].includes(tier)) {
-    res.status(400).json({ error: "tier must be free, plus or pro" }); return;
-  }
-  const fields = ["entries", "photosPerEntry", "aiCompose", "aiEnhance", "aiChat", "styles"] as const;
-  const updates: Record<string, unknown> = { updatedAt: new Date() };
-  for (const f of fields) {
-    if (req.body[f] !== undefined) {
-      const v = Number(req.body[f]);
-      if (!Number.isFinite(v) || v < 0) {
-        res.status(400).json({ error: `${f} must be a non-negative number` }); return;
-      }
-      updates[f] = Math.round(v);
-    }
-  }
-  const [row] = await db.update(tierConfigTable).set(updates).where(eq(tierConfigTable.tier, tier)).returning();
-  if (!row) { res.status(404).json({ error: "not found" }); return; }
-  // Invalidate in-process cache
-  const { invalidateTierLimitsCache } = await import("../lib/tiers");
-  invalidateTierLimitsCache();
-  res.json(row);
-});
+// ── Tier Config CRUD ── (real routes below, near TIER_CONFIG_DEFAULTS)
 
 // ── GET /api/admin/engagement ─────────────────────────────────────────────────
 router.get("/engagement", async (req, res) => {
