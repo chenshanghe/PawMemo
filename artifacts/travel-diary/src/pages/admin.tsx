@@ -762,7 +762,7 @@ const FIELD_LABELS: Record<string, string> = {
   aiCompose: "AI 写作/月",
   aiEnhance: "AI 润色/月",
   aiChat: "AI 对话/月",
-  styles: "封面风格",
+  styles: "AI写作风格数",
 };
 const FIELDS = Object.keys(FIELD_LABELS) as (keyof typeof FIELD_LABELS)[];
 
