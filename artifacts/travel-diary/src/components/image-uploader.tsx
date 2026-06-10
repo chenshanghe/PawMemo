@@ -2,21 +2,10 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useUpload } from "@workspace/object-storage-web";
 import { Camera, Upload, X, ImageIcon, Loader2, ClipboardPaste } from "lucide-react";
 import { cn } from "@/lib/utils";
-import imageCompression from "browser-image-compression";
+import { compressImageWithFallback } from "@/lib/compress-image";
 import { convertHeicToJpeg } from "@/lib/heic-convert";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-const SKIP_BYTES = 600 * 1024;
-
-const COMPRESS_OPTIONS = {
-  maxSizeMB: 1.5,
-  maxWidthOrHeight: 1600,
-  useWebWorker: true,
-  initialQuality: 0.75,
-  maxIteration: 4,
-  preserveExif: false,
-};
 
 interface ImageUploaderProps {
   value?: string;
@@ -72,10 +61,8 @@ export function ImageUploader({ value, onChange, className, label = "上传图�
       // Step 1: HEIC → JPEG (no-op for other formats)
       const converted = await convertHeicToJpeg(file);
 
-      // Step 2: compress if large
-      toUpload = converted.size <= SKIP_BYTES
-        ? converted
-        : await imageCompression(converted, COMPRESS_OPTIONS);
+      // Step 2: compress (shared utility handles skip logic + WebP output)
+      toUpload = await compressImageWithFallback(converted);
     } finally {
       setCompressing(false);
     }

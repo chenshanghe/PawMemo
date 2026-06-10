@@ -3,24 +3,13 @@ import { getGetEntryQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera, Images, Loader2, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import imageCompression from "browser-image-compression";
+import { compressImageWithFallback } from "@/lib/compress-image";
 import { convertHeicToJpeg, isHeic } from "@/lib/heic-convert";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-// ── Compression config ──────────────────────────────────────────────────────
-const SKIP_BYTES = 600 * 1024;
-const MAX_EDGE = 1600;
-const JPEG_QUALITY = 0.8;
-
-const FALLBACK_OPTIONS = {
-  maxSizeMB: 1.5,
-  maxWidthOrHeight: MAX_EDGE,
-  useWebWorker: true,
-  initialQuality: 0.75,
-  maxIteration: 4,
-  preserveExif: false,
-};
+// SKIP_BYTES kept here for the status label logic only; actual skip is inside compressImage
+const SKIP_BYTES = 250 * 1024;
 
 // ── Concurrency limiters ────────────────────────────────────────────────────
 const COMPRESS_CONCURRENCY = 2;
@@ -46,55 +35,6 @@ function createSemaphore(max: number) {
   };
 }
 
-// ── Native canvas compression ────────────────────────────────────────────────
-async function compressViaCanvas(file: File): Promise<File> {
-  if (typeof createImageBitmap !== "function") {
-    throw new Error("createImageBitmap unsupported");
-  }
-  const bitmap = await createImageBitmap(file);
-  try {
-    const { width, height } = bitmap;
-    const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
-    const w = Math.max(1, Math.round(width * scale));
-    const h = Math.max(1, Math.round(height * scale));
-
-    const useOffscreen = typeof OffscreenCanvas !== "undefined";
-    const canvas: HTMLCanvasElement | OffscreenCanvas = useOffscreen
-      ? new OffscreenCanvas(w, h)
-      : Object.assign(document.createElement("canvas"), { width: w, height: h });
-    if (!useOffscreen) {
-      (canvas as HTMLCanvasElement).width = w;
-      (canvas as HTMLCanvasElement).height = h;
-    }
-    const ctx = (canvas as any).getContext("2d");
-    if (!ctx) throw new Error("2d context unavailable");
-    ctx.drawImage(bitmap, 0, 0, w, h);
-
-    const blob: Blob = useOffscreen
-      ? await (canvas as OffscreenCanvas).convertToBlob({ type: "image/jpeg", quality: JPEG_QUALITY })
-      : await new Promise<Blob>((resolve, reject) => {
-          (canvas as HTMLCanvasElement).toBlob(
-            (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
-            "image/jpeg",
-            JPEG_QUALITY,
-          );
-        });
-
-    if (blob.size >= file.size) return file;
-    const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
-    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
-  } finally {
-    bitmap.close?.();
-  }
-}
-
-async function compressImage(file: File): Promise<File> {
-  try {
-    return await compressViaCanvas(file);
-  } catch {
-    return await imageCompression(file, FALLBACK_OPTIONS);
-  }
-}
 
 // ── Types ───────────────────────────────────────────────────────────────────
 interface QueueItem {
@@ -231,10 +171,7 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
 
         // Step 2: Compress (semaphore-limited; runs parallel to presign fetch)
         updateItem(item.id, { progress: 15 });
-        const toUpload = await compressSem(async () => {
-          if (sourceFile.size <= SKIP_BYTES) return sourceFile;
-          return compressImage(sourceFile);
-        });
+        const toUpload = await compressSem(async () => compressImageWithFallback(sourceFile));
         updateItem(item.id, { progress: 38 });
 
         // Step 3: Wait for presigned URL — usually already resolved by now
