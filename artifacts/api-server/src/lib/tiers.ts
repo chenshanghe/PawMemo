@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { userProfilesTable } from "@workspace/db";
+import { userProfilesTable, tierConfigTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 export type Tier = "free" | "pro" | "plus";
@@ -13,13 +13,49 @@ export interface TierLimits {
   styles: number;
 }
 
-const INF = 999999;
+export const INF = 999999;
 
-export const TIER_LIMITS: Record<Tier, TierLimits> = {
-  free: { entries: 20, photosPerEntry: 3, aiCompose: 3,   aiEnhance: 5,   aiChat: 30,  styles: 3 },
+// Fallback hardcoded limits (used if DB unavailable)
+const DEFAULT_TIER_LIMITS: Record<Tier, TierLimits> = {
+  free: { entries: 20, photosPerEntry: 3, aiCompose: 3,   aiEnhance: 5,   aiChat: 30,   styles: 3 },
   plus: { entries: INF, photosPerEntry: 9, aiCompose: 30,  aiEnhance: 100, aiChat: 1500, styles: INF },
-  pro:  { entries: INF, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 500, styles: INF },
+  pro:  { entries: INF, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 500,  styles: INF },
 };
+
+// 60-second in-memory cache for tier limits
+let tierLimitsCache: { limits: Record<Tier, TierLimits>; expiresAt: number } | null = null;
+
+export async function getTierLimits(): Promise<Record<Tier, TierLimits>> {
+  const now = Date.now();
+  if (tierLimitsCache && now < tierLimitsCache.expiresAt) return tierLimitsCache.limits;
+  try {
+    const rows = await db.select().from(tierConfigTable);
+    if (rows.length === 0) return DEFAULT_TIER_LIMITS;
+    const limits = { ...DEFAULT_TIER_LIMITS };
+    for (const row of rows) {
+      if (row.tier === "free" || row.tier === "plus" || row.tier === "pro") {
+        limits[row.tier] = {
+          entries: row.entries,
+          photosPerEntry: row.photosPerEntry,
+          aiCompose: row.aiCompose,
+          aiEnhance: row.aiEnhance,
+          aiChat: row.aiChat,
+          styles: row.styles,
+        };
+      }
+    }
+    tierLimitsCache = { limits, expiresAt: now + 60_000 };
+    return limits;
+  } catch {
+    return DEFAULT_TIER_LIMITS;
+  }
+}
+
+export function invalidateTierLimitsCache() {
+  tierLimitsCache = null;
+}
+
+export const TIER_LIMITS: Record<Tier, TierLimits> = DEFAULT_TIER_LIMITS;
 
 export const TIER_NAMES: Record<Tier, string> = {
   free: "旅行者",
@@ -43,12 +79,12 @@ function startOfMonth(): Date {
 }
 
 export async function getUserTier(userId: string): Promise<{ tier: Tier; limits: TierLimits; profile: typeof userProfilesTable.$inferSelect | null }> {
-  const [profile] = await db
-    .select()
-    .from(userProfilesTable)
-    .where(eq(userProfilesTable.userId, userId));
+  const [[profile], tierLimits] = await Promise.all([
+    db.select().from(userProfilesTable).where(eq(userProfilesTable.userId, userId)),
+    getTierLimits(),
+  ]);
 
-  if (!profile) return { tier: "free", limits: TIER_LIMITS.free, profile: null };
+  if (!profile) return { tier: "free", limits: tierLimits.free, profile: null };
 
   let tier: Tier = "free";
   if (isValidTier(profile.subscriptionTier) && !isExpired(profile)) {
@@ -63,7 +99,7 @@ export async function getUserTier(userId: string): Promise<{ tier: Tier; limits:
     ).catch(() => {});
   }
 
-  return { tier, limits: TIER_LIMITS[tier], profile };
+  return { tier, limits: tierLimits[tier], profile };
 }
 
 export async function checkAndIncrAiCompose(userId: string): Promise<

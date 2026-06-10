@@ -336,3 +336,17 @@ export const appChangelogsTable = pgTable("app_changelogs", {
 });
 
 export type AppChangelog = typeof appChangelogsTable.$inferSelect;
+
+// ── Tier Config ───────────────────────────────────────────────────────────────
+export const tierConfigTable = pgTable("tier_config", {
+  tier: text("tier").notNull().primaryKey(),       // free | plus | pro
+  entries: integer("entries").notNull().default(20),
+  photosPerEntry: integer("photos_per_entry").notNull().default(3),
+  aiCompose: integer("ai_compose").notNull().default(3),
+  aiEnhance: integer("ai_enhance").notNull().default(5),
+  aiChat: integer("ai_chat").notNull().default(30),
+  styles: integer("styles").notNull().default(3),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type TierConfig = typeof tierConfigTable.$inferSelect;

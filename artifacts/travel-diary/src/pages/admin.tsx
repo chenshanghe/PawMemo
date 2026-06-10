@@ -37,7 +37,7 @@ interface EventRow {
   userEmail: string | null; userAvatar: string | null;
 }
 
-type Page = "overview" | "users" | "events" | "revenue" | "knowledge";
+type Page = "overview" | "users" | "events" | "revenue" | "knowledge" | "tiers";
 type SortDir = "asc" | "desc";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -87,6 +87,7 @@ const NAV = [
   { id: "events", label: "事件日志", icon: Activity },
   { id: "revenue", label: "收入分析", icon: TrendingUp },
   { id: "knowledge", label: "AI 知识库", icon: Brain },
+  { id: "tiers", label: "套餐配置", icon: CreditCard },
 ] as const;
 
 function Sidebar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
@@ -749,6 +750,133 @@ function RevenuePage({ stats, trends }: { stats: Stats; trends: Trends }) {
   );
 }
 
+// ── Tier Config Page ──────────────────────────────────────────────────────────
+const INF_VAL = 999999;
+const FIELD_LABELS: Record<string, string> = {
+  entries: "日记数量",
+  photosPerEntry: "每篇照片",
+  aiCompose: "AI 写作/月",
+  aiEnhance: "AI 润色/月",
+  aiChat: "AI 对话/月",
+  styles: "封面风格",
+};
+const FIELDS = Object.keys(FIELD_LABELS) as (keyof typeof FIELD_LABELS)[];
+
+type TierRow = {
+  tier: string; entries: number; photosPerEntry: number;
+  aiCompose: number; aiEnhance: number; aiChat: number; styles: number;
+};
+
+function fmtLimit(v: number) { return v >= INF_VAL ? "∞" : String(v); }
+
+function TierCell({ value, onSave }: { value: number; onSave: (v: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(fmtLimit(value));
+
+  const commit = () => {
+    const v = draft.trim() === "∞" || draft.trim() === "" ? INF_VAL : Number(draft);
+    if (!Number.isFinite(v) || v < 0) { setDraft(fmtLimit(value)); setEditing(false); return; }
+    onSave(Math.round(v));
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
+        onBlur={commit} onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(fmtLimit(value)); setEditing(false); } }}
+        className="w-20 px-2 py-1 text-sm text-center rounded border border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+    );
+  }
+  return (
+    <button onClick={() => { setDraft(fmtLimit(value)); setEditing(true); }}
+      className="px-3 py-1 text-sm rounded-lg hover:bg-slate-100 transition-colors font-medium text-slate-800 min-w-[56px]">
+      {fmtLimit(value)}
+    </button>
+  );
+}
+
+function TiersPage() {
+  const [rows, setRows] = useState<TierRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetch("/api/admin/tier-config").then(d => { setRows(Array.isArray(d) ? d : []); setLoading(false); });
+  }, []);
+
+  const handleSave = async (tier: string, field: string, value: number) => {
+    setSaving(`${tier}.${field}`);
+    setRows(prev => prev.map(r => r.tier === tier ? { ...r, [field]: value } : r));
+    await fetch(`${BASE}/api/admin/tier-config/${tier}`, {
+      method: "PATCH", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    setSaving(null);
+  };
+
+  const TIER_ORDER = ["free", "plus", "pro"];
+  const TIER_DISPLAY: Record<string, { label: string; color: string; bg: string }> = {
+    free:  { label: "免费旅行者", color: "text-slate-600", bg: "bg-slate-50" },
+    plus:  { label: "旅记大师 Plus", color: "text-blue-600", bg: "bg-blue-50" },
+    pro:   { label: "探索家 Pro", color: "text-amber-600", bg: "bg-amber-50" },
+  };
+
+  const sorted = TIER_ORDER.map(t => rows.find(r => r.tier === t)).filter(Boolean) as TierRow[];
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+        <CreditCard className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+        <p className="text-xs text-blue-700">
+          点击任意数字即可内联编辑。输入 <code className="bg-blue-100 px-1 rounded">∞</code> 或留空表示无限制。修改后 60 秒内对所有用户生效。
+        </p>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        {loading ? (
+          <div className="px-6 py-12 text-center"><RefreshCw className="w-5 h-5 animate-spin text-slate-400 mx-auto" /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide w-36">配额项目</th>
+                  {sorted.map(r => (
+                    <th key={r.tier} className={`px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide w-32 ${TIER_DISPLAY[r.tier]?.color}`}>
+                      {TIER_DISPLAY[r.tier]?.label ?? r.tier}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {FIELDS.map(field => (
+                  <tr key={field} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-3 text-slate-600 font-medium">{FIELD_LABELS[field]}</td>
+                    {sorted.map(r => (
+                      <td key={r.tier} className="px-5 py-3 text-center">
+                        <div className="flex justify-center items-center gap-1.5">
+                          <TierCell
+                            value={(r as any)[field]}
+                            onSave={v => handleSave(r.tier, field, v)}
+                          />
+                          {saving === `${r.tier}.${field}` && (
+                            <RefreshCw className="w-3 h-3 animate-spin text-blue-400 shrink-0" />
+                          )}
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Knowledge Base Page ───────────────────────────────────────────────────────
 interface KnowledgeItem {
   id: number; title: string; content: string;
@@ -1082,7 +1210,7 @@ export default function AdminPage() {
   }
 
   const pageTitle: Record<Page, string> = {
-    overview: "概览", users: "用户管理", events: "事件日志", revenue: "收入分析", knowledge: "AI 知识库",
+    overview: "概览", users: "用户管理", events: "事件日志", revenue: "收入分析", knowledge: "AI 知识库", tiers: "套餐配置",
   };
 
   return (
@@ -1114,6 +1242,7 @@ export default function AdminPage() {
           {page === "events" && <EventsPage />}
           {page === "revenue" && stats && <RevenuePage stats={stats} trends={trends} />}
           {page === "knowledge" && <KnowledgePage />}
+          {page === "tiers" && <TiersPage />}
         </div>
       </main>
     </div>
