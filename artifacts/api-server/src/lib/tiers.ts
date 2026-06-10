@@ -17,9 +17,9 @@ export const INF = 999999;
 
 // Fallback hardcoded limits (used if DB unavailable)
 const DEFAULT_TIER_LIMITS: Record<Tier, TierLimits> = {
-  free: { entries: 20, photosPerEntry: 3, aiCompose: 3,   aiEnhance: 5,   aiChat: 30,   styles: 3 },
-  plus: { entries: INF, photosPerEntry: 9, aiCompose: 30,  aiEnhance: 100, aiChat: 1500, styles: INF },
-  pro:  { entries: INF, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 500,  styles: INF },
+  free: { entries: 20, photosPerEntry: 3,  aiCompose: 3,   aiEnhance: 5,   aiChat: 30,   styles: 3 },
+  pro:  { entries: INF, photosPerEntry: 9,  aiCompose: 30,  aiEnhance: 100, aiChat: 500,  styles: INF },
+  plus: { entries: INF, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 1500, styles: INF },
 };
 
 // 60-second in-memory cache for tier limits
