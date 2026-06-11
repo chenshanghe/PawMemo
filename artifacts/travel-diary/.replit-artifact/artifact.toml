@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "红薯旅行日记"
+title = "顽童记"
 version = "1.0.0"
 id = "artifacts/travel-diary"
 router = "path"
