@@ -19,8 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Save, Star, X, Plus, Sparkles, Loader2, MapPin, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Star, X, Plus, Sparkles, Loader2, MapPin, CheckCircle2, Images, Camera } from "lucide-react";
 import { ImageUploader } from "@/components/image-uploader";
+import { PhotoUploader } from "@/components/photo-uploader";
+import { toast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -79,6 +81,10 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Auto-draft for photo upload on new entry
+  const [draftEntryId, setDraftEntryId] = useState<number | null>(null);
+  const [creatingDraft, setCreatingDraft] = useState(false);
 
   // Quota upgrade dialog
   const [upgradeInfo, setUpgradeInfo] = useState<{ code: "ENTRY_LIMIT" | "PHOTO_LIMIT"; tier: string; limit: number } | null>(null);
@@ -182,6 +188,53 @@ export default function EntryForm({ entryId }: EntryFormProps) {
     setNewTagNames((prev) => prev.filter((n) => n !== name));
   };
 
+  const createDraftAndUpload = async () => {
+    if (!form.title.trim() || !form.destination.trim() || !form.startDate) {
+      toast({ description: "请先填写标题、目的地和出发日期，才能上传照片", variant: "destructive" });
+      return;
+    }
+    setCreatingDraft(true);
+    try {
+      const token = await getToken();
+      const resp = await fetch(`${BASE}/api/entries`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          title: form.title.trim(),
+          destination: form.destination.trim(),
+          startDate: form.startDate,
+          endDate: form.endDate || undefined,
+          companions: form.companions || undefined,
+          mood: form.mood || undefined,
+          rating: form.rating || undefined,
+          visibility: "private",
+          lat: form.lat,
+          lng: form.lng,
+          weather: weather ?? undefined,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        if (err?.code === "ENTRY_LIMIT") {
+          setUpgradeInfo({ code: "ENTRY_LIMIT", tier: err.tier ?? "free", limit: err.limit ?? 20 });
+          return;
+        }
+        throw new Error("创建草稿失败");
+      }
+      const created = await resp.json();
+      setDraftEntryId(created.id);
+      queryClient.invalidateQueries({ queryKey: getListEntriesQueryKey() });
+    } catch (err: any) {
+      toast({ description: err.message ?? "创建草稿失败，请稍后重试", variant: "destructive" });
+    } finally {
+      setCreatingDraft(false);
+    }
+  };
+
   const handleAiEnhance = async () => {
     if (!form.content.trim()) return;
     setAiLoading(true);
@@ -266,6 +319,24 @@ export default function EntryForm({ entryId }: EntryFormProps) {
             queryClient.invalidateQueries({ queryKey: getListEntriesQueryKey() });
             queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(entryId!) });
             setLocation(`/entries/${updated.id}`);
+          },
+        }
+      );
+    } else if (draftEntryId) {
+      updateEntry.mutate(
+        { id: draftEntryId, data: payload },
+        {
+          onSuccess: (updated) => {
+            clearDraft();
+            queryClient.invalidateQueries({ queryKey: getListEntriesQueryKey() });
+            queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(draftEntryId) });
+            setLocation(`/entries/${updated.id}`);
+          },
+          onError: (err: any) => {
+            const body = err?.data ?? err;
+            if (body?.code === "ENTRY_LIMIT") {
+              setUpgradeInfo({ code: "ENTRY_LIMIT", tier: body.tier ?? "free", limit: body.limit ?? 20 });
+            }
           },
         }
       );
@@ -522,6 +593,38 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                 />
               </div>
 
+              {/* Multi-photo uploader */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">旅途照片</Label>
+                {(isEditing || draftEntryId) ? (
+                  <PhotoUploader entryId={isEditing ? entryId! : draftEntryId!} />
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={creatingDraft}
+                        onClick={createDraftAndUpload}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted/40 border border-border/60 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {creatingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Images className="w-4 h-4" />}
+                        选择多张照片
+                      </button>
+                      <button
+                        type="button"
+                        disabled={creatingDraft}
+                        onClick={createDraftAndUpload}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted/40 border border-border/60 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {creatingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                        拍照上传
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">支持同时选择多张，含 HEIC · 大图自动压缩，小图直接上传</p>
+                  </div>
+                )}
+              </div>
+
               {/* Video URL */}
               <div className="space-y-2">
                 <Label htmlFor="videoUrl" className="text-sm font-medium">旅途视频链接（可选）</Label>
@@ -656,49 +759,47 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                 className="bg-background border-border/60 resize-none font-serif text-base leading-relaxed"
               />
 
-              {isEditing && (
-                <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-2.5">
-                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
-                    AI 文笔优化
-                  </p>
-                  <div className="flex gap-2 items-stretch">
-                    <Textarea
-                      placeholder="描述优化要求（留空则自动润色语法和文笔）"
-                      value={aiInstruction}
-                      onChange={(e) => setAiInstruction(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleAiEnhance(); }
-                      }}
-                      disabled={aiLoading}
-                      rows={3}
-                      className="bg-background border-border/60 text-sm min-h-[80px] resize-y flex-1"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={aiLoading ? () => abortRef.current?.abort() : handleAiEnhance}
-                      disabled={!form.content.trim()}
-                      className="shrink-0 gap-1.5 self-stretch h-auto"
-                      variant={aiLoading ? "outline" : "default"}
-                    >
-                      {aiLoading ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          停止
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5" />
-                          AI 优化
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  {aiError && <p className="text-xs text-destructive">{aiError}</p>}
-                  {aiLoading && <p className="text-xs text-muted-foreground animate-pulse">正在优化中，内容实时更新...</p>}
+              <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-2.5">
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  AI 文笔优化
+                </p>
+                <div className="flex gap-2 items-stretch">
+                  <Textarea
+                    placeholder="描述优化要求（留空则自动润色语法和文笔）"
+                    value={aiInstruction}
+                    onChange={(e) => setAiInstruction(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleAiEnhance(); }
+                    }}
+                    disabled={aiLoading}
+                    rows={3}
+                    className="bg-background border-border/60 text-sm min-h-[80px] resize-y flex-1"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={aiLoading ? () => abortRef.current?.abort() : handleAiEnhance}
+                    disabled={!form.content.trim()}
+                    className="shrink-0 gap-1.5 self-stretch h-auto"
+                    variant={aiLoading ? "outline" : "default"}
+                  >
+                    {aiLoading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        停止
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        AI 优化
+                      </>
+                    )}
+                  </Button>
                 </div>
-              )}
+                {aiError && <p className="text-xs text-destructive">{aiError}</p>}
+                {aiLoading && <p className="text-xs text-muted-foreground animate-pulse">正在优化中，内容实时更新...</p>}
+              </div>
             </div>
           </div>
 
