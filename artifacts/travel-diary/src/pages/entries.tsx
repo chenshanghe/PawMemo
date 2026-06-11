@@ -102,7 +102,7 @@ export default function Entries() {
             <h2 className="text-2xl md:text-3xl font-serif font-black text-foreground tracking-tight">旅记册</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               {isLoading ? "加载中…" : (
-                <>{narrativeEntries?.length ?? 0} 篇游记 · {noteEntries?.length ?? 0} 篇随记</>
+                <>{narrativeEntries?.length ?? 0} 篇选集 · {noteEntries?.length ?? 0} 篇随记</>
               )}
             </p>
           </div>
@@ -207,14 +207,14 @@ export default function Entries() {
           </div>
         )}
 
-        {/* ── AI 合成游记 Banner ── */}
+        {/* ── AI 合成选集 Banner ── */}
         {!selectMode ? (
           <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-sm">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-foreground">AI 合成游记</p>
+              <p className="text-sm font-bold text-foreground">AI 合成选集</p>
               <p className="text-xs text-muted-foreground mt-0.5">选 2 篇以上随记，自动生成完整旅行故事</p>
             </div>
             <button
@@ -227,7 +227,7 @@ export default function Entries() {
         ) : (
           <div className="rounded-xl border border-primary/30 bg-primary/8 px-4 py-3 text-sm text-primary flex items-center gap-3">
             <CheckSquare className="w-4 h-4 shrink-0" />
-            <span>正在显示随记 —— 选 <strong>2 篇或以上</strong>，AI 合成完整游记</span>
+            <span>正在显示随记 —— 选 <strong>2 篇或以上</strong>，AI 合成完整选集</span>
           </div>
         )}
 
@@ -272,11 +272,11 @@ export default function Entries() {
                 : <BookOpen className="w-8 h-8 text-primary/70" />}
             </div>
             <h3 className="text-xl font-serif font-bold mb-2 text-foreground">
-              {selectMode ? "还没有随记" : hasFilters ? "没有找到匹配的日记" : "还没有合成游记"}
+              {selectMode ? "还没有随记" : hasFilters ? "没有找到匹配的日记" : "还没有合成选集"}
             </h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs leading-relaxed">
               {selectMode
-                ? "在旅途中随手记录几个瞬间，再用 AI 合成为完整游记。"
+                ? "在旅途中随手记录几个瞬间，再用 AI 合成为完整选集。"
                 : hasFilters ? "试试调整搜索条件或清除筛选。"
                 : "选几篇零散的随记，让 AI 帮你编织成一篇完整的旅行故事。"}
             </p>
@@ -286,7 +286,7 @@ export default function Entries() {
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm"
               >
                 <Sparkles className="w-4 h-4" />
-                去合成游记
+                去合成选集
               </button>
             )}
           </div>

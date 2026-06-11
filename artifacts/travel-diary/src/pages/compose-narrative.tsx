@@ -103,7 +103,7 @@ export default function ComposeNarrative() {
           if (filtered.length < 2) { navigate("/entries"); return; }
           setSources(filtered);
           const destinations = [...new Set(filtered.map((e) => e.destination))];
-          setTitle(destinations.join("·") + " 游记");
+          setTitle(destinations.join("·") + " 选集");
         }
         if (stylesRes.ok) setSavedStyles(await stylesRes.json());
       } finally {
@@ -344,9 +344,9 @@ export default function ComposeNarrative() {
         if (!photoRes.ok) {
           const photoErr = await photoRes.json().catch(() => ({}));
           if (photoErr.code === "PHOTO_LIMIT") {
-            setPhotoSaveError(`照片超出上限（${photoErr.limit} 张），游记已保存但未附带图片`);
+            setPhotoSaveError(`照片超出上限（${photoErr.limit} 张），选集已保存但未附带图片`);
           } else {
-            setPhotoSaveError("图片保存失败，游记已保存但未附带图片，可进入游记后手动上传");
+            setPhotoSaveError("图片保存失败，选集已保存但未附带图片，可进入选集后手动上传");
           }
         }
       }
@@ -385,7 +385,7 @@ export default function ComposeNarrative() {
           </Link>
           <div className="flex-1">
             <h2 className="text-xl font-serif font-bold text-foreground flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />AI 合成随记成游记
+              <Sparkles className="w-5 h-5 text-primary" />AI 合成随记成选集
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">从 {sources.length} 篇随记生成完整旅行文章</p>
           </div>
@@ -647,10 +647,10 @@ export default function ComposeNarrative() {
         {/* Save section */}
         {done && narrative.trim() && (
           <div className="space-y-3 pt-2 border-t border-border/40">
-            <p className="text-xs font-semibold text-muted-foreground">保存为游记</p>
+            <p className="text-xs font-semibold text-muted-foreground">保存为选集</p>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">游记标题</label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 bg-card border-border/50 rounded-xl text-sm font-serif" placeholder="给这篇游记起个名字…" />
+              <label className="text-xs font-medium text-muted-foreground">选集标题</label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 bg-card border-border/50 rounded-xl text-sm font-serif" placeholder="给这篇选集起个名字…" />
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <CalendarDays className="w-3.5 h-3.5" />{dateRange}
@@ -676,7 +676,7 @@ export default function ComposeNarrative() {
             ) : (
               <Button onClick={handleSave} disabled={saving || !title.trim()} className="w-full gap-2 rounded-xl h-11 font-semibold">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {saving ? "保存中…" : `保存游记${selectedPhotoIds.size > 0 ? `（含 ${selectedPhotoIds.size} 张图）` : ""}`}
+                {saving ? "保存中…" : `保存选集${selectedPhotoIds.size > 0 ? `（含 ${selectedPhotoIds.size} 张图）` : ""}`}
               </Button>
             )}
           </div>
