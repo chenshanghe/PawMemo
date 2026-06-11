@@ -583,6 +583,18 @@ export default function Me() {
               </div>
             </div>
 
+            {/* ── 足迹地图入口 ─────────────────────────────────── */}
+            <Link href="/map" className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border/60 bg-card hover:bg-muted/40 active:scale-[0.98] transition-all group">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                <Globe className="w-4.5 h-4.5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground leading-tight">足迹地图</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">查看你去过的所有地方</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+            </Link>
+
             {/* ── Subscription card ────────────────────────────── */}
             {sub && sub.tier === "free" && (
               <div className="rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/8 via-primary/4 to-amber-50/70">

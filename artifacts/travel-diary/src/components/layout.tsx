@@ -222,9 +222,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             {canInstall ? <Smartphone className="w-5 h-5" /> : <Share2 className="w-5 h-5" />}
           </button>
-          <Link href="/entries/new" className="w-8 h-8 flex items-center justify-center bg-primary text-primary-foreground rounded-full shadow-sm hover:bg-primary/90 transition-colors">
-            <Plus className="w-4 h-4" />
-          </Link>
         </div>
       </header>
 
@@ -272,8 +269,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Link href="/entries" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isEntries ? "text-primary" : "text-muted-foreground"}`}>
           <BookText className="w-5 h-5" /><span className="text-[10px] font-medium">选集</span>
         </Link>
-        <Link href="/map" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isMap ? "text-primary" : "text-muted-foreground"}`}>
-          <Globe className="w-5 h-5" /><span className="text-[10px] font-medium">地图</span>
+        <Link href="/entries/new" className="flex flex-col items-center -translate-y-3">
+          <span className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 active:scale-95 transition-all">
+            <Plus className="w-7 h-7" />
+          </span>
         </Link>
         <Link href="/square" className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${isSquare ? "text-primary" : "text-muted-foreground"}`}>
           <Map className="w-5 h-5" /><span className="text-[10px] font-medium">广场</span>
