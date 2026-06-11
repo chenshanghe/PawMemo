@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Save, Star, X, Plus, Sparkles, Loader2, MapPin, CheckCircle2, Images, Camera } from "lucide-react";
 import { ImageUploader } from "@/components/image-uploader";
-import { PhotoUploader } from "@/components/photo-uploader";
+import { PhotoUploader, PhotoUploaderHandle } from "@/components/photo-uploader";
 import { toast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
@@ -85,6 +85,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
   // Auto-draft for photo upload on new entry
   const [draftEntryId, setDraftEntryId] = useState<number | null>(null);
   const [creatingDraft, setCreatingDraft] = useState(false);
+  const photoUploaderRef = useRef<PhotoUploaderHandle | null>(null);
 
   // Quota upgrade dialog
   const [upgradeInfo, setUpgradeInfo] = useState<{ code: "ENTRY_LIMIT" | "PHOTO_LIMIT"; tier: string; limit: number } | null>(null);
@@ -188,7 +189,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
     setNewTagNames((prev) => prev.filter((n) => n !== name));
   };
 
-  const createDraftAndUpload = async () => {
+  const createDraftAndUpload = async (mode: "files" | "camera") => {
     if (!form.title.trim() || !form.destination.trim() || !form.startDate) {
       toast({ description: "请先填写标题、目的地和出发日期，才能上传照片", variant: "destructive" });
       return;
@@ -223,13 +224,22 @@ export default function EntryForm({ entryId }: EntryFormProps) {
           setUpgradeInfo({ code: "ENTRY_LIMIT", tier: err.tier ?? "free", limit: err.limit ?? 20 });
           return;
         }
-        throw new Error("创建草稿失败");
+        throw new Error("请先保存草稿再上传照片");
       }
       const created = await resp.json();
       setDraftEntryId(created.id);
       queryClient.invalidateQueries({ queryKey: getListEntriesQueryKey() });
+      // Trigger the file/camera dialog immediately after PhotoUploader mounts.
+      // requestAnimationFrame lets the new render cycle complete first.
+      requestAnimationFrame(() => {
+        if (mode === "camera") {
+          photoUploaderRef.current?.triggerCamera();
+        } else {
+          photoUploaderRef.current?.triggerFiles();
+        }
+      });
     } catch (err: any) {
-      toast({ description: err.message ?? "创建草稿失败，请稍后重试", variant: "destructive" });
+      toast({ description: err.message ?? "请先保存草稿再上传照片", variant: "destructive" });
     } finally {
       setCreatingDraft(false);
     }
@@ -597,14 +607,17 @@ export default function EntryForm({ entryId }: EntryFormProps) {
               <div className="space-y-2">
                 <Label className="text-sm font-medium">旅途照片</Label>
                 {(isEditing || draftEntryId) ? (
-                  <PhotoUploader entryId={isEditing ? entryId! : draftEntryId!} />
+                  <PhotoUploader
+                    ref={isEditing ? undefined : photoUploaderRef}
+                    entryId={isEditing ? entryId! : draftEntryId!}
+                  />
                 ) : (
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         disabled={creatingDraft}
-                        onClick={createDraftAndUpload}
+                        onClick={() => createDraftAndUpload("files")}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted/40 border border-border/60 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {creatingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Images className="w-4 h-4" />}
@@ -613,7 +626,7 @@ export default function EntryForm({ entryId }: EntryFormProps) {
                       <button
                         type="button"
                         disabled={creatingDraft}
-                        onClick={createDraftAndUpload}
+                        onClick={() => createDraftAndUpload("camera")}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted/40 border border-border/60 text-sm text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {creatingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}

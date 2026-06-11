@@ -1,10 +1,15 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
 import { getGetEntryQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera, Images, Loader2, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { compressImageWithFallback } from "@/lib/compress-image";
 import { convertHeicToJpeg, isHeic } from "@/lib/heic-convert";
+
+export interface PhotoUploaderHandle {
+  triggerFiles: () => void;
+  triggerCamera: () => void;
+}
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -59,9 +64,15 @@ interface PhotoUploaderProps {
   className?: string;
 }
 
-export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
+export const PhotoUploader = forwardRef<PhotoUploaderHandle, PhotoUploaderProps>(
+function PhotoUploader({ entryId, className }, ref) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    triggerFiles: () => fileInputRef.current?.click(),
+    triggerCamera: () => cameraInputRef.current?.click(),
+  }));
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const queryClient = useQueryClient();
 
@@ -414,4 +425,5 @@ export function PhotoUploader({ entryId, className }: PhotoUploaderProps) {
       <p className="text-xs text-muted-foreground">支持同时选择多张，含 HEIC · 大图自动压缩，小图直接上传</p>
     </div>
   );
-}
+});
+PhotoUploader.displayName = "PhotoUploader";
