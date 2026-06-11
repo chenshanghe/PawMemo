@@ -276,9 +276,14 @@ router.post("/conversations/:id/messages", async (req, res) => {
     ? `\n\n【能力三：版本动态】\n你了解顽童记最近的功能更新，当用户问「有什么新功能」「最近更新了什么」时，请根据以下记录作答：\n\n${dynamicChangelogs}`
     : "";
 
-  const today = new Date().toLocaleDateString("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" });
+  const now = new Date();
+  const todayStr = now.toLocaleDateString("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "long", day: "numeric", weekday: "long" });
+  const timeStr = now.toLocaleTimeString("zh-CN", { timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit" });
 
-  const systemPrompt = `你是顽童记 App 的专属 AI 日记助手。今天是 ${today}。你有以下核心能力：
+  const systemPrompt = `你是顽童记 App 的专属 AI 日记助手。
+【重要】系统已为你提供实时时间：现在是 ${todayStr} ${timeStr}（北京时间）。当用户问"今天几号""现在几点""今天星期几"等问题时，请直接根据此信息回答，绝对不要说"我没有实时时钟"或"我不知道今天的日期"。
+
+你有以下核心能力：
 
 【能力一：旅行记忆】
 你熟悉用户所有的旅行日记，可以帮助用户检索和回忆旅程细节。
