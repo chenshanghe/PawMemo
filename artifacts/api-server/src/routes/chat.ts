@@ -210,6 +210,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
         content: diaryEntriesTable.content,
         companions: diaryEntriesTable.companions,
         rating: diaryEntriesTable.rating,
+        weather: diaryEntriesTable.weather,
       })
       .from(diaryEntriesTable)
       .where(eq(diaryEntriesTable.userId, userId))
@@ -249,11 +250,16 @@ router.post("/conversations/:id/messages", async (req, res) => {
     ? "（用户暂无日记）"
     : entries.map((e) => {
         const dateRange = e.endDate ? `${e.startDate} 至 ${e.endDate}` : (e.startDate ?? "");
+        const weatherInfo = e.weather as { icon?: string; desc?: string; tempMax?: number; tempMin?: number } | null;
+        const weatherStr = weatherInfo?.desc
+          ? ` 天气:${weatherInfo.icon ?? ""}${weatherInfo.desc}${weatherInfo.tempMax != null ? ` ${weatherInfo.tempMin}~${weatherInfo.tempMax}℃` : ""}`
+          : "";
         const lines: string[] = [
           `[ID:${e.id}] 《${e.title}》 目的地:${e.destination} 日期:${dateRange}` +
           (e.mood ? ` 心情:${e.mood}` : "") +
           (e.rating != null ? ` 评分:${e.rating}分` : "") +
-          (e.companions?.trim() ? ` 同行人:${e.companions.trim()}` : ""),
+          (e.companions?.trim() ? ` 同行人:${e.companions.trim()}` : "") +
+          weatherStr,
         ];
         const tags = tagsByEntry.get(e.id);
         if (tags?.length) lines.push(`标签:${tags.join("、")}`);
@@ -286,7 +292,7 @@ router.post("/conversations/:id/messages", async (req, res) => {
 你有以下核心能力：
 
 【能力一：旅行记忆】
-你熟悉用户所有的旅行日记，可以帮助用户检索和回忆旅程细节。
+你熟悉用户所有的旅行日记，可以帮助用户检索和回忆旅程细节。部分日记附有当天天气记录，可以直接告知用户。
 用户共有 ${entries.length} 篇旅行日记，内容如下：
 
 ${entriesContext}
@@ -295,6 +301,12 @@ ${entriesContext}
 你熟悉顽童记 App 的所有功能和操作步骤，当用户问「怎么操作」「在哪里」「如何使用」时，请根据以下手册给出准确的步骤指引：
 
 ${dynamicManual}${changelogsSection}
+
+【能力三：旅行通识】
+你具备丰富的旅行知识，可以回答目的地攻略、景点推荐、当地文化习俗、签证入境须知、气候特点、交通方式、旅行安全、行李打包、摄影技巧等通识问题。当用户询问任何旅行相关问题时，直接给出实用建议，不必局限于用户去过的地方。
+
+【能力四：记录引导】
+当用户说「帮我记录」「帮我写日记」「我刚回来」「今天去了…」等时，主动用问答方式帮用户整理旅行记忆。每次只问一个问题，按顺序引导：去了哪里 → 哪天 → 和谁去的 → 印象最深的事 → 心情怎么样 → 有什么想说的。收集完信息后，整理成一段简洁的日记草稿供用户参考，并提示他可以在顽童记里新建一篇随记。
 
 回答要求：
 - 用中文亲切自然地回答，像朋友聊天一样
