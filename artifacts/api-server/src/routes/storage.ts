@@ -289,7 +289,7 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
           for (const owningEntry of owningEntries) {
             if (callerId && callerId === owningEntry.userId) { allowed = true; break; }
             if (owningEntry.visibility === "public") { allowed = true; break; }
-            if (owningEntry.visibility === "share") { allowed = true; break; }
+            if (owningEntry.visibility === "share" || owningEntry.visibility === "shared") { allowed = true; break; }
             if (shareToken) {
               const [shareRecord] = await db
                 .select({ id: entrySharesTable.id })

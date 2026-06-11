@@ -219,7 +219,7 @@ async function assertEntryAccessible(
 
   if (viewerUserId && viewerUserId === entry.userId) return entry;
   if (entry.visibility === "public") return entry;
-  if (entry.visibility === "share" && shareToken) {
+  if ((entry.visibility === "share" || entry.visibility === "shared") && shareToken) {
     const [shareRecord] = await db
       .select({ id: entrySharesTable.id })
       .from(entrySharesTable)
