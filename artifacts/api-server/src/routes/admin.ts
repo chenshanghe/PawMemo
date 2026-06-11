@@ -576,10 +576,10 @@ router.patch("/reports/:id/resolve", async (req, res) => {
 });
 
 // ── Tier Config ───────────────────────────────────────────────────────────────
-const TIER_CONFIG_DEFAULTS: Record<string, { entries: number; photosPerEntry: number; aiCompose: number; aiEnhance: number; aiChat: number; styles: number }> = {
-  free: { entries: 20,     photosPerEntry: 3,  aiCompose: 3,   aiEnhance: 5,   aiChat: 30,   styles: 3 },
-  pro:  { entries: 999999, photosPerEntry: 9,  aiCompose: 30,  aiEnhance: 100, aiChat: 500,  styles: 999999 },
-  plus: { entries: 999999, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 1500, styles: 999999 },
+const TIER_CONFIG_DEFAULTS: Record<string, { entries: number; photosPerEntry: number; aiCompose: number; aiEnhance: number; aiChat: number; styles: number; priceFen: number; originalPriceFen: number }> = {
+  free: { entries: 20,     photosPerEntry: 3,  aiCompose: 3,   aiEnhance: 5,   aiChat: 30,   styles: 3,      priceFen: 0,    originalPriceFen: 0 },
+  pro:  { entries: 999999, photosPerEntry: 9,  aiCompose: 30,  aiEnhance: 100, aiChat: 500,  styles: 999999, priceFen: 2800, originalPriceFen: 3500 },
+  plus: { entries: 999999, photosPerEntry: 30, aiCompose: 100, aiEnhance: 300, aiChat: 1500, styles: 999999, priceFen: 6800, originalPriceFen: 9800 },
 };
 
 router.get("/tier-config", async (req, res) => {
@@ -602,7 +602,7 @@ router.patch("/tier-config/:tier", async (req, res) => {
   if (!["free", "pro", "plus"].includes(tier)) {
     res.status(400).json({ error: "invalid tier" }); return;
   }
-  const allowed = ["entries", "photosPerEntry", "aiCompose", "aiEnhance", "aiChat", "styles"] as const;
+  const allowed = ["entries", "photosPerEntry", "aiCompose", "aiEnhance", "aiChat", "styles", "priceFen", "originalPriceFen"] as const;
   type Field = typeof allowed[number];
   const updates: Partial<Record<Field, number>> = {};
   for (const f of allowed) {

@@ -349,6 +349,8 @@ export const tierConfigTable = pgTable("tier_config", {
   aiEnhance: integer("ai_enhance").notNull().default(5),
   aiChat: integer("ai_chat").notNull().default(30),
   styles: integer("styles").notNull().default(3),
+  priceFen: integer("price_fen").notNull().default(0),
+  originalPriceFen: integer("original_price_fen").notNull().default(0),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

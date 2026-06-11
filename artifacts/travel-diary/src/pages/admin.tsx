@@ -769,9 +769,43 @@ const FIELDS = Object.keys(FIELD_LABELS) as (keyof typeof FIELD_LABELS)[];
 type TierRow = {
   tier: string; entries: number; photosPerEntry: number;
   aiCompose: number; aiEnhance: number; aiChat: number; styles: number;
+  priceFen: number; originalPriceFen: number;
 };
 
 function fmtLimit(v: number) { return v >= INF_VAL ? "∞" : String(v); }
+function fmtYuan(fen: number) { return fen === 0 ? "0" : (fen / 100).toFixed(2).replace(/\.00$/, ""); }
+
+function PriceCell({ fen, readOnly, onSave }: { fen: number; readOnly?: boolean; onSave: (fen: number) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(fmtYuan(fen));
+
+  const commit = () => {
+    const yuan = parseFloat(draft.trim());
+    if (!Number.isFinite(yuan) || yuan < 0) { setDraft(fmtYuan(fen)); setEditing(false); return; }
+    onSave(Math.round(yuan * 100));
+    setEditing(false);
+  };
+
+  if (readOnly) {
+    return <span className="px-3 py-1 text-sm font-medium text-slate-400">免费</span>;
+  }
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="text-slate-500 text-sm">¥</span>
+        <input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
+          onBlur={commit} onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(fmtYuan(fen)); setEditing(false); } }}
+          className="w-20 px-2 py-1 text-sm text-center rounded border border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300" />
+      </div>
+    );
+  }
+  return (
+    <button onClick={() => { setDraft(fmtYuan(fen)); setEditing(true); }}
+      className="px-3 py-1 text-sm rounded-lg hover:bg-slate-100 transition-colors font-medium text-slate-800 min-w-[64px]">
+      ¥{fmtYuan(fen)}
+    </button>
+  );
+}
 
 function TierCell({ value, onSave }: { value: number; onSave: (v: number) => void }) {
   const [editing, setEditing] = useState(false);
@@ -875,6 +909,92 @@ function TiersPage() {
                     ))}
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Price Config Card */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-slate-400" />
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">价格配置</span>
+          <span className="text-xs text-slate-400 ml-1">（单位：元/月，点击编辑）</span>
+        </div>
+        {loading ? (
+          <div className="px-6 py-8 text-center"><RefreshCw className="w-4 h-4 animate-spin text-slate-400 mx-auto" /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 w-36">价格项目</th>
+                  {sorted.map(r => (
+                    <th key={r.tier} className={`px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide w-32 ${TIER_DISPLAY[r.tier]?.color}`}>
+                      {TIER_DISPLAY[r.tier]?.label ?? r.tier}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr className="hover:bg-slate-50 transition-colors">
+                  <td className="px-5 py-3 text-slate-600 font-medium">售价（元）</td>
+                  {sorted.map(r => (
+                    <td key={r.tier} className="px-5 py-3 text-center">
+                      <div className="flex justify-center items-center gap-1.5">
+                        <PriceCell
+                          fen={r.priceFen ?? 0}
+                          readOnly={r.tier === "free"}
+                          onSave={fen => handleSave(r.tier, "priceFen", fen)}
+                        />
+                        {saving === `${r.tier}.priceFen` && (
+                          <RefreshCw className="w-3 h-3 animate-spin text-blue-400 shrink-0" />
+                        )}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+                <tr className="hover:bg-slate-50 transition-colors">
+                  <td className="px-5 py-3 text-slate-600 font-medium">原价（元）</td>
+                  {sorted.map(r => (
+                    <td key={r.tier} className="px-5 py-3 text-center">
+                      <div className="flex justify-center items-center gap-1.5">
+                        <PriceCell
+                          fen={r.originalPriceFen ?? 0}
+                          readOnly={r.tier === "free"}
+                          onSave={fen => handleSave(r.tier, "originalPriceFen", fen)}
+                        />
+                        {saving === `${r.tier}.originalPriceFen` && (
+                          <RefreshCw className="w-3 h-3 animate-spin text-blue-400 shrink-0" />
+                        )}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+                <tr className="bg-slate-50/50">
+                  <td className="px-5 py-3 text-slate-400 font-medium text-xs">折扣</td>
+                  {sorted.map(r => {
+                    if (r.tier === "free") {
+                      return <td key={r.tier} className="px-5 py-3 text-center text-slate-400 text-xs">—</td>;
+                    }
+                    const price = r.priceFen ?? 0;
+                    const original = r.originalPriceFen ?? 0;
+                    const hasDiscount = original > 0 && price > 0 && original > price;
+                    const pct = hasDiscount ? Math.round((price / original) * 10) : null;
+                    return (
+                      <td key={r.tier} className="px-5 py-3 text-center">
+                        {hasDiscount ? (
+                          <span className="inline-block bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                            {pct}折
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 text-xs">无折扣</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
               </tbody>
             </table>
           </div>
