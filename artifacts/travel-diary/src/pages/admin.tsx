@@ -773,15 +773,15 @@ type TierRow = {
 };
 
 function fmtLimit(v: number) { return v >= INF_VAL ? "∞" : String(v); }
-function fmtYuan(fen: number) { return fen === 0 ? "0" : (fen / 100).toFixed(2).replace(/\.00$/, ""); }
+function fenToEditStr(fen: number) { return fen === 0 ? "0" : (fen / 100).toFixed(2).replace(/\.00$/, ""); }
 
 function PriceCell({ fen, readOnly, onSave }: { fen: number; readOnly?: boolean; onSave: (fen: number) => void }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(fmtYuan(fen));
+  const [draft, setDraft] = useState(fenToEditStr(fen));
 
   const commit = () => {
     const yuan = parseFloat(draft.trim());
-    if (!Number.isFinite(yuan) || yuan < 0) { setDraft(fmtYuan(fen)); setEditing(false); return; }
+    if (!Number.isFinite(yuan) || yuan < 0) { setDraft(fenToEditStr(fen)); setEditing(false); return; }
     onSave(Math.round(yuan * 100));
     setEditing(false);
   };
@@ -794,15 +794,15 @@ function PriceCell({ fen, readOnly, onSave }: { fen: number; readOnly?: boolean;
       <div className="flex items-center gap-1">
         <span className="text-slate-500 text-sm">¥</span>
         <input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
-          onBlur={commit} onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(fmtYuan(fen)); setEditing(false); } }}
+          onBlur={commit} onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(fenToEditStr(fen)); setEditing(false); } }}
           className="w-20 px-2 py-1 text-sm text-center rounded border border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300" />
       </div>
     );
   }
   return (
-    <button onClick={() => { setDraft(fmtYuan(fen)); setEditing(true); }}
+    <button onClick={() => { setDraft(fenToEditStr(fen)); setEditing(true); }}
       className="px-3 py-1 text-sm rounded-lg hover:bg-slate-100 transition-colors font-medium text-slate-800 min-w-[64px]">
-      ¥{fmtYuan(fen)}
+      {fmtYuan(fen)}
     </button>
   );
 }
