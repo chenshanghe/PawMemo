@@ -10,6 +10,17 @@ const MIGRATIONS: Array<{ name: string; sql: string }> = [
         ADD COLUMN IF NOT EXISTS original_price_fen integer NOT NULL DEFAULT 0;
     `,
   },
+  {
+    name: "002_tier_config_default_prices",
+    sql: `
+      UPDATE tier_config
+      SET price_fen = CASE tier WHEN 'plus' THEN 2800 WHEN 'pro' THEN 6800 END,
+          original_price_fen = CASE tier WHEN 'plus' THEN 3500 WHEN 'pro' THEN 9800 END
+      WHERE tier IN ('plus', 'pro')
+        AND price_fen = 0
+        AND original_price_fen = 0;
+    `,
+  },
 ];
 
 export async function runMigrations(): Promise<void> {
