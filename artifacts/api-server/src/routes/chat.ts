@@ -276,7 +276,9 @@ router.post("/conversations/:id/messages", async (req, res) => {
     ? `\n\n【能力三：版本动态】\n你了解顽童记最近的功能更新，当用户问「有什么新功能」「最近更新了什么」时，请根据以下记录作答：\n\n${dynamicChangelogs}`
     : "";
 
-  const systemPrompt = `你是顽童记 App 的专属 AI 日记助手。你有以下核心能力：
+  const today = new Date().toLocaleDateString("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" });
+
+  const systemPrompt = `你是顽童记 App 的专属 AI 日记助手。今天是 ${today}。你有以下核心能力：
 
 【能力一：旅行记忆】
 你熟悉用户所有的旅行日记，可以帮助用户检索和回忆旅程细节。
