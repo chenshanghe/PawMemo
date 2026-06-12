@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
 import { getGetEntryQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Camera, Images, Loader2, CheckCircle2, X } from "lucide-react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { Camera, Images, Loader2, CheckCircle2, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { compressImageWithFallback } from "@/lib/compress-image";
 import { convertHeicToJpeg, isHeic } from "@/lib/heic-convert";
@@ -59,6 +59,14 @@ type PresignResult =
 
 const SAVE_DEBOUNCE_MS = 250;
 
+interface SavedPhoto {
+  id: number;
+  url: string;
+  caption: string | null;
+  entryId: number;
+  createdAt: string;
+}
+
 interface PhotoUploaderProps {
   entryId: number;
   className?: string;
@@ -74,7 +82,37 @@ function PhotoUploader({ entryId, className }, ref) {
     triggerCamera: () => cameraInputRef.current?.click(),
   }));
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
+
+  // Subscribe to the cached entry data to show already-saved photos.
+  // In edit mode the parent has already fetched this; in draft mode
+  // flushSaves() populates it via setQueryData, triggering this to re-render.
+  const { data: entryData } = useQuery<{ photos?: SavedPhoto[] }>({
+    queryKey: getGetEntryQueryKey(entryId),
+    queryFn: () =>
+      fetch(`${BASE}/api/entries/${entryId}`, { credentials: "include" })
+        .then((r) => r.json()),
+    staleTime: 30_000,
+  });
+  const savedPhotos: SavedPhoto[] = entryData?.photos ?? [];
+
+  const deletePhoto = useCallback(async (photoId: number) => {
+    setDeletingIds((prev) => new Set(prev).add(photoId));
+    try {
+      await fetch(`${BASE}/api/photos/${photoId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      queryClient.setQueryData(getGetEntryQueryKey(entryId), (old: any) => {
+        if (!old) return old;
+        return { ...old, photos: (old.photos ?? []).filter((p: any) => p.id !== photoId) };
+      });
+      queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(entryId) });
+    } finally {
+      setDeletingIds((prev) => { const next = new Set(prev); next.delete(photoId); return next; });
+    }
+  }, [entryId, queryClient]);
 
   const compressSem = useRef(createSemaphore(COMPRESS_CONCURRENCY)).current;
   const uploadSem = useRef(createSemaphore(UPLOAD_CONCURRENCY)).current;
@@ -404,6 +442,38 @@ function PhotoUploader({ entryId, className }, ref) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Saved photos gallery — shows already-persisted photos from DB */}
+      {savedPhotos.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">已保存 {savedPhotos.length} 张</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {savedPhotos.map((photo) => {
+              const isDeleting = deletingIds.has(photo.id);
+              return (
+                <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden bg-muted/30 shadow-sm group">
+                  <img
+                    src={photo.url}
+                    alt={photo.caption ?? ""}
+                    className={cn("w-full h-full object-cover transition-opacity", isDeleting && "opacity-40")}
+                  />
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => deletePhoto(photo.id)}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:cursor-not-allowed"
+                    aria-label="删除照片"
+                  >
+                    {isDeleting
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <Trash2 className="w-3 h-3" />}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
