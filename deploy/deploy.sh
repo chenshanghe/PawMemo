@@ -52,17 +52,21 @@ SCP="scp $SSH_OPTS"
 
 info "目标服务器：$DEPLOY_USER@$DEPLOY_HOST"
 
-# ── 4. 显式确认（防止误触"Run"按钮触发生产部署）────────────────────────────
+# ── 4. 安全确认（交互式 Shell 需输入，Workflow 通过 DEPLOY_CONFIRM=yes 跳过）──
 echo ""
 echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${RED}  ⚠  生产部署确认${NC}"
+echo -e "${RED}  ⚠  即将部署到生产服务器：$DEPLOY_HOST${NC}"
 echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo "  即将部署到：$DEPLOY_USER@$DEPLOY_HOST"
-echo "  此操作将覆盖线上版本。"
 echo ""
-echo "  继续请输入  deploy  并按回车（Ctrl+C 取消）："
-read -r CONFIRM
-[[ "$CONFIRM" != "deploy" ]] && die "部署已取消（输入不匹配）"
+if [[ -t 0 ]]; then
+  # 在交互式终端中运行：要求手动确认
+  echo "  继续请输入  deploy  并按回车（Ctrl+C 取消）："
+  read -r CONFIRM
+  [[ "$CONFIRM" != "deploy" ]] && die "部署已取消"
+elif [[ "${DEPLOY_CONFIRM:-}" != "yes" ]]; then
+  # 非交互式（Workflow）且未设置 DEPLOY_CONFIRM=yes：拒绝执行
+  die "Workflow 中运行须先在 Replit Secrets 中添加 DEPLOY_CONFIRM=yes"
+fi
 echo ""
 
 # ── 5. 本地构建（提前发现错误） ─────────────────────────────────────────────
