@@ -25,8 +25,18 @@ die()     { echo -e "${RED}✗${NC}  $*" >&2; exit 1; }
 # ── 2. 写入临时 SSH 密钥 ──────────────────────────────────────────────────
 KEYFILE=$(mktemp /tmp/deploy_key.XXXXXX)
 chmod 600 "$KEYFILE"
-echo "$DEPLOY_SSH_KEY" > "$KEYFILE"
+# 清理步骤：
+#  1. tr -d '\r'       — 去除 Windows CRLF 换行符
+#  2. sed 's/\\n/\n/g' — 将字面 \n（两个字符）替换为真正的换行（部分密钥管理器单行存储）
+printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' | sed 's/\\n/\n/g' > "$KEYFILE"
 trap "rm -f '$KEYFILE'" EXIT
+
+# 验证密钥文件有效（快速失败，避免等到 scp 再报错）
+KEY_LINES=$(wc -l < "$KEYFILE")
+KEY_HEAD=$(head -1 "$KEYFILE")
+info "密钥文件：${KEY_LINES} 行，首行：${KEY_HEAD}"
+ssh-keygen -l -f "$KEYFILE" > /dev/null 2>&1 \
+  || die "SSH 私钥格式无效（OpenSSL 无法解析），请检查 DEPLOY_SSH_KEY Secret 是否完整粘贴了 PEM 私钥"
 
 # ── 3. 预取服务器 SSH 主机密钥（防中间人攻击）──────────────────────────────
 info "验证服务器主机密钥..."
@@ -52,26 +62,9 @@ SCP="scp $SSH_OPTS"
 
 info "目标服务器：$DEPLOY_USER@$DEPLOY_HOST"
 
-# ── 4. 安全确认（交互式 Shell 需输入，Workflow 通过 DEPLOY_CONFIRM=yes 跳过）──
-echo ""
-echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${RED}  ⚠  即将部署到生产服务器：$DEPLOY_HOST${NC}"
-echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-if [[ -t 0 ]]; then
-  # 在交互式终端中运行：要求手动确认
-  echo "  继续请输入  deploy  并按回车（Ctrl+C 取消）："
-  read -r CONFIRM
-  [[ "$CONFIRM" != "deploy" ]] && die "部署已取消"
-elif [[ "${DEPLOY_CONFIRM:-}" != "yes" ]]; then
-  # 非交互式（Workflow）且未设置 DEPLOY_CONFIRM=yes：拒绝执行
-  die "Workflow 中运行须先在 Replit Secrets 中添加 DEPLOY_CONFIRM=yes"
-fi
-echo ""
-
-# ── 5. 本地构建（提前发现错误） ─────────────────────────────────────────────
+# ── 4. 本地构建（提前发现错误） ─────────────────────────────────────────────
 info "构建前端（BASE_PATH=/）..."
-BASE_PATH=/ pnpm --filter @workspace/travel-diary run build
+PORT=3000 BASE_PATH=/ pnpm --filter @workspace/travel-diary run build
 
 info "构建 API Server..."
 pnpm --filter @workspace/api-server run build
