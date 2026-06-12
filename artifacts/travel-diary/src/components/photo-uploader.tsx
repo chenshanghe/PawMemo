@@ -119,10 +119,21 @@ function PhotoUploader({ entryId, className }, ref) {
         body: JSON.stringify({ urls: pending.map((p) => p.url) }),
       });
       if (!resp.ok) throw new Error("批量保存失败");
+      const { photos: savedPhotos } = (await resp.json()) as { photos: { id: number; url: string; caption: string | null; entryId: number; createdAt: string }[] };
+      // ── Optimistic update: inject new photos into the cache immediately
+      // so the gallery re-renders without waiting for the refetch round-trip.
+      queryClient.setQueryData(getGetEntryQueryKey(entryId), (old: any) => {
+        if (!old) return old;
+        const existingIds = new Set((old.photos ?? []).map((p: any) => p.id));
+        const fresh = (savedPhotos ?? []).filter((p) => !existingIds.has(p.id));
+        if (!fresh.length) return old;
+        return { ...old, photos: [...(old.photos ?? []), ...fresh] };
+      });
+      // Background consistency refresh (doesn't block the UI update above).
       queryClient.invalidateQueries({ queryKey: getGetEntryQueryKey(entryId) });
       ids.forEach((id) => {
         updateItem(id, { status: "done", progress: 100 });
-        removeItemSoon(id, 1200);
+        removeItemSoon(id, 800);
       });
     } catch (err) {
       ids.forEach((id) =>

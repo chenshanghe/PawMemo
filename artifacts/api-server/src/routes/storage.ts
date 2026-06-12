@@ -74,6 +74,15 @@ function aclCacheSet(key: string, decision: AclDecision): void {
   aclCache.set(key, { decision, expiresAt: Date.now() + ACL_CACHE_TTL_MS });
 }
 
+/**
+ * Pre-warm the ACL cache for a newly uploaded object so the first browser
+ * request skips the DB round-trip entirely.  Call this right after inserting
+ * a photo row into the DB.
+ */
+export function preWarmOwnerAcl(storedUrl: string, ownerId: string): void {
+  aclCacheSet(aclCacheKey(storedUrl, ownerId, null), "allow");
+}
+
 // Periodically evict expired entries to prevent unbounded growth.
 setInterval(() => {
   const now = Date.now();

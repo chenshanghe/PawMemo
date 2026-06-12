@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { setPrivateCache } from "../lib/cache";
+import { preWarmOwnerAcl } from "./storage";
 import { db } from "@workspace/db";
 import {
   diaryEntriesTable,
@@ -439,6 +440,10 @@ router.post("/:id/photos/batch", async (req, res) => {
       })),
     )
     .returning();
+  // Pre-warm the ACL cache so the owner's first image load skips the DB queries.
+  for (const photo of photos) {
+    preWarmOwnerAcl(photo.url, userId);
+  }
   res.status(201).json({ photos });
 });
 
