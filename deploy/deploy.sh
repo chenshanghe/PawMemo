@@ -127,6 +127,17 @@ BASE_PATH=/ pnpm --filter @workspace/travel-diary run build
 echo "  构建 API Server..."
 pnpm --filter @workspace/api-server run build
 
+# 加载 .env 到当前 shell 环境（让 PM2 通过 --update-env 继承）
+if [[ -f "$APP_DIR/.env" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$APP_DIR/.env"
+  set +a
+  echo "  ✓ 已加载 $APP_DIR/.env"
+else
+  echo "  ⚠  未找到 $APP_DIR/.env，跳过加载（确保已手动配置环境变量）"
+fi
+
 # 启动或重载 PM2
 echo "  重启服务..."
 if pm2 list | grep -q "wantong-api"; then

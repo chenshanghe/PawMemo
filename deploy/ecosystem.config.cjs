@@ -29,9 +29,13 @@ module.exports = {
       // 实例数（单核服务器设为 1，多核可设为 "max"）
       instances: 1,
 
-      // 日志
-      error_file: "/var/log/pm2/wantong-error.log",
-      out_file: "/var/log/pm2/wantong-out.log",
+      // 日志（优先写到 /var/log/pm2，不存在则回落到 PM2 默认的 ~/.pm2/logs/）
+      error_file: process.env.PM2_LOG_DIR
+        ? `${process.env.PM2_LOG_DIR}/wantong-error.log`
+        : "/var/log/pm2/wantong-error.log",
+      out_file: process.env.PM2_LOG_DIR
+        ? `${process.env.PM2_LOG_DIR}/wantong-out.log`
+        : "/var/log/pm2/wantong-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       merge_logs: true,
 

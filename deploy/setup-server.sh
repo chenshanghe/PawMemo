@@ -36,9 +36,15 @@ echo "pnpm: $(pnpm -v)"
 # ── 4. PM2 ────────────────────────────────────────────────────────────────
 if ! command -v pm2 &>/dev/null; then
   npm install -g pm2
-  pm2 startup systemd -u "$APP_USER" --hp "/home/$APP_USER"
 fi
+# 配置开机自启（无论是否刚安装）
+pm2 startup systemd -u "$APP_USER" --hp "/home/$APP_USER" | tail -1 | bash || true
 echo "PM2: $(pm2 -v)"
+
+# 创建 PM2 日志目录并授权给应用用户
+mkdir -p /var/log/pm2
+chown -R "$APP_USER:$APP_USER" /var/log/pm2
+echo "✓ /var/log/pm2 已创建并授权给 $APP_USER"
 
 # ── 5. 应用目录 ───────────────────────────────────────────────────────────
 mkdir -p "$APP_DIR"
