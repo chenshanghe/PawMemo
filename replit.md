@@ -35,6 +35,7 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 ## User preferences
 
 - 每次修改完成后，都要调用 `presentArtifact` 给用户展示运行链接。
+- 所有面向用户的过程提示、步骤说明、日志输出等一律用中文写。
 
 ## Gotchas
 
