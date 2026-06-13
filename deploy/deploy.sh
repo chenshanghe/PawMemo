@@ -79,51 +79,29 @@ SCP="scp $SSH_OPTS"
 
 info "目标服务器：$DEPLOY_USER@$DEPLOY_HOST"
 
-# ── 4. 本地构建（提前发现错误） ─────────────────────────────────────────────
-info "构建前端（BASE_PATH=/）..."
-PORT=3000 BASE_PATH=/ pnpm --filter @workspace/travel-diary run build
-
-info "构建 API Server..."
-pnpm --filter @workspace/api-server run build
-
-# ── 6. 打包源码（不含 node_modules / .git / .env） ───────────────────────
-info "打包部署包..."
-TMPDIR_PACK=$(mktemp -d)
-ARCHIVE="$TMPDIR_PACK/wantong-deploy.tar.gz"
-
-tar czf "$ARCHIVE" \
+# ── 4. 上传源码（SSH 管道流式传输，跳过大文件） ─────────────────────────────
+info "上传源码到服务器（SSH 管道）..."
+# 只传源码，排除 node_modules/dist/map 等大文件
+# SSH 管道比 SCP 更适合高延迟跨境网络
+tar czf - \
+  --exclude='./node_modules' \
+  --exclude='./.git' \
+  --exclude='./.local' \
   --exclude='*/node_modules' \
-  --exclude='.git' \
-  --exclude='**/.cache' \
+  --exclude='*/dist' \
+  --exclude='*/.cache' \
   --exclude='**/.env' \
   --exclude='**/.env.local' \
-  --exclude='**/dist/.vite' \
+  --exclude='*.map' \
   --exclude='*.log' \
-  --exclude='.local' \
-  .
+  . | $SSH "mkdir -p /app && cd /app && [[ -f .env ]] && cp .env /tmp/.env.bak; tar xzf - ; [[ -f /tmp/.env.bak ]] && mv /tmp/.env.bak .env; echo '源码解压完成'"
 
-ARCHIVE_SIZE=$(du -sh "$ARCHIVE" | cut -f1)
-info "包大小：$ARCHIVE_SIZE"
-
-# ── 7. 上传到服务器 ────────────────────────────────────────────────────────
-info "上传到服务器..."
-$SCP "$ARCHIVE" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/wantong-deploy.tar.gz"
-rm -rf "$TMPDIR_PACK"
-
-# ── 8. 服务器端：解压 → 安装依赖 → 构建 → 重启 ────────────────────────────
-info "在服务器上部署..."
+# ── 5. 服务器端：安装依赖 → 构建 → 重启 ──────────────────────────────────
+info "在服务器上构建并启动..."
 $SSH bash -s << 'REMOTE'
 set -euo pipefail
 APP_DIR=/app
-
-# 解压（覆盖同名文件，保留 .env）
-echo "  解压源码..."
 cd "$APP_DIR"
-# 备份 .env 防止被覆盖（tar 不包含 .env，但以防万一）
-[[ -f .env ]] && cp .env /tmp/.env.bak
-tar xzf /tmp/wantong-deploy.tar.gz -C "$APP_DIR"
-[[ -f /tmp/.env.bak ]] && mv /tmp/.env.bak .env
-rm -f /tmp/wantong-deploy.tar.gz
 
 # 安装依赖
 echo "  安装依赖..."
@@ -135,7 +113,7 @@ cd lib/db && npx tsc --build && cd "$APP_DIR"
 
 # 构建前端（生产模式，BASE_PATH=/）
 echo "  构建前端..."
-BASE_PATH=/ pnpm --filter @workspace/travel-diary run build
+PORT=3000 BASE_PATH=/ pnpm --filter @workspace/travel-diary run build
 
 # 构建 API Server
 echo "  构建 API Server..."
@@ -144,12 +122,11 @@ pnpm --filter @workspace/api-server run build
 # 加载 .env 到当前 shell 环境（让 PM2 通过 --update-env 继承）
 if [[ -f "$APP_DIR/.env" ]]; then
   set -a
-  # shellcheck source=/dev/null
   source "$APP_DIR/.env"
   set +a
   echo "  ✓ 已加载 $APP_DIR/.env"
 else
-  echo "  ⚠  未找到 $APP_DIR/.env，跳过加载（确保已手动配置环境变量）"
+  echo "  ⚠  未找到 $APP_DIR/.env，跳过加载"
 fi
 
 # 启动或重载 PM2
