@@ -25,18 +25,35 @@ die()     { echo -e "${RED}✗${NC}  $*" >&2; exit 1; }
 # ── 2. 写入临时 SSH 密钥 ──────────────────────────────────────────────────
 KEYFILE=$(mktemp /tmp/deploy_key.XXXXXX)
 chmod 600 "$KEYFILE"
-# 清理步骤：
-#  1. tr -d '\r'       — 去除 Windows CRLF 换行符
-#  2. sed 's/\\n/\n/g' — 将字面 \n（两个字符）替换为真正的换行（部分密钥管理器单行存储）
-printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' | sed 's/\\n/\n/g' > "$KEYFILE"
+# 用 Python 重建密钥：
+#   - 处理字面 \n（部分 Secret 管理器以转义符存储）
+#   - 处理单行存储（Replit Secret UI 把换行符转成空格的情况）
+printf '%s\n' "$DEPLOY_SSH_KEY" | python3 -c "
+import sys, re
+key = sys.stdin.read().strip()
+# 先把字面 \n 换成真换行
+key = key.replace('\\\\n', '\n')
+# 如果整个 key 仍只有一行（换行被空格替换的情况），重建结构
+if '\n' not in key:
+    key = re.sub(r'----- +', '-----\n', key)   # BEGIN/END 之后的空格 → 换行
+    key = re.sub(r' +-----', '\n-----', key)    # -----END 之前的空格 → 换行
+    lines = key.split('\n')
+    out = []
+    for line in lines:
+        if line.startswith('-----'):
+            out.append(line)
+        else:
+            out.extend(line.split())            # base64 块以空格分隔 → 每块独立一行
+    key = '\n'.join(out)
+print(key)
+" > "$KEYFILE"
 trap "rm -f '$KEYFILE'" EXIT
 
 # 验证密钥文件有效（快速失败，避免等到 scp 再报错）
 KEY_LINES=$(wc -l < "$KEYFILE")
-KEY_HEAD=$(head -1 "$KEYFILE")
-info "密钥文件：${KEY_LINES} 行，首行：${KEY_HEAD}"
+info "密钥文件：${KEY_LINES} 行"
 ssh-keygen -l -f "$KEYFILE" > /dev/null 2>&1 \
-  || die "SSH 私钥格式无效（OpenSSL 无法解析），请检查 DEPLOY_SSH_KEY Secret 是否完整粘贴了 PEM 私钥"
+  || die "SSH 私钥格式无效，请检查 DEPLOY_SSH_KEY Secret 是否完整粘贴了 PEM 私钥"
 
 # ── 3. 预取服务器 SSH 主机密钥（防中间人攻击）──────────────────────────────
 info "验证服务器主机密钥..."
